@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from claude_code_talker.audio import play_wav_bytes
 from claude_code_talker.config import load_full_config
 from claude_code_talker.engines import PiperEngine
 from claude_code_talker.modes.base import ModeStrategy
@@ -106,9 +107,22 @@ def build_mcp_server(state: ServerState) -> MCPServer:
         text = args.get("text", "")
         if not text:
             return "no text"
-        # Phase 1 synthesizes through the active engine and plays.
-        # Implementation deferred to Task 14 to keep this task focused.
-        return f"would speak: {text[:80]}"
+        if not state.cfg.get("enabled", True):
+            return "muted"
+        engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
+        engine = state.engines.get(engine_name)
+        if not engine:
+            raise ValueError(f"engine not registered: {engine_name}")
+        voice = (state.cfg.get("voice") or {}).get("model")
+        rate = float((state.cfg.get("voice") or {}).get("rate", 1.0))
+        if not voice:
+            voices = engine.list_voices()
+            if not voices:
+                return "no voices available"
+            voice = voices[0]
+        wav = engine.synthesize(text, voice, rate)
+        play_wav_bytes(wav)
+        return f"spoke {len(text)} chars"
 
     async def tts_set_mode(args):
         mode = args.get("mode")
