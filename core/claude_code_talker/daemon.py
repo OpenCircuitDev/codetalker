@@ -132,7 +132,31 @@ def spawn_detached(cmd: list[str], log_path: Path | None = None) -> int:
     return proc.pid
 
 
+import asyncio
 import time
+
+
+async def _call_shutdown_tool() -> None:
+    """Connect to the running daemon's MCP endpoint and call tts_shutdown.
+
+    Phase 2A.2: stub that prints a hint. Phase 2A.4 (Task 22) replaces this
+    with a real MCP-over-SSE client roundtrip after SSE wiring lands in A3.
+    """
+    print("(SSE-based shutdown lands in A3; manual SIGTERM still works)")
+
+
+def stop_daemon():
+    """CLI entry point for `claude-code-talker stop`."""
+    pid = read_pidfile(DAEMON_PIDFILE)
+    if pid is None:
+        print("daemon is not running (no pidfile)")
+        return
+    if not is_process_alive(pid):
+        print(f"stale pidfile (PID {pid} not alive); removing")
+        release_pidfile(DAEMON_PIDFILE)
+        return
+    print(f"requesting shutdown of daemon PID {pid}...")
+    asyncio.run(_call_shutdown_tool())
 
 
 def serve_foreground():

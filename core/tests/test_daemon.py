@@ -98,3 +98,37 @@ def test_spawn_detached_invokes_subprocess():
     assert kwargs.get("stdout") is not None
     assert kwargs.get("stderr") is not None
     assert pid == 12345
+
+
+def test_stop_daemon_no_pidfile_prints_message(tmp_path, capsys):
+    """If pidfile doesn't exist, stop_daemon should print 'not running' and exit."""
+    with patch("claude_code_talker.daemon.DAEMON_PIDFILE", tmp_path / "no.pid"):
+        from claude_code_talker.daemon import stop_daemon
+        stop_daemon()
+        captured = capsys.readouterr()
+        assert "not running" in captured.out.lower()
+
+
+def test_stop_daemon_calls_shutdown_tool(tmp_path):
+    """If pidfile exists with live PID, stop_daemon should call _call_shutdown_tool."""
+    pidfile = tmp_path / "codetalker.pid"
+    pidfile.write_text(str(os.getpid()))
+
+    with patch("claude_code_talker.daemon.DAEMON_PIDFILE", pidfile), \
+         patch("claude_code_talker.daemon._call_shutdown_tool") as mock_call:
+        from claude_code_talker.daemon import stop_daemon
+        stop_daemon()
+        mock_call.assert_called_once()
+
+
+def test_stop_daemon_removes_stale_pidfile(tmp_path, capsys):
+    """If pidfile exists but PID is dead, stop_daemon should remove it and report."""
+    pidfile = tmp_path / "codetalker.pid"
+    pidfile.write_text("999999")  # almost certainly dead
+
+    with patch("claude_code_talker.daemon.DAEMON_PIDFILE", pidfile):
+        from claude_code_talker.daemon import stop_daemon
+        stop_daemon()
+        captured = capsys.readouterr()
+        assert "stale" in captured.out.lower()
+        assert not pidfile.exists()
