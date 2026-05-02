@@ -5,6 +5,8 @@ print hook integration instructions.
 """
 from __future__ import annotations
 
+import os
+import socket
 import sys
 from pathlib import Path
 
@@ -60,6 +62,15 @@ def installed_voices() -> list[str]:
     return [p.stem for p in VOICES_DIR.glob("*.onnx")]
 
 
+def _check_ollama_running() -> bool:
+    """Best-effort check: is something listening on localhost:11434?"""
+    try:
+        with socket.create_connection(("127.0.0.1", 11434), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
 def main():
     print("== Claude Code Talker setup ==")
     ensure_directories()
@@ -95,6 +106,26 @@ def main():
     print("  brief      - LLM-translated turn summary at end of each turn")
     print("  live       - sportscaster narration as Claude works (Phase 2B)")
     print("Switch via the workspace config (mode: live) or the tts_set_mode MCP tool.")
+
+    print()
+    print("== LLM Providers ==")
+    ollama_running = _check_ollama_running()
+    print(f"  ollama (local, free):       {'running on localhost:11434' if ollama_running else 'not detected on localhost:11434'}")
+
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        print("  anthropic (Haiku, premium): ANTHROPIC_API_KEY set")
+    else:
+        print("  anthropic (Haiku, premium): ANTHROPIC_API_KEY not set")
+
+    if os.environ.get("OPENROUTER_API_KEY"):
+        print("  openrouter (any model):     OPENROUTER_API_KEY set")
+    else:
+        print("  openrouter (any model):     OPENROUTER_API_KEY not set")
+
+    print()
+    print("Recommendation:")
+    print("  Mode B brief:   anthropic if available (premium quality, low frequency)")
+    print("  Mode C live:    ollama (high frequency; cloud adds up fast)")
     print()
     print("== Hook integration ==")
     print(HOOK_INSTRUCTIONS)
