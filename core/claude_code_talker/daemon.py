@@ -81,3 +81,14 @@ def is_process_alive(pid: int) -> bool:
             return False
         except PermissionError:
             return True  # exists but not ours — still alive
+
+
+DAEMON_PORT = 17832
+DAEMON_PIDFILE = Path.home() / ".claude" / "scripts" / "codetalker.pid"
+DAEMON_LOGFILE = Path.home() / ".claude" / "scripts" / "codetalker.log"
+DAEMON_HOST = "127.0.0.1"
+
+
+def daemon_url() -> str:
+    """Return the SSE endpoint URL for the daemon."""
+    return f"http://{DAEMON_HOST}:{DAEMON_PORT}/sse"

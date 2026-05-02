@@ -67,3 +67,14 @@ def test_acquire_pidfile_replaces_stale(tmp_path):
     acquire_pidfile(pidfile)  # should not raise
     assert pidfile.read_text().strip() == str(os.getpid())
     release_pidfile(pidfile)
+
+
+from claude_code_talker.daemon import DAEMON_PORT, daemon_url
+
+
+def test_daemon_constants():
+    assert DAEMON_PORT == 17832
+
+
+def test_daemon_url_has_sse_path():
+    assert daemon_url() == "http://127.0.0.1:17832/sse"
