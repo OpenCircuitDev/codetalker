@@ -10,14 +10,15 @@ def test_play_wav_bytes_writes_temp_and_plays():
          patch("claude_code_talker.audio.os.close"), \
          patch("claude_code_talker.audio.os.unlink"), \
          patch("claude_code_talker.audio.Path") as mock_path_cls, \
-         patch("claude_code_talker.audio._play_file") as mock_play:
+         patch("claude_code_talker.audio._play_file_interruptible") as mock_play:
         mock_mkstemp.return_value = (1, "/tmp/x.wav")
         mock_path_instance = mock_path_cls.return_value
         mock_path_instance.write_bytes = lambda b: None
 
         play_wav_bytes(b"FAKE_WAV")
 
-        mock_play.assert_called_once_with("/tmp/x.wav")
+        assert mock_play.call_count == 1
+        assert mock_play.call_args[0][0] == "/tmp/x.wav"
 
 
 def test_play_wav_bytes_handles_empty():

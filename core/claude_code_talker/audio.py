@@ -4,6 +4,7 @@ from __future__ import annotations
 import heapq
 import logging
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -11,28 +12,95 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+class _PlaybackHandle:
+    """Tracks the currently-playing audio so it can be stopped."""
+
+    def __init__(self) -> None:
+        self._proc: subprocess.Popen | None = None
+        self._is_winsound: bool = False
+        self._lock = threading.Lock()
+
+    def start_winsound(self) -> None:
+        with self._lock:
+            self._is_winsound = True
+
+    def start_subprocess(self, proc: subprocess.Popen) -> None:
+        with self._lock:
+            self._proc = proc
+
+    def stop(self) -> None:
+        with self._lock:
+            if self._is_winsound:
+                try:
+                    import winsound
+                    winsound.PlaySound(None, winsound.SND_PURGE)
+                except Exception:
+                    pass
+                self._is_winsound = False
+            if self._proc is not None:
+                try:
+                    self._proc.terminate()
+                except Exception:
+                    pass
+                self._proc = None
+
+    def clear(self) -> None:
+        with self._lock:
+            self._proc = None
+            self._is_winsound = False
+
+
 def _play_file(wav_path: str) -> None:
-    """Platform-specific synchronous WAV playback."""
+    """Platform-specific synchronous WAV playback (no interrupt support)."""
     if sys.platform == "win32":
         import winsound
         winsound.PlaySound(wav_path, winsound.SND_FILENAME)
     elif sys.platform == "darwin":
-        import subprocess
         subprocess.run(["afplay", wav_path], check=False)
     else:
-        import subprocess
         subprocess.run(["aplay", "-q", wav_path], check=False)
 
 
-def play_wav_bytes(wav: bytes) -> None:
-    """Play WAV-encoded audio synchronously (blocks until playback completes)."""
+def _play_file_interruptible(wav_path: str, handle: _PlaybackHandle) -> None:
+    """Platform-specific WAV playback with stop() support via the handle."""
+    if sys.platform == "win32":
+        import winsound
+        handle.start_winsound()
+        try:
+            winsound.PlaySound(wav_path, winsound.SND_FILENAME)
+        finally:
+            handle.clear()
+    elif sys.platform == "darwin":
+        proc = subprocess.Popen(["afplay", wav_path])
+        handle.start_subprocess(proc)
+        try:
+            proc.wait()
+        finally:
+            handle.clear()
+    else:
+        proc = subprocess.Popen(["aplay", "-q", wav_path])
+        handle.start_subprocess(proc)
+        try:
+            proc.wait()
+        finally:
+            handle.clear()
+
+
+def play_wav_bytes(wav: bytes, handle: _PlaybackHandle | None = None) -> None:
+    """Play WAV-encoded audio synchronously (blocks until playback completes).
+
+    If a _PlaybackHandle is supplied, playback is interruptible via handle.stop().
+    Without a handle, a throwaway one is used so behavior is unchanged for
+    callers that don't need interruption.
+    """
     if not wav:
         return
+    h = handle if handle is not None else _PlaybackHandle()
     fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="claude_tts_play_")
     os.close(fd)
     try:
         Path(wav_path).write_bytes(wav)
-        _play_file(wav_path)
+        _play_file_interruptible(wav_path, h)
     finally:
         try:
             os.unlink(wav_path)
@@ -67,6 +135,7 @@ class AudioQueue:
         self._queue: list[tuple] = []  # heap of (priority_rank, seq, job)
         self._cv = threading.Condition()
         self._seq = 0
+        self._handle = _PlaybackHandle()
         self._worker = threading.Thread(
             target=self._run, daemon=True, name="codetalker-audio"
         )
@@ -89,6 +158,8 @@ class AudioQueue:
             heapq.heappush(self._queue, (rank, self._seq, job))
             self._enforce_depth_locked()
             self._cv.notify()
+        if job.priority == "alert":
+            self._handle.stop()  # interrupt current playback
 
     def _enforce_depth_locked(self) -> None:
         """Caller holds self._cv. Drops non-alert items if over max_depth."""
@@ -142,6 +213,6 @@ class AudioQueue:
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
-                play_wav_bytes(wav)
+                play_wav_bytes(wav, self._handle)
             except Exception as e:
                 logging.warning("audio job failed: %s", e)

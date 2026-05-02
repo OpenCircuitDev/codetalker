@@ -64,3 +64,13 @@ def test_stale_jobs_dropped_on_dispatch():
     calls = [c.args[0] for c in state.engines["piper"].synthesize.call_args_list]
     assert "stale" not in calls
     assert "fresh" in calls
+
+
+def test_alert_during_normal_calls_handle_stop():
+    state = _state()
+    q = AudioQueue(state)
+    with patch.object(q._handle, "stop") as mock_stop:
+        q.submit(AudioJob(text="normal", voice="v", rate=1.0, priority="normal"))
+        q.submit(AudioJob(text="alert", voice="v", rate=1.0, priority="alert"))
+    # The submit() of an alert should have invoked handle.stop()
+    mock_stop.assert_called_once()

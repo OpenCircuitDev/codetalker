@@ -48,7 +48,8 @@ def test_worker_synthesizes_and_plays():
         q.shutdown(drain_timeout=2.0)
 
     engine.synthesize.assert_called_once_with("hello", "jenny", 1.0)
-    mock_play.assert_called_once_with(b"WAV")
+    args, _ = mock_play.call_args
+    assert args[0] == b"WAV"
 
 
 def test_worker_continues_after_synth_error():
@@ -65,7 +66,9 @@ def test_worker_continues_after_synth_error():
         q.shutdown(drain_timeout=2.0)
 
     assert engine.synthesize.call_count == 2
-    mock_play.assert_called_once_with(b"WAV2")  # only the successful one
+    assert mock_play.call_count == 1
+    args, _ = mock_play.call_args
+    assert args[0] == b"WAV2"  # only the successful one
 
 
 def test_worker_continues_after_play_error():
