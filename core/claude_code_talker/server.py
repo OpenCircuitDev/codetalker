@@ -10,12 +10,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from claude_code_talker.audio import AudioJob, AudioQueue
+from claude_code_talker.cadence import make_cadence
 from claude_code_talker.config import load_full_config
 from claude_code_talker.engines import PiperEngine
 from claude_code_talker.event_buffer import Event, EventBuffer, score_significance
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.modes.direct import DirectMode
 from claude_code_talker.modes.brief import BriefMode
+from claude_code_talker.modes.live import LiveMode
 from claude_code_talker.providers import OllamaProvider
 
 
@@ -43,26 +45,37 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     piper = PiperEngine(piper_exe=PIPER_DIR / "piper.exe", voices_dir=VOICES_DIR)
     ollama = OllamaProvider()
 
-    modes: dict[str, ModeStrategy] = {
-        "direct": DirectMode(),
-        "brief": BriefMode(provider=ollama),
-    }
+    live_cfg = cfg.get("live") or {}
+    cadence_name = live_cfg.get("cadence", "periodic")
+    cadence = make_cadence(cadence_name, live_cfg)
 
     state = ServerState(
         cfg=cfg,
         engines={"piper": piper},
         providers={"ollama": ollama},
-        modes=modes,
-        active_mode="direct",
+        modes={
+            "direct": DirectMode(),
+            "brief": BriefMode(provider=ollama),
+            # LiveMode constructed below after audio_queue + event_buffer are wired
+        },
+        active_mode=cfg.get("active_mode", "direct"),
     )
-    live_cfg = cfg.get("live") or {}
+
+    state.event_buffer = EventBuffer(max_size=int(live_cfg.get("buffer_size", 30)))
     state.audio_queue = AudioQueue(
         state,
         max_depth=int(live_cfg.get("queue_max_depth", 5)),
         staleness_seconds=float(live_cfg.get("staleness_seconds", 20.0)),
     )
     state.audio_queue.start()
-    state.event_buffer = EventBuffer(max_size=30)
+
+    state.modes["live"] = LiveMode(
+        provider=ollama,
+        cadence=cadence,
+        event_buffer=state.event_buffer,
+        audio_queue=state.audio_queue,
+        cfg=cfg,
+    )
     return state
 
 
