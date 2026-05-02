@@ -62,7 +62,7 @@ class AudioQueue:
     pending normals/routines. FIFO within the same priority level.
     """
 
-    def __init__(self, state) -> None:
+    def __init__(self, state, max_depth: int = 5, staleness_seconds: float = 20.0) -> None:
         self._state = state
         self._queue: list[tuple] = []  # heap of (priority_rank, seq, job)
         self._cv = threading.Condition()
@@ -72,6 +72,8 @@ class AudioQueue:
         )
         self._stopped = False
         self._poison = False
+        self._max_depth = max_depth
+        self._staleness = staleness_seconds
 
     def start(self) -> None:
         if not self._worker.is_alive():
@@ -85,7 +87,26 @@ class AudioQueue:
             self._seq += 1
             rank = _PRIORITY_RANK.get(job.priority, 1)
             heapq.heappush(self._queue, (rank, self._seq, job))
+            self._enforce_depth_locked()
             self._cv.notify()
+
+    def _enforce_depth_locked(self) -> None:
+        """Caller holds self._cv. Drops non-alert items if over max_depth."""
+        if len(self._queue) <= self._max_depth:
+            return
+        # Find non-alert items, drop the oldest ones until under cap.
+        # Sort by (rank desc, seq asc) — drop normals/routines first, oldest first.
+        # Iterate copy; reconstruct the heap.
+        to_drop = len(self._queue) - self._max_depth
+        items = list(self._queue)
+        # Keep original tuples (don't unpack) so id() comparison works correctly.
+        non_alerts = [t for t in items if t[2].priority != "alert"]
+        non_alerts.sort(key=lambda x: (-x[0], x[1]))  # least-priority + oldest first
+        drop_set = set(id(t) for t in non_alerts[:to_drop])
+        kept = [t for t in items if id(t) not in drop_set]
+        self._queue.clear()
+        for t in kept:
+            heapq.heappush(self._queue, t)
 
     def shutdown(self, drain_timeout: float = 5.0) -> None:
         with self._cv:
@@ -104,6 +125,7 @@ class AudioQueue:
             time.sleep(0.05)
 
     def _run(self) -> None:
+        import time
         while True:
             with self._cv:
                 while not self._queue and not self._poison:
@@ -113,6 +135,10 @@ class AudioQueue:
                 if not self._queue:
                     continue
                 rank, seq, job = heapq.heappop(self._queue)
+            # Drop stale non-alert jobs
+            if job.priority != "alert" and (time.time() - job.enqueued_at) > self._staleness:
+                logging.debug("dropping stale audio job: %s", job.text[:40])
+                continue
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
