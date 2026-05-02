@@ -127,6 +127,14 @@ def main():
     print("  Mode B brief:   anthropic if available (premium quality, low frequency)")
     print("  Mode C live:    ollama (high frequency; cloud adds up fast)")
     print()
+    print("== Voice cloning (optional) ==")
+    print("Clone any voice via the voice-cloner sub-project:")
+    print("  pip install claude-code-talker-voice-cloner")
+    print("  claude-code-talker-voice-cloner from-youtube --url <YT URL> --start 1:23 --duration 15 --name marvin")
+    print("Then in your workspace config: voice: marvin, engine: xtts")
+    print("Note: XTTS is GPU-accelerated; CPU synthesis is 3-8s per phrase.")
+
+    print()
     print("== Hook integration ==")
     print(HOOK_INSTRUCTIONS)
 
