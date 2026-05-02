@@ -2,6 +2,15 @@ import * as vscode from "vscode";
 import { CodeTalkerClient } from "./mcpClient";
 import { StatusBar } from "./statusBar";
 import { isDaemonRunning, spawnDaemon } from "./daemonProcess";
+import { registerToggle } from "./commands/toggle";
+import { registerChangeMode } from "./commands/changeMode";
+import { registerChangeVoice } from "./commands/changeVoice";
+import { registerChangeCadence } from "./commands/changeCadence";
+import { registerChangeProvider } from "./commands/changeProvider";
+import { registerChangeRate } from "./commands/changeRate";
+import { registerRestartDaemon } from "./commands/restartDaemon";
+import { registerViewLog } from "./commands/viewLog";
+import { registerRunSetup } from "./commands/runSetup";
 
 let client: CodeTalkerClient;
 let statusBar: StatusBar;
@@ -29,8 +38,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   statusBar = new StatusBar(client);
   statusBar.start(cfg.get<number>("statusBarPollIntervalMs", 2000));
-
   context.subscriptions.push({ dispose: () => statusBar.stop() });
+
+  // Command Palette commands
+  registerToggle(context, client);
+  registerChangeMode(context, client);
+  registerChangeVoice(context, client);
+  registerChangeCadence(context, client);
+  registerChangeProvider(context, client);
+  registerChangeRate(context, client);
+  registerRestartDaemon(context, client);
+  registerViewLog(context);
+  registerRunSetup(context);
 }
 
 export async function deactivate() {
