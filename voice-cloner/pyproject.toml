@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-code-talker-voice-cloner"
+version = "0.1.0"
+description = "YouTube → reference WAV pipeline for Claude Code Talker XTTS engine"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "yt-dlp>=2024.0",
+    "pydub>=0.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+]
+
+[project.scripts]
+claude-code-talker-voice-cloner = "claude_code_voice_cloner.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["claude_code_voice_cloner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
