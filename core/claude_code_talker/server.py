@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from claude_code_talker.audio import AudioQueue, play_wav_bytes
+from claude_code_talker.audio import AudioJob, AudioQueue
 from claude_code_talker.config import load_full_config
 from claude_code_talker.engines import PiperEngine
 from claude_code_talker.modes.base import ModeStrategy
@@ -110,9 +110,9 @@ def build_mcp_server(state: ServerState) -> MCPServer:
     async def tts_speak(args):
         text = args.get("text", "")
         if not text:
-            return "no text"
+            return "skipped: no text"
         if not state.cfg.get("enabled", True):
-            return "muted"
+            return "skipped: muted"
         engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
         if not engine:
@@ -122,11 +122,10 @@ def build_mcp_server(state: ServerState) -> MCPServer:
         if not voice:
             voices = engine.list_voices()
             if not voices:
-                return "no voices available"
+                return "skipped: no voices available"
             voice = voices[0]
-        wav = engine.synthesize(text, voice, rate)
-        play_wav_bytes(wav)
-        return f"spoke {len(text)} chars"
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        return f"queued: {len(text)} chars"
 
     async def tts_set_mode(args):
         mode = args.get("mode")
