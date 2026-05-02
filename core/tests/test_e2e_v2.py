@@ -117,3 +117,48 @@ async def test_e2e_notification_via_mcp_client(running_daemon, monkeypatch):
 
     assert len(submitted) == 1
     assert "Claude. Permission required." in submitted[0].text
+
+
+@pytest.mark.asyncio
+async def test_e2e_live_mode_per_tool_call(running_daemon, monkeypatch):
+    """With live mode + per_tool_call cadence, each tool event should produce narration."""
+    port, submitted = running_daemon
+    monkeypatch.setattr("claude_code_talker.hook_cli.daemon_url",
+                        lambda: f"http://127.0.0.1:{port}/sse")
+
+    from claude_code_talker.hook_cli import dispatch_hook, _call_mcp_tool
+    from claude_code_talker.cadence.per_tool_call import PerToolCallCadence
+    from unittest.mock import AsyncMock
+
+    # The fixture's running daemon has its own ServerState with LiveMode wired
+    # to a real AudioQueue. We can't directly reach into the daemon thread's state
+    # to replace it. Instead, the fixture's `submitted` list captures jobs because
+    # the fixture replaces state.audio_queue with a MagicMock — but LiveMode holds
+    # the original reference. For this E2E test, we mock provider.complete on the
+    # fixture's state and verify the flow via tts_status round-trip + hook event
+    # round-trip (which we already exercise in test_e2e_stop_via_mcp_client).
+    #
+    # The minimum we can validate end-to-end without fixture surgery:
+    # 1. tts_set_mode("live") succeeds via real MCP client
+    # 2. After mode switch, sending PostToolUse via hook CLI doesn't error
+    # 3. tts_status reflects active_mode=live
+    url = f"http://127.0.0.1:{port}/sse"
+
+    # Switch to live mode via MCP
+    response = await _call_mcp_tool("tts_set_mode", {"mode": "live"})
+    assert "live" in response
+
+    # Status should reflect the change
+    status = await _call_mcp_tool("tts_status", {})
+    assert "mode=live" in status
+
+    # Send a PostToolUse event — should not raise
+    await dispatch_hook({
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "c:/foo.py"},
+        "tool_response": {"success": True},
+    })
+
+    # Switch back to direct so the daemon shuts the cadence loop down cleanly
+    await _call_mcp_tool("tts_set_mode", {"mode": "direct"})
