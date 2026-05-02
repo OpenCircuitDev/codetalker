@@ -108,28 +108,33 @@ def spawn_detached(cmd: list[str], log_path: Path | None = None) -> int:
     log_fd = open(str(log_path), "ab", buffering=0)
     devnull_in = open(os.devnull, "rb")
 
-    if sys.platform == "win32":
-        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-        flags = 0x00000008 | 0x00000200
-        kwargs = dict(
-            creationflags=flags,
-            close_fds=True,
-        )
-    else:
-        # New session leader so signals to parent don't propagate.
-        kwargs = dict(
-            start_new_session=True,
-            close_fds=True,
-        )
+    try:
+        if sys.platform == "win32":
+            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+            flags = 0x00000008 | 0x00000200
+            kwargs = dict(
+                creationflags=flags,
+                close_fds=True,
+            )
+        else:
+            # New session leader so signals to parent don't propagate.
+            kwargs = dict(
+                start_new_session=True,
+                close_fds=True,
+            )
 
-    proc = subprocess.Popen(
-        cmd,
-        stdin=devnull_in,
-        stdout=log_fd,
-        stderr=log_fd,
-        **kwargs,
-    )
-    return proc.pid
+        proc = subprocess.Popen(
+            cmd,
+            stdin=devnull_in,
+            stdout=log_fd,
+            stderr=log_fd,
+            **kwargs,
+        )
+        return proc.pid
+    finally:
+        # Child has inherited dup'd fds; parent's copies are no longer needed.
+        log_fd.close()
+        devnull_in.close()
 
 
 import asyncio
@@ -180,28 +185,30 @@ def serve_foreground():
         print(f"daemon already running: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"claude-code-talker daemon starting (pid {os.getpid()})")
-    print(f"  pidfile: {DAEMON_PIDFILE}")
-    print(f"  endpoint: {daemon_url()}")
-
-    state = build_server_state()
-    app = build_asgi_app(state)
-
-    config = uvicorn.Config(
-        app,
-        host=DAEMON_HOST,
-        port=DAEMON_PORT,
-        log_level="warning",
-    )
-    server = uvicorn.Server(config)
-    state.uvicorn_server = server  # so tts_shutdown can signal it
-
+    state = None
     try:
-        server.run()
-    except KeyboardInterrupt:
-        print("interrupted")
+        print(f"claude-code-talker daemon starting (pid {os.getpid()})")
+        print(f"  pidfile: {DAEMON_PIDFILE}")
+        print(f"  endpoint: {daemon_url()}")
+
+        state = build_server_state()
+        app = build_asgi_app(state)
+
+        config = uvicorn.Config(
+            app,
+            host=DAEMON_HOST,
+            port=DAEMON_PORT,
+            log_level="warning",
+        )
+        server = uvicorn.Server(config)
+        state.uvicorn_server = server  # so tts_shutdown can signal it
+
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            print("interrupted")
     finally:
-        if state.audio_queue is not None:
+        if state is not None and state.audio_queue is not None:
             state.audio_queue.shutdown(drain_timeout=5.0)
         release_pidfile(DAEMON_PIDFILE)
         print("daemon stopped cleanly")

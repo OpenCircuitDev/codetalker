@@ -92,10 +92,10 @@ async def test_e2e_stop_via_mcp_client(tmp_path, running_daemon, monkeypatch):
         "transcript_path": str(transcript),
         "cwd": str(tmp_path),
     }
+    # dispatch_hook awaits the MCP call_tool roundtrip, which only returns
+    # after the server-side handler (and its synchronous submit) has finished.
+    # No additional sleep needed.
     await dispatch_hook(payload)
-
-    # Allow brief async time for the audio queue submit to land.
-    await asyncio.sleep(0.5)
 
     assert len(submitted) == 1
     assert "Smoking gun" in submitted[0].text
@@ -114,8 +114,6 @@ async def test_e2e_notification_via_mcp_client(running_daemon, monkeypatch):
         "message": "Permission required.",
     }
     await dispatch_hook(payload)
-
-    await asyncio.sleep(0.5)
 
     assert len(submitted) == 1
     assert "Claude. Permission required." in submitted[0].text

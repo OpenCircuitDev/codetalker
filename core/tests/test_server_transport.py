@@ -1,5 +1,8 @@
 """Tests for SSE transport -- uses httpx ASGI transport (no real port bind)."""
 import asyncio
+import socket
+import threading
+import time
 import pytest
 from claude_code_talker.server import build_asgi_app, build_server_state
 
@@ -55,3 +58,65 @@ async def test_asgi_app_messages_route_exists():
         # Starlette redirects /messages/ -> /messages for Mount routes, so we test /messages.
         response = await client.post("/messages", json={}, timeout=1.0)
         assert response.status_code != 404
+
+
+def _free_port() -> int:
+    """Find an unused localhost port for the test daemon."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.mark.asyncio
+async def test_mcp_client_roundtrip_tts_status():
+    """Real MCP client over SSE invokes tts_status through the FastMCP wrapper.
+
+    This is the canonical exercise for the hand-crafted open-schema tool
+    registration in _register_tools_fastmcp.  Route-existence tests above can't
+    catch wrapper regressions because they never dispatch a tool call.  This
+    test proves: (1) the wrapper accepts a call_tool request with empty args,
+    (2) the in-process handler runs, (3) the response text round-trips back
+    through SSE to the client.
+    """
+    import uvicorn
+    from mcp import ClientSession
+    from mcp.client.sse import sse_client
+
+    port = _free_port()
+    state = build_server_state()
+    state.cfg["enabled"] = True
+
+    app = build_asgi_app(state, disable_transport_security=True)
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
+    server = uvicorn.Server(config)
+
+    thread = threading.Thread(target=lambda: asyncio.run(server.serve()), daemon=True)
+    thread.start()
+
+    # Wait for the server to bind.
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                break
+        except OSError:
+            time.sleep(0.1)
+    else:
+        pytest.fail("daemon did not become ready in 5 seconds")
+
+    try:
+        url = f"http://127.0.0.1:{port}/sse"
+        async with sse_client(url) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                result = await session.call_tool("tts_status", {})
+                text_parts = [c.text for c in result.content if hasattr(c, "text")]
+                assert text_parts, "expected text content in tool response"
+                response = text_parts[0]
+                # tts_status response format: "mode=..., enabled, engines=..., providers=..."
+                assert "mode=" in response
+                assert "enabled" in response
+                assert "engines=" in response
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5.0)
