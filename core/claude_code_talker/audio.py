@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -34,3 +35,12 @@ def play_wav_bytes(wav: bytes) -> None:
             os.unlink(wav_path)
         except OSError:
             pass
+
+
+@dataclass
+class AudioJob:
+    """One unit of work for the audio worker thread."""
+    text: str
+    voice: str
+    rate: float
+    engine_name: str = "piper"
