@@ -30,6 +30,7 @@ class ServerState:
     modes: dict[str, ModeStrategy]
     active_mode: str = "direct"
     audio_queue: AudioQueue = None  # set in build_server_state
+    shutting_down: bool = False
 
 
 def build_server_state(cwd: str | None = None) -> ServerState:
@@ -158,11 +159,18 @@ def build_mcp_server(state: ServerState) -> MCPServer:
             raise ValueError(f"unknown engine: {engine_name}")
         return ", ".join(engine.list_voices())
 
+    async def tts_shutdown(args):
+        state.shutting_down = True
+        # The actual process exit happens in the daemon's main loop, which
+        # checks state.shutting_down and exits gracefully (Task 13).
+        return "shutting down"
+
     server.register(MCPTool("tts_speak", "Speak the given text using the active engine.", tts_speak))
     server.register(MCPTool("tts_set_mode", "Switch active mode: direct or brief.", tts_set_mode))
     server.register(MCPTool("tts_status", "Report current state.", tts_status))
     server.register(MCPTool("tts_mute", "Mute TTS without changing config.", tts_mute))
     server.register(MCPTool("tts_unmute", "Unmute TTS.", tts_unmute))
     server.register(MCPTool("tts_list_voices", "List available voices for an engine.", tts_list_voices))
+    server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
 
     return server

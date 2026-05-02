@@ -89,3 +89,15 @@ def test_server_state_audio_queue_started():
     # The queue's worker thread should be running after build_server_state.
     assert state.audio_queue._worker.is_alive()
     state.audio_queue.shutdown(drain_timeout=2.0)
+
+
+@pytest.mark.asyncio
+async def test_tts_shutdown_signals_state():
+    state = build_server_state()
+    server = build_mcp_server(state)
+
+    # Track shutdown via a flag on the state.
+    result = await server.call_tool("tts_shutdown", {})
+
+    assert "shutting down" in result.lower()
+    assert state.shutting_down is True
