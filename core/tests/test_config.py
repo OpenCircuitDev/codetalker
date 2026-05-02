@@ -120,6 +120,18 @@ def test_translate_workspace_paths():
     assert translate_workspace_overrides({"file_paths": "filename"})["paths"]["handling"] == "filename"
 
 
+def test_load_full_config_handles_non_dict_workspace_yaml(tmp_path):
+    ws_root = tmp_path / "project"
+    ws_root.mkdir()
+    (ws_root / ".claude").mkdir()
+    # Top-level list, not dict — would crash translate_workspace_overrides without guard
+    (ws_root / ".claude" / "tts_workspace.yaml").write_text("- voice: foo\n- rate: 1.5\n")
+
+    # Should not raise
+    cfg = load_full_config(global_path=tmp_path / "nonexistent.yaml", cwd=str(ws_root))
+    assert cfg.get("enabled", True) is True
+
+
 def test_load_full_config_merges_workspace(tmp_path):
     # Global config
     global_path = tmp_path / "global.yaml"

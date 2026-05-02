@@ -125,6 +125,8 @@ def load_full_config(global_path: Path | None = None, cwd: str | None = None) ->
         try:
             with open(ws_path, encoding="utf-8") as f:
                 ws_cfg = yaml.safe_load(f) or {}
+            if not isinstance(ws_cfg, dict):
+                ws_cfg = {}
             cfg = deep_merge(cfg, translate_workspace_overrides(ws_cfg))
         except (OSError, yaml.YAMLError):
             pass

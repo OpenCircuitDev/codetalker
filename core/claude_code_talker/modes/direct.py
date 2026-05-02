@@ -16,11 +16,11 @@ from claude_code_talker.modes.base import ModeStrategy
 URL_RE = re.compile(r"https?://(?:www\.)?([^\s/]+)(?:/\S*)?")
 PATH_RE = re.compile(r"\S*[\\/][^\s\\/]+\.\w{1,5}\b")
 PATH_RE_FILENAME = re.compile(r"\S*[\\/]([^\s\\/]+\.\w{1,5})\b")
-DECO_RE = re.compile(r"[—←-⇿─-╿☀-➿]")
+DECO_RE = re.compile(r"[\u2014\u2190-\u21ff\u2500-\u257f\u2600-\u27bf]")
 ASCII_RUN_RE = re.compile(r"[\-=*/~_]{3,}")
 WS_RE = re.compile(r"[ \t]+")
 NEWLINES_RE = re.compile(r"\n{3,}")
-INSIGHT_RE = re.compile(r"★\s*Insight[^\r\n]*(?:\n[^\n]*)*?\n[─-╿]+", re.DOTALL)
+INSIGHT_RE = re.compile(r"\u2605\s*Insight[^\r\n]*(?:\n[^\n]*)*?\n[\u2500-\u257f]+", re.DOTALL)
 
 
 _DEFAULT_ELEMENTS = {
