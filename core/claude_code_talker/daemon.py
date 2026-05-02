@@ -136,12 +136,18 @@ import asyncio
 
 
 async def _call_shutdown_tool() -> None:
-    """Connect to the running daemon's MCP endpoint and call tts_shutdown.
+    """Connect to the running daemon's MCP endpoint and call tts_shutdown."""
+    from mcp import ClientSession
+    from mcp.client.sse import sse_client
 
-    Phase 2A.2: stub that prints a hint. Phase 2A.4 (Task 22) replaces this
-    with a real MCP-over-SSE client roundtrip after SSE wiring lands in A3.
-    """
-    print("(SSE-based shutdown lands in A3; manual SIGTERM still works)")
+    try:
+        async with sse_client(daemon_url()) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                await session.call_tool("tts_shutdown", {})
+                print("shutdown signal sent")
+    except Exception as e:
+        print(f"shutdown failed: {e}", file=sys.stderr)
 
 
 def stop_daemon():
@@ -188,6 +194,7 @@ def serve_foreground():
         log_level="warning",
     )
     server = uvicorn.Server(config)
+    state.uvicorn_server = server  # so tts_shutdown can signal it
 
     try:
         server.run()

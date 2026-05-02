@@ -31,6 +31,7 @@ class ServerState:
     active_mode: str = "direct"
     audio_queue: AudioQueue = None  # set in build_server_state
     shutting_down: bool = False
+    uvicorn_server: object = None  # set in serve_foreground so tts_shutdown can signal it
 
 
 def build_server_state(cwd: str | None = None) -> ServerState:
@@ -182,8 +183,8 @@ def register_tools(server, state) -> None:
 
     async def tts_shutdown(args):
         state.shutting_down = True
-        # The actual process exit happens in the daemon's main loop, which
-        # checks state.shutting_down and exits gracefully (Task 13).
+        if state.uvicorn_server is not None:
+            state.uvicorn_server.should_exit = True
         return "shutting down"
 
     async def tts_handle_stop(args):
