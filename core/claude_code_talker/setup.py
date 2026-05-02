@@ -103,6 +103,13 @@ def main():
         print(f"    {VOICES_DIR}")
 
     print()
+    print("== Daemon ==")
+    print("Phase 2A introduces a long-running daemon on localhost:17832.")
+    print("Hooks auto-spawn the daemon on first use; you don't need to start it manually.")
+    print("Manual control:")
+    print("  claude-code-talker serve  - foreground daemon (Ctrl+C to stop)")
+    print("  claude-code-talker stop   - graceful shutdown of running daemon")
+    print()
     print("== Hook integration ==")
     print(HOOK_INSTRUCTIONS)
 
