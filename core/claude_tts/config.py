@@ -32,15 +32,19 @@ def deep_merge(base: dict, override: dict | None) -> dict:
 def load_global_config(path: Path | None = None) -> dict:
     """Load the global config file, applying its declared preset as defaults.
 
-    Returns an empty-ish but valid dict if the file is missing.
+    Returns a safe-default dict if the file is missing, unreadable, malformed,
+    or contains non-dict top-level YAML.
     """
     p = path if path is not None else DEFAULT_GLOBAL_PATH
     if not p.exists():
         return {"enabled": True}
-
-    with open(p, encoding="utf-8") as f:
-        user_cfg = yaml.safe_load(f) or {}
-
+    try:
+        with open(p, encoding="utf-8") as f:
+            user_cfg = yaml.safe_load(f) or {}
+        if not isinstance(user_cfg, dict):
+            return {"enabled": True}
+    except (OSError, yaml.YAMLError):
+        return {"enabled": True}
     preset_name = user_cfg.get("preset")
     preset = get_preset(preset_name) if preset_name else {}
     return deep_merge(preset, user_cfg)

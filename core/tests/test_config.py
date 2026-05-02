@@ -1,10 +1,5 @@
 """Tests for config loading and merging."""
-from pathlib import Path
-import pytest
 from claude_tts.config import deep_merge, load_global_config
-
-
-FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_deep_merge_overrides_leaves():
@@ -44,3 +39,18 @@ def test_load_global_config_user_wins_over_preset(tmp_path):
 def test_load_global_config_missing_file_returns_defaults(tmp_path):
     cfg = load_global_config(tmp_path / "nonexistent.yaml")
     assert cfg.get("enabled", True) is True
+
+
+def test_load_global_config_malformed_yaml_returns_defaults(tmp_path):
+    cfg_path = tmp_path / "tts_config.yaml"
+    # Tab character inside a block mapping reliably triggers yaml.scanner.ScannerError
+    cfg_path.write_text("key:\n\t  bad_indent: value\n")
+    cfg = load_global_config(cfg_path)
+    assert cfg == {"enabled": True}
+
+
+def test_load_global_config_non_dict_top_level_returns_defaults(tmp_path):
+    cfg_path = tmp_path / "tts_config.yaml"
+    cfg_path.write_text("just a string\n")
+    cfg = load_global_config(cfg_path)
+    assert cfg == {"enabled": True}
