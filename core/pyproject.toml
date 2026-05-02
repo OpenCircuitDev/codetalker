@@ -25,6 +25,7 @@ dev = [
     "pytest-mock>=3.12",
 ]
 edge = ["edge-tts>=6.1"]
+anthropic = ["anthropic>=0.40"]
 
 [project.scripts]
 claude-code-talker = "claude_code_talker.server:main"
