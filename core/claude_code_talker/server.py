@@ -247,3 +247,61 @@ def build_mcp_server(state: ServerState) -> MCPServer:
     server = MCPServer()
     register_tools(server, state)
     return server
+
+
+def _register_tools_fastmcp(fmcp, state) -> None:
+    """Register the 9 tools on a FastMCP instance by bridging the in-process handlers.
+
+    FastMCP expects async callables with **kwargs.  Our in-process handlers take
+    a single ``args: dict`` argument.  A thin wrapper per tool bridges the two.
+    """
+    inproc = MCPServer()
+    register_tools(inproc, state)
+
+    for tool in inproc.list_tools():
+        # Capture tool in closure so each wrapper gets its own reference.
+        def _make_wrapper(t: MCPTool):
+            async def _handler(**kwargs: object) -> str:
+                return await t.handler(kwargs)
+            _handler.__name__ = t.name
+            _handler.__doc__ = t.description
+            return _handler
+
+        wrapper = _make_wrapper(tool)
+        fmcp.add_tool(wrapper, name=tool.name, description=tool.description)
+
+
+def build_asgi_app(state: ServerState, *, disable_transport_security: bool = False):
+    """Build a Starlette ASGI app that serves all 9 tools over MCP-over-SSE.
+
+    The returned app exposes:
+      GET  /sse        -- SSE connection endpoint for MCP clients
+      POST /messages   -- client-to-server message channel
+
+    Args:
+        state: Populated ServerState from build_server_state().
+        disable_transport_security: Set True in tests (ASGI transport has no real
+            Host header that satisfies the SDK's DNS-rebinding allowlist).  In
+            production the daemon binds to 127.0.0.1 and the allowlist is set
+            to the daemon's own address.
+    """
+    from mcp.server.fastmcp import FastMCP
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    if disable_transport_security:
+        security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    else:
+        # Allow only the loopback address the daemon listens on (127.0.0.1:17832).
+        # These constants mirror daemon.DAEMON_HOST / DAEMON_PORT; they are not
+        # imported from daemon.py to avoid a circular dependency.
+        security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["127.0.0.1:17832", "127.0.0.1", "localhost"],
+        )
+
+    fmcp = FastMCP("claude-code-talker", transport_security=security)
+    _register_tools_fastmcp(fmcp, state)
+
+    # sse_app() returns a pre-wired Starlette application with /sse and /messages
+    # routes already configured.  No manual Route/Mount plumbing required.
+    return fmcp.sse_app()

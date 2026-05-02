@@ -133,7 +133,6 @@ def spawn_detached(cmd: list[str], log_path: Path | None = None) -> int:
 
 
 import asyncio
-import time
 
 
 async def _call_shutdown_tool() -> None:
@@ -162,12 +161,12 @@ def stop_daemon():
 def serve_foreground():
     """Run the daemon in the foreground until shutdown signal.
 
-    Acquires the pidfile, builds server state, runs until state.shutting_down
-    or KeyboardInterrupt, then releases the pidfile. SSE transport is wired
-    in Sub-Phase A3 — for now this just hosts the in-process MCPServer and
-    polls the shutdown flag.
+    Acquires the pidfile, builds the ASGI app with the 9 MCP tools registered,
+    then drives uvicorn on DAEMON_HOST:DAEMON_PORT.  MCP clients connect via
+    the SSE endpoint at http://DAEMON_HOST:DAEMON_PORT/sse.
     """
-    from claude_code_talker.server import build_server_state
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    import uvicorn
 
     try:
         acquire_pidfile(DAEMON_PIDFILE)
@@ -175,17 +174,25 @@ def serve_foreground():
         print(f"daemon already running: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"claude-code-talker daemon started (pid {os.getpid()})")
+    print(f"claude-code-talker daemon starting (pid {os.getpid()})")
     print(f"  pidfile: {DAEMON_PIDFILE}")
-    print(f"  logfile: {DAEMON_LOGFILE}")
-    print("  (SSE transport wires in Sub-Phase A3)")
+    print(f"  endpoint: {daemon_url()}")
 
     state = build_server_state()
+    app = build_asgi_app(state)
+
+    config = uvicorn.Config(
+        app,
+        host=DAEMON_HOST,
+        port=DAEMON_PORT,
+        log_level="warning",
+    )
+    server = uvicorn.Server(config)
+
     try:
-        while not state.shutting_down:
-            time.sleep(0.5)
+        server.run()
     except KeyboardInterrupt:
-        print("interrupted; shutting down")
+        print("interrupted")
     finally:
         if state.audio_queue is not None:
             state.audio_queue.shutdown(drain_timeout=5.0)
