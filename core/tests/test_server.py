@@ -171,3 +171,28 @@ async def test_tts_handle_notification_enqueues():
     assert "queued" in result.lower()
     assert len(submitted) == 1
     assert "Claude. Permission needed." in submitted[0].text
+
+
+from claude_code_talker.event_buffer import EventBuffer
+
+
+def test_server_state_has_event_buffer():
+    state = build_server_state()
+    assert isinstance(state.event_buffer, EventBuffer)
+
+
+@pytest.mark.asyncio
+async def test_tts_handle_pretool_pushes_event():
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.event_buffer.clear()
+
+    await server.call_tool("tts_handle_pretool", {
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "c:/foo.py"},
+    })
+
+    events = state.event_buffer.recent()
+    assert len(events) == 1
+    assert events[0].type == "PRE_TOOL"
+    assert events[0].metadata["tool_name"] == "Edit"

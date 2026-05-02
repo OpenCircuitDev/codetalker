@@ -12,6 +12,7 @@ from pathlib import Path
 from claude_code_talker.audio import AudioJob, AudioQueue
 from claude_code_talker.config import load_full_config
 from claude_code_talker.engines import PiperEngine
+from claude_code_talker.event_buffer import Event, EventBuffer, score_significance
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.modes.direct import DirectMode
 from claude_code_talker.modes.brief import BriefMode
@@ -32,6 +33,7 @@ class ServerState:
     audio_queue: AudioQueue = None  # set in build_server_state
     shutting_down: bool = False
     uvicorn_server: object = None  # set in serve_foreground so tts_shutdown can signal it
+    event_buffer: EventBuffer = None  # NEW: rolling event buffer for Mode C live narration
 
 
 def build_server_state(cwd: str | None = None) -> ServerState:
@@ -55,6 +57,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     )
     state.audio_queue = AudioQueue(state)
     state.audio_queue.start()
+    state.event_buffer = EventBuffer(max_size=30)
     return state
 
 
@@ -232,6 +235,22 @@ def register_tools(server, state) -> None:
         state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
         return f"queued: {len(text)} chars"
 
+    async def tts_handle_pretool(args):
+        import time
+        keywords = ((state.cfg.get("content_filter") or {}).get("speak_keywords") or [])
+        ev = Event(
+            timestamp=time.time(),
+            type="PRE_TOOL",
+            metadata={
+                "tool_name": args.get("tool_name", ""),
+                "input": str(args.get("tool_input", ""))[:200],
+            },
+            significance=0.0,
+        )
+        ev.significance = score_significance(ev, keywords)
+        state.event_buffer.push(ev)
+        return "recorded"
+
     server.register(MCPTool("tts_speak", "Speak the given text using the active engine.", tts_speak))
     server.register(MCPTool("tts_set_mode", "Switch active mode: direct or brief.", tts_set_mode))
     server.register(MCPTool("tts_status", "Report current state.", tts_status))
@@ -241,6 +260,9 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
     server.register(MCPTool("tts_handle_stop", "Handle a Stop hook event.", tts_handle_stop))
     server.register(MCPTool("tts_handle_notification", "Handle a Notification hook event.", tts_handle_notification))
+    server.register(MCPTool("tts_handle_pretool",
+                            "Record a PreToolUse event into the rolling buffer.",
+                            tts_handle_pretool))
 
 
 def build_mcp_server(state: ServerState) -> MCPServer:
