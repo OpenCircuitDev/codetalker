@@ -249,3 +249,20 @@ async def test_tts_list_voices_dispatches_to_engine():
     server = build_mcp_server(state)
     result = await server.call_tool("tts_list_voices", {"engine": "edge"})
     assert "AriaNeural" in result
+
+
+def test_select_provider_uses_config_preference():
+    state = build_server_state()
+    state.providers["fake"] = MagicMock()
+    state.cfg.setdefault("modes", {}).setdefault("brief", {})["provider"] = "fake"
+    from claude_code_talker.server import _select_provider
+    p = _select_provider(state, "brief")
+    assert p is state.providers["fake"]
+
+
+def test_select_provider_falls_back_to_ollama():
+    state = build_server_state()
+    state.cfg.setdefault("modes", {}).setdefault("brief", {})["provider"] = "nonexistent"
+    from claude_code_talker.server import _select_provider
+    p = _select_provider(state, "brief")
+    assert p is state.providers["ollama"]

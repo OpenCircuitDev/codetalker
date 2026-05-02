@@ -39,6 +39,20 @@ class ServerState:
     event_buffer: EventBuffer = None  # NEW: rolling event buffer for Mode C live narration
 
 
+def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
+    """Pick the LLM provider for a mode based on cfg.modes.<name>.provider.
+
+    Falls back to ollama if the preference isn't registered, or to any
+    available provider if ollama is also missing.
+    """
+    pref = ((state.cfg.get("modes") or {}).get(mode_name) or {}).get("provider", "ollama")
+    if pref in state.providers:
+        return state.providers[pref]
+    if "ollama" in state.providers:
+        return state.providers["ollama"]
+    return next(iter(state.providers.values())) if state.providers else None
+
+
 def build_server_state(cwd: str | None = None) -> ServerState:
     """Construct the server state with all engines, providers, and modes registered."""
     cfg = load_full_config(cwd=cwd)
@@ -84,8 +98,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         providers={"ollama": ollama},
         modes={
             "direct": DirectMode(),
-            "brief": BriefMode(provider=ollama),
-            # LiveMode constructed below after audio_queue + event_buffer are wired
+            # brief and live constructed below after _select_provider can resolve
         },
         active_mode=cfg.get("active_mode", "direct"),
     )
@@ -98,8 +111,9 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     )
     state.audio_queue.start()
 
+    state.modes["brief"] = BriefMode(provider=_select_provider(state, "brief"))
     state.modes["live"] = LiveMode(
-        provider=ollama,
+        provider=_select_provider(state, "live"),
         cadence=cadence,
         event_buffer=state.event_buffer,
         audio_queue=state.audio_queue,
