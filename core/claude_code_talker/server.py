@@ -121,9 +121,13 @@ class MCPServer:
         return await self._tools[name].handler(args)
 
 
-def build_mcp_server(state: ServerState) -> MCPServer:
-    """Register all Phase 1 tools on a fresh MCPServer."""
-    server = MCPServer()
+def register_tools(server, state) -> None:
+    """Register all 7 Phase 2A tools on a server instance.
+
+    The server must expose a `.register(MCPTool)` method. This works for both
+    our in-process MCPServer (Phase 1, used in tests) and a thin adapter
+    around the mcp SDK FastMCP server (production, lands in Phase 2A.3).
+    """
 
     async def tts_speak(args):
         text = args.get("text", "")
@@ -190,4 +194,9 @@ def build_mcp_server(state: ServerState) -> MCPServer:
     server.register(MCPTool("tts_list_voices", "List available voices for an engine.", tts_list_voices))
     server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
 
+
+def build_mcp_server(state: ServerState) -> MCPServer:
+    """Register the Phase 2A tools on a fresh in-process MCPServer."""
+    server = MCPServer()
+    register_tools(server, state)
     return server
