@@ -252,9 +252,29 @@ def build_mcp_server(state: ServerState) -> MCPServer:
 def _register_tools_fastmcp(fmcp, state) -> None:
     """Register the 9 tools on a FastMCP instance by bridging the in-process handlers.
 
-    FastMCP expects async callables with **kwargs.  Our in-process handlers take
-    a single ``args: dict`` argument.  A thin wrapper per tool bridges the two.
+    Our in-process handlers take a single ``args: dict`` argument.  FastMCP
+    introspects function signatures to build Pydantic argument models; using
+    ``**kwargs`` causes it to create a schema with a single required ``kwargs``
+    field rather than an open schema.  We bypass that by adding each tool
+    directly to the tool manager with a hand-crafted ``FuncMetadata`` that
+    accepts arbitrary keyword arguments and forwards them as a plain dict.
     """
+    from mcp.server.fastmcp.tools.base import Tool as _FastTool
+    from mcp.server.fastmcp.utilities.func_metadata import FuncMetadata as _FuncMeta, ArgModelBase as _ArgBase
+    from pydantic import ConfigDict as _ConfigDict
+
+    class _OpenArgModel(_ArgBase):
+        """Accepts any keyword arguments; passes them through as a plain dict."""
+        model_config = _ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
+        def model_dump_one_level(self):
+            base = super().model_dump_one_level()
+            if self.model_extra:
+                base.update(self.model_extra)
+            return base
+
+    _open_meta = _FuncMeta(arg_model=_OpenArgModel, wrap_output=False)
+
     inproc = MCPServer()
     register_tools(inproc, state)
 
@@ -268,7 +288,15 @@ def _register_tools_fastmcp(fmcp, state) -> None:
             return _handler
 
         wrapper = _make_wrapper(tool)
-        fmcp.add_tool(wrapper, name=tool.name, description=tool.description)
+        fast_tool = _FastTool(
+            fn=wrapper,
+            name=tool.name,
+            description=tool.description,
+            parameters={"type": "object", "properties": {}, "additionalProperties": True},
+            fn_metadata=_open_meta,
+            is_async=True,
+        )
+        fmcp._tool_manager._tools[tool.name] = fast_tool
 
 
 def build_asgi_app(state: ServerState, *, disable_transport_security: bool = False):

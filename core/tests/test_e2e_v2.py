@@ -1,0 +1,121 @@
+"""End-to-end test: real daemon via uvicorn in a thread + real MCP client."""
+import asyncio
+import json
+import socket
+import threading
+import time
+import pytest
+from unittest.mock import MagicMock, patch
+from claude_code_talker.audio import AudioJob
+from claude_code_talker.server import build_asgi_app, build_server_state
+
+
+def _free_port() -> int:
+    """Find an unused localhost port for the test daemon."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.fixture
+def running_daemon(monkeypatch):
+    """Start the daemon in a background thread on an ephemeral port.
+
+    Yields (port, submitted_jobs_list). The list captures every AudioJob the
+    daemon enqueues so tests can assert on synthesis intent without actually
+    playing audio.
+    """
+    import uvicorn
+
+    port = _free_port()
+    monkeypatch.setattr("claude_code_talker.daemon.DAEMON_PORT", port)
+
+    state = build_server_state()
+    state.cfg["enabled"] = True
+    state.cfg.setdefault("voice", {})["model"] = "jenny"
+    state.cfg.setdefault("voice", {})["rate"] = 1.0
+
+    fake_engine = MagicMock()
+    fake_engine.synthesize = MagicMock(return_value=b"WAV")
+    fake_engine.list_voices = MagicMock(return_value=["jenny"])
+    state.engines["piper"] = fake_engine
+
+    submitted: list[AudioJob] = []
+    state.audio_queue = MagicMock()
+    state.audio_queue.submit = lambda job: submitted.append(job)
+
+    # IMPORTANT: pass disable_transport_security=True so the SDK doesn't reject
+    # the test client's Host header (DNS rebinding protection).
+    app = build_asgi_app(state, disable_transport_security=True)
+
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
+    server = uvicorn.Server(config)
+
+    thread = threading.Thread(target=lambda: asyncio.run(server.serve()), daemon=True)
+    thread.start()
+
+    # Wait for the server to bind
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                break
+        except OSError:
+            time.sleep(0.1)
+    else:
+        pytest.fail("daemon did not become ready in 5 seconds")
+
+    yield port, submitted
+
+    server.should_exit = True
+    thread.join(timeout=5.0)
+
+
+@pytest.mark.asyncio
+async def test_e2e_stop_via_mcp_client(tmp_path, running_daemon, monkeypatch):
+    """Hook CLI dispatches a Stop event to the running daemon and submits an AudioJob."""
+    port, submitted = running_daemon
+
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text(
+        json.dumps({"type": "user", "message": {"content": [{"type": "text", "text": "hi"}]}}) + "\n" +
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "Smoking gun found."}]}}) + "\n"
+    )
+
+    monkeypatch.setattr("claude_code_talker.hook_cli.daemon_url",
+                        lambda: f"http://127.0.0.1:{port}/sse")
+
+    from claude_code_talker.hook_cli import dispatch_hook
+
+    payload = {
+        "hook_event_name": "Stop",
+        "transcript_path": str(transcript),
+        "cwd": str(tmp_path),
+    }
+    await dispatch_hook(payload)
+
+    # Allow brief async time for the audio queue submit to land.
+    await asyncio.sleep(0.5)
+
+    assert len(submitted) == 1
+    assert "Smoking gun" in submitted[0].text
+
+
+@pytest.mark.asyncio
+async def test_e2e_notification_via_mcp_client(running_daemon, monkeypatch):
+    port, submitted = running_daemon
+    monkeypatch.setattr("claude_code_talker.hook_cli.daemon_url",
+                        lambda: f"http://127.0.0.1:{port}/sse")
+
+    from claude_code_talker.hook_cli import dispatch_hook
+
+    payload = {
+        "hook_event_name": "Notification",
+        "message": "Permission required.",
+    }
+    await dispatch_hook(payload)
+
+    await asyncio.sleep(0.5)
+
+    assert len(submitted) == 1
+    assert "Claude. Permission required." in submitted[0].text
