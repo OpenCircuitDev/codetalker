@@ -16,3 +16,16 @@ def test_cadence_subclass_must_set_name():
             def on_event(self, e): return Decision()
             def tick(self): return Decision()
         Bad()  # name == "base" — should raise via __init_subclass__
+
+
+from claude_code_talker.cadence import make_cadence, PeriodicCadence
+
+
+def test_make_cadence_periodic():
+    c = make_cadence("periodic", {"periodic": {"period_seconds": 5.0}})
+    assert isinstance(c, PeriodicCadence)
+
+
+def test_make_cadence_unknown():
+    with pytest.raises(ValueError):
+        make_cadence("nonsense", {})
