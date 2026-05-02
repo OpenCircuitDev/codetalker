@@ -1,15 +1,14 @@
 """WAV playback utilities. Phase 1 is synchronous; Phase 2 adds the async queue."""
 from __future__ import annotations
 
+import heapq
 import logging
 import os
-import queue
 import sys
 import tempfile
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 
 def _play_file(wav_path: str) -> None:
@@ -48,45 +47,75 @@ class AudioJob:
     voice: str
     rate: float
     engine_name: str = "piper"
+    priority: str = "normal"  # alert | normal | routine
+    enqueued_at: float = 0.0
+
+
+_PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
 
 
 class AudioQueue:
-    """FIFO queue with a single worker thread that synthesizes and plays.
+    """Heap-based priority queue with a single worker thread.
 
-    Phase 2A: simple, unbounded, log-and-continue on errors. Phase 2B will
-    add priority, drop policy, and interruption handling for Mode C.
+    Three priority levels — alert | normal | routine — dispatched via heapq
+    ordering on (priority_rank, sequence_number). An alert always overtakes
+    pending normals/routines. FIFO within the same priority level.
     """
 
     def __init__(self, state) -> None:
         self._state = state
-        self._queue: "queue.Queue[Optional[AudioJob]]" = queue.Queue()
+        self._queue: list[tuple] = []  # heap of (priority_rank, seq, job)
+        self._cv = threading.Condition()
+        self._seq = 0
         self._worker = threading.Thread(
             target=self._run, daemon=True, name="codetalker-audio"
         )
         self._stopped = False
+        self._poison = False
 
     def start(self) -> None:
         if not self._worker.is_alive():
             self._worker.start()
 
     def submit(self, job: AudioJob) -> None:
-        self._queue.put(job)
+        if not job.enqueued_at:
+            import time
+            job.enqueued_at = time.time()
+        with self._cv:
+            self._seq += 1
+            rank = _PRIORITY_RANK.get(job.priority, 1)
+            heapq.heappush(self._queue, (rank, self._seq, job))
+            self._cv.notify()
 
     def shutdown(self, drain_timeout: float = 5.0) -> None:
-        self._stopped = True
-        self._queue.put(None)  # poison pill
+        with self._cv:
+            self._poison = True
+            self._cv.notify_all()
         self._worker.join(timeout=drain_timeout)
+        self._stopped = True
+
+    def join(self) -> None:
+        """Block until queue is empty (for tests)."""
+        import time
+        while True:
+            with self._cv:
+                if not self._queue:
+                    return
+            time.sleep(0.05)
 
     def _run(self) -> None:
-        while not self._stopped:
-            job = self._queue.get()
-            if job is None:
-                break
+        while True:
+            with self._cv:
+                while not self._queue and not self._poison:
+                    self._cv.wait()
+                if self._poison and not self._queue:
+                    break
+                if not self._queue:
+                    continue
+                rank, seq, job = heapq.heappop(self._queue)
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
                 play_wav_bytes(wav)
             except Exception as e:
                 logging.warning("audio job failed: %s", e)
-            finally:
-                self._queue.task_done()
