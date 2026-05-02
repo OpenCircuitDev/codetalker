@@ -6,6 +6,7 @@ PostToolUse for live narration.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,6 +55,15 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     except ImportError:
         import logging
         logging.info("edge-tts not installed; edge engine unavailable")
+
+    elevenlabs_key_env = ((cfg.get("engines") or {}).get("elevenlabs") or {}).get("api_key_env", "ELEVENLABS_API_KEY")
+    elevenlabs_key = os.environ.get(elevenlabs_key_env)
+    if elevenlabs_key:
+        from claude_code_talker.engines.elevenlabs import ElevenLabsEngine as _EL
+        engines["elevenlabs"] = _EL(api_key=elevenlabs_key)
+    else:
+        import logging
+        logging.info("ElevenLabs API key not set; engine unavailable")
 
     live_cfg = cfg.get("live") or {}
     cadence_name = live_cfg.get("cadence", "periodic")
