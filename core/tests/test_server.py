@@ -240,3 +240,12 @@ async def test_set_mode_away_from_live_shuts_down():
     # task should have been cancelled
     await asyncio.sleep(0.1)
     assert live._task is None or live._task.done()
+
+
+@pytest.mark.asyncio
+async def test_tts_list_voices_dispatches_to_engine():
+    state = build_server_state()
+    state.engines["edge"] = MagicMock(list_voices=lambda: ["en-US-AriaNeural"])
+    server = build_mcp_server(state)
+    result = await server.call_tool("tts_list_voices", {"engine": "edge"})
+    assert "AriaNeural" in result
