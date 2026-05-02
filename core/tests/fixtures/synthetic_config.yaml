@@ -1,0 +1,6 @@
+preset: brief
+voice:
+  model: en_US-test-medium
+  rate: 1.0
+elements:
+  table: false
