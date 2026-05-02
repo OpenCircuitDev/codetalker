@@ -27,30 +27,10 @@ HOOK_INSTRUCTIONS = """
 # Add to ~/.claude/settings.json under "hooks":
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "shell": "powershell",
-            "command": "claude-code-talker-hook",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "shell": "powershell",
-            "command": "claude-code-talker-hook",
-            "async": true
-          }
-        ]
-      }
-    ]
+    "Stop":          [{"hooks": [{"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true}]}],
+    "Notification":  [{"hooks": [{"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true}]}],
+    "PreToolUse":    [{"hooks": [{"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true}]}],
+    "PostToolUse":   [{"hooks": [{"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true}]}]
   }
 }
 """

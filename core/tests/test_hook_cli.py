@@ -64,3 +64,25 @@ async def test_dispatch_hook_connection_refused_spawns_daemon():
 
     # _ensure_daemon should have been invoked when connection refused.
     fake_spawn.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_hook_pretool_calls_mcp_tool():
+    payload = {"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "c:/x.py"}}
+    fake_call = AsyncMock(return_value="recorded")
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
+        await dispatch_hook(payload)
+    fake_call.assert_called_once()
+    assert fake_call.call_args[0][0] == "tts_handle_pretool"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_hook_posttool_calls_mcp_tool():
+    payload = {
+        "hook_event_name": "PostToolUse", "tool_name": "Edit",
+        "tool_input": {}, "tool_response": {"success": True},
+    }
+    fake_call = AsyncMock(return_value="recorded")
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
+        await dispatch_hook(payload)
+    assert fake_call.call_args[0][0] == "tts_handle_posttool"

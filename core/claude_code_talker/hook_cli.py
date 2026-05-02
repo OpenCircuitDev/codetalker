@@ -47,14 +47,25 @@ async def dispatch_hook(payload: dict) -> None:
     event = payload.get("hook_event_name", "")
 
     if event == "Stop":
-        tool_args = {
-            "transcript_path": payload.get("transcript_path", ""),
-            "cwd": payload.get("cwd", ""),
-        }
+        tool_args = {"transcript_path": payload.get("transcript_path", ""),
+                     "cwd": payload.get("cwd", "")}
         tool_name = "tts_handle_stop"
     elif event == "Notification":
         tool_args = {"message": payload.get("message", "")}
         tool_name = "tts_handle_notification"
+    elif event == "PreToolUse":
+        tool_args = {
+            "tool_name": payload.get("tool_name", ""),
+            "tool_input": payload.get("tool_input", {}),
+        }
+        tool_name = "tts_handle_pretool"
+    elif event == "PostToolUse":
+        tool_args = {
+            "tool_name": payload.get("tool_name", ""),
+            "tool_input": payload.get("tool_input", {}),
+            "tool_response": payload.get("tool_response", {}),
+        }
+        tool_name = "tts_handle_posttool"
     else:
         return  # unknown event — silent no-op
 
