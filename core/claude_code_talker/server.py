@@ -65,6 +65,15 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         import logging
         logging.info("ElevenLabs API key not set; engine unavailable")
 
+    openai_key_env = ((cfg.get("engines") or {}).get("openai") or {}).get("api_key_env", "OPENAI_API_KEY")
+    openai_key = os.environ.get(openai_key_env)
+    if openai_key:
+        from claude_code_talker.engines.openai import OpenAIEngine as _OAI
+        engines["openai"] = _OAI(api_key=openai_key)
+    else:
+        import logging
+        logging.info("OpenAI API key not set; engine unavailable")
+
     live_cfg = cfg.get("live") or {}
     cadence_name = live_cfg.get("cadence", "periodic")
     cadence = make_cadence(cadence_name, live_cfg)
