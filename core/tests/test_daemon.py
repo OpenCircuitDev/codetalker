@@ -78,3 +78,23 @@ def test_daemon_constants():
 
 def test_daemon_url_has_sse_path():
     assert daemon_url() == "http://127.0.0.1:17832/sse"
+
+
+from unittest.mock import patch, MagicMock
+from claude_code_talker.daemon import spawn_detached
+
+
+def test_spawn_detached_invokes_subprocess():
+    with patch("claude_code_talker.daemon.subprocess.Popen") as mock_popen:
+        mock_popen.return_value = MagicMock(pid=12345)
+        pid = spawn_detached(["python", "-m", "claude_code_talker.server"])
+
+    assert mock_popen.called
+    args, kwargs = mock_popen.call_args
+    # Ensure the command is passed
+    assert args[0] == ["python", "-m", "claude_code_talker.server"]
+    # Detached child — no stdin/stdout/stderr piping
+    assert kwargs.get("stdin") is not None  # DEVNULL or similar
+    assert kwargs.get("stdout") is not None
+    assert kwargs.get("stderr") is not None
+    assert pid == 12345

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -92,3 +93,40 @@ DAEMON_HOST = "127.0.0.1"
 def daemon_url() -> str:
     """Return the SSE endpoint URL for the daemon."""
     return f"http://{DAEMON_HOST}:{DAEMON_PORT}/sse"
+
+
+def spawn_detached(cmd: list[str], log_path: Path | None = None) -> int:
+    """Spawn a fully detached background process.
+
+    The child process becomes session leader (Unix) or detached (Windows) so
+    it survives the parent exiting. stdin is /dev/null; stdout and stderr
+    redirect to log_path (or /dev/null if not provided).
+    """
+    log_path = log_path or DAEMON_LOGFILE
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    log_fd = open(str(log_path), "ab", buffering=0)
+    devnull_in = open(os.devnull, "rb")
+
+    if sys.platform == "win32":
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        flags = 0x00000008 | 0x00000200
+        kwargs = dict(
+            creationflags=flags,
+            close_fds=True,
+        )
+    else:
+        # New session leader so signals to parent don't propagate.
+        kwargs = dict(
+            start_new_session=True,
+            close_fds=True,
+        )
+
+    proc = subprocess.Popen(
+        cmd,
+        stdin=devnull_in,
+        stdout=log_fd,
+        stderr=log_fd,
+        **kwargs,
+    )
+    return proc.pid
