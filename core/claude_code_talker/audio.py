@@ -78,9 +78,15 @@ class AudioQueue:
         self._worker.join(timeout=drain_timeout)
 
     def _run(self) -> None:
-        # Stub for Task 3 — completes immediately on poison pill so lifecycle tests pass.
         while not self._stopped:
             job = self._queue.get()
             if job is None:
                 break
-            self._queue.task_done()
+            try:
+                engine = self._state.engines[job.engine_name]
+                wav = engine.synthesize(job.text, job.voice, job.rate)
+                play_wav_bytes(wav)
+            except Exception as e:
+                logging.warning("audio job failed: %s", e)
+            finally:
+                self._queue.task_done()

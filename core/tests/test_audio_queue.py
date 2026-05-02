@@ -1,6 +1,6 @@
 """Tests for AudioQueue lifecycle."""
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from claude_code_talker.audio import AudioJob, AudioQueue
 
 
@@ -35,3 +35,50 @@ def test_queue_shutdown_stops_worker():
     # After shutdown, the worker thread should not be alive
     time.sleep(0.1)
     assert not q._worker.is_alive()
+
+
+def test_worker_synthesizes_and_plays():
+    state, engine = _state_with_engine()
+    q = AudioQueue(state)
+
+    with patch("claude_code_talker.audio.play_wav_bytes") as mock_play:
+        q.start()
+        q.submit(AudioJob(text="hello", voice="jenny", rate=1.0))
+        q._queue.join()  # wait for worker to drain
+        q.shutdown(drain_timeout=2.0)
+
+    engine.synthesize.assert_called_once_with("hello", "jenny", 1.0)
+    mock_play.assert_called_once_with(b"WAV")
+
+
+def test_worker_continues_after_synth_error():
+    state, engine = _state_with_engine()
+    # First call raises, second succeeds — worker must survive.
+    engine.synthesize.side_effect = [RuntimeError("boom"), b"WAV2"]
+    q = AudioQueue(state)
+
+    with patch("claude_code_talker.audio.play_wav_bytes") as mock_play:
+        q.start()
+        q.submit(AudioJob(text="first", voice="jenny", rate=1.0))
+        q.submit(AudioJob(text="second", voice="jenny", rate=1.0))
+        q._queue.join()
+        q.shutdown(drain_timeout=2.0)
+
+    assert engine.synthesize.call_count == 2
+    mock_play.assert_called_once_with(b"WAV2")  # only the successful one
+
+
+def test_worker_continues_after_play_error():
+    state, engine = _state_with_engine()
+    q = AudioQueue(state)
+
+    with patch("claude_code_talker.audio.play_wav_bytes") as mock_play:
+        mock_play.side_effect = [OSError("device busy"), None]
+        q.start()
+        q.submit(AudioJob(text="first", voice="jenny", rate=1.0))
+        q.submit(AudioJob(text="second", voice="jenny", rate=1.0))
+        q._queue.join()
+        q.shutdown(drain_timeout=2.0)
+
+    assert engine.synthesize.call_count == 2
+    assert mock_play.call_count == 2  # both attempted; second succeeded
