@@ -55,7 +55,12 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         modes=modes,
         active_mode="direct",
     )
-    state.audio_queue = AudioQueue(state)
+    live_cfg = cfg.get("live") or {}
+    state.audio_queue = AudioQueue(
+        state,
+        max_depth=int(live_cfg.get("queue_max_depth", 5)),
+        staleness_seconds=float(live_cfg.get("staleness_seconds", 20.0)),
+    )
     state.audio_queue.start()
     state.event_buffer = EventBuffer(max_size=30)
     return state
