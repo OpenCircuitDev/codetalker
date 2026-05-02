@@ -35,3 +35,46 @@ def test_buffer_since():
     after = b.since(t)
     assert len(after) == 1
     assert after[0].timestamp == t + 1
+
+
+from claude_code_talker.event_buffer import score_significance
+
+
+def test_score_notification_max():
+    e = Event(timestamp=0.0, type="NOTIFICATION", metadata={"message": "x"}, significance=0.0)
+    assert score_significance(e, keywords=["smoking gun"]) == 1.0
+
+
+def test_score_post_tool_failure():
+    e = Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Bash", "success": False}, significance=0.0)
+    assert score_significance(e, keywords=[]) >= 0.85
+
+
+def test_score_prose_with_keyword():
+    e = Event(timestamp=0.0, type="PROSE", metadata={"text": "Smoking gun found in the unit conversion"}, significance=0.0)
+    assert score_significance(e, keywords=["smoking gun"]) >= 0.7
+
+
+def test_score_post_tool_edit():
+    e = Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Edit", "success": True}, significance=0.0)
+    assert 0.5 <= score_significance(e, keywords=[]) <= 0.7
+
+
+def test_score_routine_read_low():
+    e = Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read", "success": True}, significance=0.0)
+    assert score_significance(e, keywords=[]) <= 0.3
+
+
+def test_subscriber_called_on_push():
+    b = EventBuffer()
+    received = []
+    b.subscribe(received.append)
+    b.push(Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5))
+    assert len(received) == 1
+
+
+def test_subscriber_exception_doesnt_break_buffer():
+    b = EventBuffer()
+    b.subscribe(lambda e: 1/0)  # raises every call
+    b.push(Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5))
+    assert len(b.recent()) == 1  # buffer still got the event

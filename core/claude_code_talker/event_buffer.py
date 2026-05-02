@@ -49,3 +49,43 @@ class EventBuffer:
     def clear(self) -> None:
         with self._lock:
             self._events.clear()
+
+
+def score_significance(event: Event, keywords: list[str]) -> float:
+    """Deterministic significance scoring 0.0–1.0.
+
+    Notifications max out (user needs to hear). Errors and findings score high.
+    Edits/Writes score moderate. Reads/Greps score low.
+    """
+    if event.type == "NOTIFICATION":
+        return 1.0
+
+    if event.type == "POST_TOOL":
+        if not event.metadata.get("success", True):
+            return 0.9
+        tool = event.metadata.get("tool_name", "")
+        if tool in ("Edit", "Write"):
+            return 0.6
+        if tool == "Bash":
+            cmd = event.metadata.get("input", "") or ""
+            if any(s in cmd.lower() for s in ("rm ", "kill", "drop ", "delete ")):
+                return 0.7
+            return 0.3
+        return 0.2
+
+    if event.type == "PRE_TOOL":
+        tool = event.metadata.get("tool_name", "")
+        if tool == "Bash":
+            cmd = event.metadata.get("input", "") or ""
+            if any(s in cmd.lower() for s in ("rm ", "kill", "drop ", "delete ")):
+                return 0.7
+        return 0.2
+
+    if event.type == "PROSE":
+        text = (event.metadata.get("text", "") or "").lower()
+        for kw in keywords:
+            if kw.lower() in text:
+                return 0.8
+        return 0.2
+
+    return 0.2
