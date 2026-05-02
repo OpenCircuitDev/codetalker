@@ -29,3 +29,7 @@ claude-tts-hook = "claude_tts.hooks:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["claude_tts*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
