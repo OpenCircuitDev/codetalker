@@ -60,6 +60,24 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     piper = PiperEngine(piper_exe=PIPER_DIR / "piper.exe", voices_dir=VOICES_DIR)
     ollama = OllamaProvider()
 
+    providers: dict[str, object] = {"ollama": ollama}
+
+    anthropic_cfg = ((cfg.get("providers") or {}).get("anthropic") or {})
+    anthropic_key = os.environ.get(anthropic_cfg.get("api_key_env", "ANTHROPIC_API_KEY"))
+    if anthropic_key:
+        try:
+            from claude_code_talker.providers.anthropic import AnthropicProvider as _Anth
+            providers["anthropic"] = _Anth(
+                api_key=anthropic_key,
+                model=anthropic_cfg.get("model", "claude-haiku-4-5-20251001"),
+            )
+        except (ImportError, ValueError) as e:
+            import logging
+            logging.info("anthropic provider unavailable: %s", e)
+    else:
+        import logging
+        logging.info("ANTHROPIC_API_KEY not set; anthropic provider unavailable")
+
     engines: dict[str, object] = {"piper": piper}
     try:
         from claude_code_talker.engines.edge import EdgeEngine as _Edge
@@ -95,7 +113,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state = ServerState(
         cfg=cfg,
         engines=engines,
-        providers={"ollama": ollama},
+        providers=providers,
         modes={
             "direct": DirectMode(),
             # brief and live constructed below after _select_provider can resolve
