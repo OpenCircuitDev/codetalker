@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from claude_code_talker.audio import play_wav_bytes
+from claude_code_talker.audio import AudioQueue, play_wav_bytes
 from claude_code_talker.config import load_full_config
 from claude_code_talker.engines import PiperEngine
 from claude_code_talker.modes.base import ModeStrategy
@@ -29,6 +29,7 @@ class ServerState:
     providers: dict[str, object]
     modes: dict[str, ModeStrategy]
     active_mode: str = "direct"
+    audio_queue: AudioQueue = None  # set in build_server_state
 
 
 def build_server_state(cwd: str | None = None) -> ServerState:
@@ -43,13 +44,16 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         "brief": BriefMode(provider=ollama),
     }
 
-    return ServerState(
+    state = ServerState(
         cfg=cfg,
         engines={"piper": piper},
         providers={"ollama": ollama},
         modes=modes,
         active_mode="direct",
     )
+    state.audio_queue = AudioQueue(state)
+    state.audio_queue.start()
+    return state
 
 
 def main():

@@ -74,3 +74,18 @@ async def test_tts_mute_unmute_toggles_enabled():
 
     await server.call_tool("tts_unmute", {})
     assert state.cfg["enabled"] is True
+
+
+from claude_code_talker.audio import AudioQueue
+
+
+def test_server_state_has_audio_queue():
+    state = build_server_state()
+    assert isinstance(state.audio_queue, AudioQueue)
+
+
+def test_server_state_audio_queue_started():
+    state = build_server_state()
+    # The queue's worker thread should be running after build_server_state.
+    assert state.audio_queue._worker.is_alive()
+    state.audio_queue.shutdown(drain_timeout=2.0)
