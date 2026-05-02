@@ -1,0 +1,49 @@
+{
+  "name": "claude-code-talker-vscode",
+  "displayName": "Claude Code Talker",
+  "description": "Voice companion for Claude Code — status bar, Command Palette, config editor",
+  "version": "0.1.0",
+  "publisher": "OpenCircuitDev",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "claude-tts.toggle",                "title": "Claude TTS: Toggle Mute" },
+      { "command": "claude-tts.changeMode",            "title": "Claude TTS: Change Mode" },
+      { "command": "claude-tts.changeVoice",           "title": "Claude TTS: Change Voice" },
+      { "command": "claude-tts.changeCadence",         "title": "Claude TTS: Change Cadence (Live Mode)" },
+      { "command": "claude-tts.changeProvider",        "title": "Claude TTS: Change LLM Provider" },
+      { "command": "claude-tts.changeRate",            "title": "Claude TTS: Change Rate" },
+      { "command": "claude-tts.editWorkspaceConfig",   "title": "Claude TTS: Edit Workspace Config" },
+      { "command": "claude-tts.restartDaemon",         "title": "Claude TTS: Restart Daemon" },
+      { "command": "claude-tts.viewLog",               "title": "Claude TTS: View Daemon Log" },
+      { "command": "claude-tts.runSetup",              "title": "Claude TTS: Run Setup Wizard" }
+    ],
+    "configuration": {
+      "title": "Claude Code Talker",
+      "properties": {
+        "claudeTts.daemonHost":              { "type": "string",  "default": "127.0.0.1" },
+        "claudeTts.daemonPort":              { "type": "number",  "default": 17832 },
+        "claudeTts.statusBarPollIntervalMs": { "type": "number",  "default": 2000 },
+        "claudeTts.autoSpawnDaemon":         { "type": "boolean", "default": true }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@types/js-yaml": "^4.0.0",
+    "typescript": "^5.3.0"
+  }
+}
