@@ -78,6 +78,18 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         import logging
         logging.info("ANTHROPIC_API_KEY not set; anthropic provider unavailable")
 
+    openrouter_cfg = ((cfg.get("providers") or {}).get("openrouter") or {})
+    openrouter_key = os.environ.get(openrouter_cfg.get("api_key_env", "OPENROUTER_API_KEY"))
+    if openrouter_key:
+        from claude_code_talker.providers.openrouter import OpenRouterProvider as _OR
+        providers["openrouter"] = _OR(
+            api_key=openrouter_key,
+            model=openrouter_cfg.get("model", "anthropic/claude-haiku-4-5"),
+        )
+    else:
+        import logging
+        logging.info("OPENROUTER_API_KEY not set; openrouter provider unavailable")
+
     engines: dict[str, object] = {"piper": piper}
     try:
         from claude_code_talker.engines.edge import EdgeEngine as _Edge
