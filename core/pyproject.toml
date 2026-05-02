@@ -24,7 +24,7 @@ dev = [
 
 [project.scripts]
 claude-code-talker = "claude_code_talker.server:main"
-claude-code-talker-hook = "claude_code_talker.hooks:main"
+claude-code-talker-hook = "claude_code_talker.hook_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
