@@ -1,12 +1,14 @@
-"""End-to-end integration test for Phase 1.
+"""End-to-end integration test for Phase 2A hook-cli MCP client.
 
-Validates that a Stop event payload flows through the full pipeline and ends
-in a synthesize+play call with the expected text.
+Validates that Stop/Notification events route through _call_mcp_tool
+and that the disabled-config path short-circuits before calling.
+Phase 1 in-process Piper dispatch is gone; these tests cover the new
+MCP client shape.
 """
 import json
 import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from claude_code_talker.hook_cli import dispatch_hook
 
 
@@ -14,7 +16,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.mark.asyncio
-async def test_e2e_stop_flow_produces_audio_synth_call(tmp_path):
+async def test_e2e_stop_flow_calls_tts_handle_stop(tmp_path):
     transcript = tmp_path / "t.jsonl"
     transcript.write_text(
         json.dumps({"type": "user", "message": {"content": [{"type": "text", "text": "Investigate."}]}}) + "\n" +
@@ -27,31 +29,16 @@ async def test_e2e_stop_flow_produces_audio_synth_call(tmp_path):
         "cwd": str(tmp_path),
     }
 
-    fake_engine = MagicMock()
-    fake_engine.synthesize = MagicMock(return_value=b"FAKE_WAV")
-    fake_engine.list_voices = MagicMock(return_value=["en_GB-jenny_dioco-medium"])
+    fake_call = AsyncMock(return_value="queued: 42 chars")
 
-    with patch("claude_code_talker.hook_cli.PiperEngine", return_value=fake_engine), \
-         patch("claude_code_talker.hook_cli.play_wav_bytes") as mock_play, \
-         patch("claude_code_talker.hook_cli.load_full_config", return_value={
-            "enabled": True,
-            "voice": {"model": "en_GB-jenny_dioco-medium", "rate": 1.0},
-            "elements": {"heading": True, "code_block": False, "inline_code": True,
-                         "link": True, "list": True, "blockquote": True,
-                         "emphasis": True, "table": False, "insight_block": False},
-            "urls": {"shorten_to_host": True},
-            "paths": {"handling": "filename"},
-            "content_filter": {"mode": "off"},
-            "text": {"max_chars": 5000, "boundary_snap": "sentence", "truncation_marker": "..."},
-            "synopsis": {"enabled": False},
-            "active_mode": "direct",
-         }):
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
         await dispatch_hook(payload)
 
-    fake_engine.synthesize.assert_called_once()
-    spoken_text = fake_engine.synthesize.call_args[0][0]
-    assert "Smoking gun" in spoken_text
-    mock_play.assert_called_once_with(b"FAKE_WAV")
+    fake_call.assert_called_once()
+    tool_name, args = fake_call.call_args[0]
+    assert tool_name == "tts_handle_stop"
+    assert args["transcript_path"] == str(transcript)
+    assert args["cwd"] == str(tmp_path)
 
 
 @pytest.mark.asyncio
@@ -61,32 +48,24 @@ async def test_e2e_notification_flow(tmp_path):
         "message": "Permission required.",
     }
 
-    fake_engine = MagicMock()
-    fake_engine.synthesize = MagicMock(return_value=b"WAV")
-    fake_engine.list_voices = MagicMock(return_value=["jenny"])
+    fake_call = AsyncMock(return_value="queued: 24 chars")
 
-    with patch("claude_code_talker.hook_cli.PiperEngine", return_value=fake_engine), \
-         patch("claude_code_talker.hook_cli.play_wav_bytes") as mock_play, \
-         patch("claude_code_talker.hook_cli.load_full_config", return_value={
-            "enabled": True,
-            "voice": {"model": "jenny", "rate": 1.0},
-         }):
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
         await dispatch_hook(payload)
 
-    fake_engine.synthesize.assert_called_once()
-    spoken = fake_engine.synthesize.call_args[0][0]
-    assert "Claude. Permission required." in spoken
+    fake_call.assert_called_once()
+    tool_name, args = fake_call.call_args[0]
+    assert tool_name == "tts_handle_notification"
+    assert args["message"] == "Permission required."
 
 
 @pytest.mark.asyncio
-async def test_e2e_disabled_skips_everything(tmp_path):
-    payload = {"hook_event_name": "Stop", "transcript_path": str(tmp_path / "x.jsonl")}
+async def test_e2e_unknown_event_skips_mcp_call(tmp_path):
+    payload = {"hook_event_name": "UnknownEvent"}
 
-    fake_engine = MagicMock()
-    with patch("claude_code_talker.hook_cli.PiperEngine", return_value=fake_engine), \
-         patch("claude_code_talker.hook_cli.play_wav_bytes") as mock_play, \
-         patch("claude_code_talker.hook_cli.load_full_config", return_value={"enabled": False}):
+    fake_call = AsyncMock()
+
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
         await dispatch_hook(payload)
 
-    fake_engine.synthesize.assert_not_called()
-    mock_play.assert_not_called()
+    fake_call.assert_not_called()

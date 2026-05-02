@@ -1,7 +1,8 @@
 """CLI entry point invoked by Claude Code hooks.
 
-Claude Code's settings.json points hook commands at this script. The script
-reads JSON payload from stdin, identifies the event, and dispatches.
+Reads JSON from stdin, identifies the event, posts the appropriate MCP
+tool call to the running daemon. If the daemon isn't running, spawns it
+detached and exits silently.
 """
 from __future__ import annotations
 
@@ -9,56 +10,66 @@ import asyncio
 import json
 import sys
 
-from claude_code_talker.audio import play_wav_bytes
-from claude_code_talker.config import load_full_config
-from claude_code_talker.engines.piper import PiperEngine
-from claude_code_talker.hooks import handle_notification, handle_stop
-from claude_code_talker.modes.brief import BriefMode
-from claude_code_talker.modes.direct import DirectMode
-from claude_code_talker.providers.ollama import OllamaProvider
-from claude_code_talker.server import PIPER_DIR, VOICES_DIR
+from claude_code_talker.daemon import (
+    DAEMON_PIDFILE, daemon_url, is_process_alive, read_pidfile, spawn_detached,
+)
+
+
+async def _call_mcp_tool(tool_name: str, args: dict) -> str:
+    """Connect to the daemon's SSE endpoint and call the named MCP tool.
+
+    Raises ConnectionRefusedError if the daemon isn't reachable.
+    """
+    from mcp import ClientSession
+    from mcp.client.sse import sse_client
+
+    async with sse_client(daemon_url()) as (read_stream, write_stream):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            result = await session.call_tool(tool_name, args)
+            # FastMCP returns content list; extract text.
+            for c in result.content:
+                if hasattr(c, "text"):
+                    return c.text
+            return ""
+
+
+def _ensure_daemon() -> None:
+    """If the daemon isn't running, spawn it detached. No-op if running."""
+    pid = read_pidfile(DAEMON_PIDFILE)
+    if pid is not None and is_process_alive(pid):
+        return  # already running
+    # Spawn detached. Use sys.executable to ensure the same Python.
+    spawn_detached([sys.executable, "-m", "claude_code_talker", "serve"])
 
 
 async def dispatch_hook(payload: dict) -> None:
     event = payload.get("hook_event_name", "")
-    cwd = payload.get("cwd")
-    cfg = load_full_config(cwd=cwd)
 
-    if not cfg.get("enabled", True):
-        return
-
-    text = ""
     if event == "Stop":
-        mode_a = DirectMode()
-        mode_b = BriefMode(provider=OllamaProvider())
-        active_mode = (cfg.get("active_mode") or "direct")
-        text = await handle_stop(payload, cfg, mode_a, mode_b, active_mode)
+        tool_args = {
+            "transcript_path": payload.get("transcript_path", ""),
+            "cwd": payload.get("cwd", ""),
+        }
+        tool_name = "tts_handle_stop"
     elif event == "Notification":
-        text = handle_notification(payload, cfg)
+        tool_args = {"message": payload.get("message", "")}
+        tool_name = "tts_handle_notification"
     else:
-        return
+        return  # unknown event — silent no-op
 
-    if not text:
-        return
-
-    voice_cfg = cfg.get("voice") or {}
-    voice_model = voice_cfg.get("model")
-    rate = float(voice_cfg.get("rate", 1.0))
-    engine = PiperEngine(piper_exe=PIPER_DIR / "piper.exe", voices_dir=VOICES_DIR)
-    if not voice_model:
-        voices = engine.list_voices()
-        if not voices:
-            return
-        voice_model = voices[0]
     try:
-        wav = engine.synthesize(text, voice_model, rate)
-        play_wav_bytes(wav)
-    except (RuntimeError, ValueError):
-        return
+        await asyncio.wait_for(_call_mcp_tool(tool_name, tool_args), timeout=2.0)
+    except (ConnectionRefusedError, asyncio.TimeoutError, OSError):
+        # Daemon not reachable. Spawn it detached and exit silently.
+        # Next hook will succeed.
+        try:
+            _ensure_daemon()
+        except Exception:
+            pass
 
 
 def main():
-    """Entry point: read JSON from stdin, dispatch."""
     raw = sys.stdin.read()
     try:
         payload = json.loads(raw)
