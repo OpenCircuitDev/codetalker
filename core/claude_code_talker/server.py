@@ -58,14 +58,31 @@ def build_server_state(cwd: str | None = None) -> ServerState:
 
 
 def main():
-    """Entry point for the `claude-code-talker` CLI command."""
+    """Entry point for the `claude-code-talker` CLI command.
+
+    Subcommands:
+      claude-code-talker          - print status (legacy summary)
+      claude-code-talker serve    - run as foreground daemon
+      claude-code-talker stop     - send tts_shutdown to running daemon (Task 13)
+    """
+    import sys
+    args = sys.argv[1:]
+    if args and args[0] == "serve":
+        from claude_code_talker.daemon import serve_foreground
+        serve_foreground()
+        return
+    if args and args[0] == "stop":
+        from claude_code_talker.daemon import stop_daemon
+        stop_daemon()
+        return
+
     state = build_server_state()
     print(f"claude-code-talker server initialized")
     print(f"  engines: {list(state.engines)}")
     print(f"  providers: {list(state.providers)}")
     print(f"  modes: {list(state.modes)}")
     print(f"  active mode: {state.active_mode}")
-    print("MCP server protocol wiring lands in Task 13.")
+    print("Use 'claude-code-talker serve' to start the daemon.")
 
 
 if __name__ == "__main__":

@@ -130,3 +130,40 @@ def spawn_detached(cmd: list[str], log_path: Path | None = None) -> int:
         **kwargs,
     )
     return proc.pid
+
+
+import time
+
+
+def serve_foreground():
+    """Run the daemon in the foreground until shutdown signal.
+
+    Acquires the pidfile, builds server state, runs until state.shutting_down
+    or KeyboardInterrupt, then releases the pidfile. SSE transport is wired
+    in Sub-Phase A3 — for now this just hosts the in-process MCPServer and
+    polls the shutdown flag.
+    """
+    from claude_code_talker.server import build_server_state
+
+    try:
+        acquire_pidfile(DAEMON_PIDFILE)
+    except PidfileLockedError as e:
+        print(f"daemon already running: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"claude-code-talker daemon started (pid {os.getpid()})")
+    print(f"  pidfile: {DAEMON_PIDFILE}")
+    print(f"  logfile: {DAEMON_LOGFILE}")
+    print("  (SSE transport wires in Sub-Phase A3)")
+
+    state = build_server_state()
+    try:
+        while not state.shutting_down:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print("interrupted; shutting down")
+    finally:
+        if state.audio_queue is not None:
+            state.audio_queue.shutdown(drain_timeout=5.0)
+        release_pidfile(DAEMON_PIDFILE)
+        print("daemon stopped cleanly")
