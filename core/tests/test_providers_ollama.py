@@ -1,8 +1,8 @@
 """Tests for Ollama LLM provider."""
 import pytest
 from unittest.mock import patch, MagicMock
-from codetalker.providers.base import LLMProvider
-from codetalker.providers.ollama import OllamaProvider
+from claude_code_talker.providers.base import LLMProvider
+from claude_code_talker.providers.ollama import OllamaProvider
 
 
 @pytest.mark.asyncio
@@ -16,7 +16,7 @@ async def test_ollama_inherits_base():
 async def test_ollama_complete_posts_to_endpoint():
     p = OllamaProvider(endpoint="http://localhost:11434", model="llama3.2:1b")
 
-    with patch("codetalker.providers.ollama.httpx.AsyncClient") as mock_client_cls:
+    with patch("claude_code_talker.providers.ollama.httpx.AsyncClient") as mock_client_cls:
         mock_client = MagicMock()
         mock_client_cls.return_value.__aenter__.return_value = mock_client
         mock_response = MagicMock()
@@ -52,7 +52,7 @@ async def test_ollama_complete_passes_max_tokens():
             captured_payload.update(json)
             return FakeResponse()
 
-    with patch("codetalker.providers.ollama.httpx.AsyncClient", return_value=FakeClient()):
+    with patch("claude_code_talker.providers.ollama.httpx.AsyncClient", return_value=FakeClient()):
         await p.complete("hi", max_tokens=42)
 
     assert captured_payload["model"] == "llama3.2:1b"

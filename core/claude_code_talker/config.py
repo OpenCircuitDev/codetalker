@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from codetalker.presets import get_preset
+from claude_code_talker.presets import get_preset
 
 DEFAULT_GLOBAL_PATH = Path.home() / ".claude" / "scripts" / "tts_config.yaml"
 

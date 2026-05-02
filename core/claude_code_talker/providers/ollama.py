@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import httpx
 
-from codetalker.providers.base import LLMProvider
+from claude_code_talker.providers.base import LLMProvider
 
 
 class OllamaProvider(LLMProvider):

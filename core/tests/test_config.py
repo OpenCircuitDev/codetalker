@@ -1,5 +1,5 @@
 """Tests for config loading and merging."""
-from codetalker.config import deep_merge, load_global_config
+from claude_code_talker.config import deep_merge, load_global_config
 
 
 def test_deep_merge_overrides_leaves():
@@ -56,7 +56,7 @@ def test_load_global_config_non_dict_top_level_returns_defaults(tmp_path):
     assert cfg == {"enabled": True}
 
 
-from codetalker.config import find_workspace_config, translate_workspace_overrides, load_full_config
+from claude_code_talker.config import find_workspace_config, translate_workspace_overrides, load_full_config
 
 
 def test_find_workspace_config_walks_up(tmp_path):

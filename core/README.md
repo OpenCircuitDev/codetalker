@@ -1,7 +1,9 @@
-# codetalker (core)
+# claude_code_talker (core)
 
-Python MCP server providing TTS for Claude Code. Phase 1 supports Piper TTS,
-Ollama LLM, and Modes A (direct read) and B (turn-end brief).
+Python MCP server providing TTS for Claude Code. Part of Claude Code Talker.
+Phase 1 supports Piper TTS, Ollama LLM, and Modes A (direct read) and B (turn-end brief).
+
+Built on the CodeTalker core (engine-neutral abstractions: engines, providers, modes, MCP server shell).
 
 ## Install
 
@@ -9,7 +11,7 @@ Ollama LLM, and Modes A (direct read) and B (turn-end brief).
 
 ## Run server
 
-    codetalker
+    claude-code-talker
 
 ## Run tests
 

@@ -1,7 +1,7 @@
 [project]
-name = "codetalker"
+name = "claude-code-talker"
 version = "0.1.0"
-description = "Multi-mode voice companion for Claude Code"
+description = "Claude Code Talker — multi-mode voice companion for Claude Code"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

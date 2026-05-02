@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codetalker"
+name = "claude-code-talker"
 version = "0.1.0"
-description = "CodeTalker — voice companion for Claude Code"
+description = "Claude Code Talker — voice companion for Claude Code"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -23,12 +23,12 @@ dev = [
 ]
 
 [project.scripts]
-codetalker = "codetalker.server:main"
-codetalker-hook = "codetalker.hooks:main"
+claude-code-talker = "claude_code_talker.server:main"
+claude-code-talker-hook = "claude_code_talker.hooks:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["codetalker*"]
+include = ["claude_code_talker*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
