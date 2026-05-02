@@ -168,7 +168,8 @@ def register_tools(server, state) -> None:
             if not voices:
                 return "skipped: no voices available"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
+                                          audio_format=getattr(engine, "audio_format", "wav")))
         return f"queued: {len(text)} chars"
 
     async def tts_set_mode(args):
@@ -245,7 +246,8 @@ def register_tools(server, state) -> None:
             if not voices:
                 return "skipped: no voices"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
+                                          audio_format=getattr(engine, "audio_format", "wav")))
         return f"queued: {len(text)} chars"
 
     async def tts_handle_notification(args):
@@ -265,7 +267,8 @@ def register_tools(server, state) -> None:
             if not voices:
                 return "skipped: no voices"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
+                                          audio_format=getattr(engine, "audio_format", "wav")))
         return f"queued: {len(text)} chars"
 
     async def tts_handle_pretool(args):

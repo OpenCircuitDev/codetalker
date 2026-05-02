@@ -40,3 +40,20 @@ def test_audio_job_defaults():
 def test_audio_job_explicit_engine():
     job = AudioJob(text="hi", voice="ryan", rate=1.2, engine_name="elevenlabs")
     assert job.engine_name == "elevenlabs"
+
+
+def test_play_audio_bytes_wav_calls_play_wav_bytes():
+    from unittest.mock import patch
+    from claude_code_talker.audio import play_audio_bytes
+    with patch("claude_code_talker.audio.play_wav_bytes") as mock_play:
+        play_audio_bytes(b"WAV", audio_format="wav")
+    # play_audio_bytes("wav") calls play_wav_bytes(audio, handle=None)
+    mock_play.assert_called_once()
+    assert mock_play.call_args[0][0] == b"WAV"
+
+
+def test_play_audio_bytes_unknown_format_raises():
+    import pytest
+    from claude_code_talker.audio import play_audio_bytes
+    with pytest.raises(ValueError):
+        play_audio_bytes(b"x", audio_format="ogg")

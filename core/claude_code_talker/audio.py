@@ -108,6 +108,60 @@ def play_wav_bytes(wav: bytes, handle: _PlaybackHandle | None = None) -> None:
             pass
 
 
+def play_audio_bytes(audio: bytes, audio_format: str = "wav", handle: _PlaybackHandle | None = None) -> None:
+    """Play audio bytes synchronously. Format is "wav" or "mp3".
+
+    On Windows, MP3 is transcoded to WAV via pydub (requires ffmpeg).
+    On macOS/Linux, MP3 plays directly via afplay/mpg123.
+    The optional `handle` is forwarded to the WAV playback path so interruption works.
+    """
+    if not audio:
+        return
+    if audio_format == "wav":
+        return play_wav_bytes(audio, handle)
+    if audio_format == "mp3":
+        return _play_mp3_bytes(audio)
+    raise ValueError(f"unknown audio format: {audio_format}")
+
+
+def _play_mp3_bytes(audio: bytes) -> None:
+    # Note: MP3 playback does not support interruption via _PlaybackHandle (rare in live narration path).
+    if sys.platform == "win32":
+        # Transcode to WAV via pydub
+        try:
+            from pydub import AudioSegment
+            import io
+            seg = AudioSegment.from_mp3(io.BytesIO(audio))
+            buf = io.BytesIO()
+            seg.export(buf, format="wav")
+            return play_wav_bytes(buf.getvalue())
+        except ImportError:
+            logging.warning("pydub not installed; cannot play MP3 on Windows")
+            return
+    elif sys.platform == "darwin":
+        fd, path = tempfile.mkstemp(suffix=".mp3", prefix="claude_tts_play_")
+        os.close(fd)
+        try:
+            Path(path).write_bytes(audio)
+            subprocess.run(["afplay", path], check=False)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+    else:
+        fd, path = tempfile.mkstemp(suffix=".mp3", prefix="claude_tts_play_")
+        os.close(fd)
+        try:
+            Path(path).write_bytes(audio)
+            subprocess.run(["mpg123", "-q", path], check=False)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
 @dataclass
 class AudioJob:
     """One unit of work for the audio worker thread."""
@@ -117,6 +171,7 @@ class AudioJob:
     engine_name: str = "piper"
     priority: str = "normal"  # alert | normal | routine
     enqueued_at: float = 0.0
+    audio_format: str = "wav"  # wav (Piper) or mp3 (cloud engines)
 
 
 _PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
@@ -213,6 +268,6 @@ class AudioQueue:
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
-                play_wav_bytes(wav, self._handle)
+                play_audio_bytes(wav, audio_format=job.audio_format, handle=self._handle)
             except Exception as e:
                 logging.warning("audio job failed: %s", e)
