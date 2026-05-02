@@ -1,5 +1,5 @@
 """Tests for preset bundle definitions."""
-from claude_tts.presets import PRESETS, get_preset
+from codetalker.presets import PRESETS, get_preset
 
 
 def test_known_presets_exist():

@@ -9,6 +9,6 @@ dist/
 venv/
 .env
 *.wav
-core/claude_tts/_version.py
+core/codetalker/_version.py
 .coverage
 htmlcov/

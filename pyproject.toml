@@ -1,5 +1,5 @@
 [project]
-name = "claude-tts-toolkit"
+name = "codetalker"
 version = "0.1.0"
 description = "Multi-mode voice companion for Claude Code"
 readme = "README.md"

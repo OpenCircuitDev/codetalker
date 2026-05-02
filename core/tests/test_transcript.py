@@ -1,6 +1,6 @@
 """Tests for transcript parsing."""
 from pathlib import Path
-from claude_tts.transcript import collect_turn, is_real_user_message
+from codetalker.transcript import collect_turn, is_real_user_message
 
 
 FIXTURES = Path(__file__).parent / "fixtures"

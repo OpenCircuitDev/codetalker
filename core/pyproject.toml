@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claude-tts"
+name = "codetalker"
 version = "0.1.0"
-description = "Claude Code TTS — MCP server + library"
+description = "CodeTalker — voice companion for Claude Code"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -23,12 +23,12 @@ dev = [
 ]
 
 [project.scripts]
-claude-tts = "claude_tts.server:main"
-claude-tts-hook = "claude_tts.hooks:main"
+codetalker = "codetalker.server:main"
+codetalker-hook = "codetalker.hooks:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["claude_tts*"]
+include = ["codetalker*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from claude_tts.engines.base import TTSEngine
+from codetalker.engines.base import TTSEngine
 
 
 class PiperEngine(TTSEngine):

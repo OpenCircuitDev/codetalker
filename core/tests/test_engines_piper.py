@@ -2,8 +2,8 @@
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from claude_tts.engines.base import TTSEngine
-from claude_tts.engines.piper import PiperEngine
+from codetalker.engines.base import TTSEngine
+from codetalker.engines.piper import PiperEngine
 
 
 def test_piper_engine_inherits_base():
@@ -26,11 +26,11 @@ def test_piper_synthesize_calls_subprocess(tmp_path):
 
     e = PiperEngine(piper_exe=Path("/fake/piper.exe"), voices_dir=tmp_path)
 
-    with patch("claude_tts.engines.piper.subprocess.run") as mock_run, \
-         patch("claude_tts.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
-         patch("claude_tts.engines.piper.Path.read_bytes") as mock_read, \
-         patch("claude_tts.engines.piper.os.close"), \
-         patch("claude_tts.engines.piper.os.unlink"):
+    with patch("codetalker.engines.piper.subprocess.run") as mock_run, \
+         patch("codetalker.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
+         patch("codetalker.engines.piper.Path.read_bytes") as mock_read, \
+         patch("codetalker.engines.piper.os.close"), \
+         patch("codetalker.engines.piper.os.unlink"):
         mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
         mock_run.return_value = MagicMock(returncode=0, stderr=b"")
         mock_read.return_value = b"FAKE_WAV_BYTES"
@@ -50,10 +50,10 @@ def test_piper_synthesize_raises_on_subprocess_failure(tmp_path):
     voice_path.write_text("")
     e = PiperEngine(piper_exe=Path("/fake/piper.exe"), voices_dir=tmp_path)
 
-    with patch("claude_tts.engines.piper.subprocess.run") as mock_run, \
-         patch("claude_tts.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
-         patch("claude_tts.engines.piper.os.close"), \
-         patch("claude_tts.engines.piper.os.unlink"):
+    with patch("codetalker.engines.piper.subprocess.run") as mock_run, \
+         patch("codetalker.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
+         patch("codetalker.engines.piper.os.close"), \
+         patch("codetalker.engines.piper.os.unlink"):
         mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
         mock_run.return_value = MagicMock(returncode=1, stderr=b"boom")
 
@@ -72,10 +72,10 @@ def test_piper_synthesize_raises_on_timeout(tmp_path):
     voice_path.write_text("")
     e = PiperEngine(piper_exe=Path("/fake/piper.exe"), voices_dir=tmp_path)
 
-    with patch("claude_tts.engines.piper.subprocess.run") as mock_run, \
-         patch("claude_tts.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
-         patch("claude_tts.engines.piper.os.close"), \
-         patch("claude_tts.engines.piper.os.unlink"):
+    with patch("codetalker.engines.piper.subprocess.run") as mock_run, \
+         patch("codetalker.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
+         patch("codetalker.engines.piper.os.close"), \
+         patch("codetalker.engines.piper.os.unlink"):
         import subprocess as sp
         mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
         mock_run.side_effect = sp.TimeoutExpired(cmd="piper", timeout=120)

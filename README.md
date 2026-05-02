@@ -1,4 +1,4 @@
-# Claude TTS Toolkit
+# CodeTalker
 
 Multi-mode voice companion for Claude Code. Ships as an MCP server consumable
 by VS Code, Cursor, Claude Desktop, CLI, or any MCP client.
