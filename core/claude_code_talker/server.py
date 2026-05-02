@@ -251,6 +251,25 @@ def register_tools(server, state) -> None:
         state.event_buffer.push(ev)
         return "recorded"
 
+    async def tts_handle_posttool(args):
+        import time
+        keywords = ((state.cfg.get("content_filter") or {}).get("speak_keywords") or [])
+        response = args.get("tool_response", {}) or {}
+        ev = Event(
+            timestamp=time.time(),
+            type="POST_TOOL",
+            metadata={
+                "tool_name": args.get("tool_name", ""),
+                "input": str(args.get("tool_input", ""))[:200],
+                "response": str(response)[:200],
+                "success": response.get("success", True) if isinstance(response, dict) else True,
+            },
+            significance=0.0,
+        )
+        ev.significance = score_significance(ev, keywords)
+        state.event_buffer.push(ev)
+        return "recorded"
+
     server.register(MCPTool("tts_speak", "Speak the given text using the active engine.", tts_speak))
     server.register(MCPTool("tts_set_mode", "Switch active mode: direct or brief.", tts_set_mode))
     server.register(MCPTool("tts_status", "Report current state.", tts_status))
@@ -263,6 +282,9 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_handle_pretool",
                             "Record a PreToolUse event into the rolling buffer.",
                             tts_handle_pretool))
+    server.register(MCPTool("tts_handle_posttool",
+                            "Record a PostToolUse event into the rolling buffer.",
+                            tts_handle_posttool))
 
 
 def build_mcp_server(state: ServerState) -> MCPServer:

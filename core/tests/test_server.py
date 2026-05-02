@@ -196,3 +196,22 @@ async def test_tts_handle_pretool_pushes_event():
     assert len(events) == 1
     assert events[0].type == "PRE_TOOL"
     assert events[0].metadata["tool_name"] == "Edit"
+
+
+@pytest.mark.asyncio
+async def test_tts_handle_posttool_pushes_event():
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.event_buffer.clear()
+
+    await server.call_tool("tts_handle_posttool", {
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "c:/foo.py"},
+        "tool_response": {"success": True, "output": "ok"},
+    })
+
+    events = state.event_buffer.recent()
+    assert len(events) == 1
+    assert events[0].type == "POST_TOOL"
+    assert events[0].metadata["success"] is True
+    assert events[0].significance >= 0.5  # Edit is significant
