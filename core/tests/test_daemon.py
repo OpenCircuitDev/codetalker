@@ -40,3 +40,30 @@ def test_read_pidfile_returns_pid(tmp_path):
 def test_read_pidfile_returns_none_when_absent(tmp_path):
     pidfile = tmp_path / "codetalker.pid"
     assert read_pidfile(pidfile) is None
+
+
+from claude_code_talker.daemon import is_process_alive
+
+
+def test_is_process_alive_self():
+    assert is_process_alive(os.getpid()) is True
+
+
+def test_is_process_alive_unlikely_pid():
+    # PID 999999 is almost certainly not running on a normal system.
+    assert is_process_alive(999999) is False
+
+
+def test_is_process_alive_invalid():
+    assert is_process_alive(0) is False
+    assert is_process_alive(-1) is False
+
+
+def test_acquire_pidfile_replaces_stale(tmp_path):
+    """If pidfile exists but PID is dead, acquire should replace it."""
+    pidfile = tmp_path / "codetalker.pid"
+    pidfile.write_text("999999")  # almost certainly dead
+
+    acquire_pidfile(pidfile)  # should not raise
+    assert pidfile.read_text().strip() == str(os.getpid())
+    release_pidfile(pidfile)
