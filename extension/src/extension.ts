@@ -11,6 +11,7 @@ import { registerChangeRate } from "./commands/changeRate";
 import { registerRestartDaemon } from "./commands/restartDaemon";
 import { registerViewLog } from "./commands/viewLog";
 import { registerRunSetup } from "./commands/runSetup";
+import { registerEditWorkspaceConfig } from "./commands/editWorkspaceConfig";
 
 let client: CodeTalkerClient;
 let statusBar: StatusBar;
@@ -47,6 +48,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerChangeCadence(context, client);
   registerChangeProvider(context, client);
   registerChangeRate(context, client);
+  registerEditWorkspaceConfig(context, client);
   registerRestartDaemon(context, client);
   registerViewLog(context);
   registerRunSetup(context);
