@@ -215,3 +215,28 @@ async def test_tts_handle_posttool_pushes_event():
     assert events[0].type == "POST_TOOL"
     assert events[0].metadata["success"] is True
     assert events[0].significance >= 0.5  # Edit is significant
+
+
+@pytest.mark.asyncio
+async def test_set_mode_live_starts_cadence_loop():
+    state = build_server_state()
+    server = build_mcp_server(state)
+    await server.call_tool("tts_set_mode", {"mode": "live"})
+    live = state.modes["live"]
+    assert live._task is not None
+    # Cleanup
+    await live.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_set_mode_away_from_live_shuts_down():
+    import asyncio
+    state = build_server_state()
+    server = build_mcp_server(state)
+    await server.call_tool("tts_set_mode", {"mode": "live"})
+    live = state.modes["live"]
+    assert live._task is not None
+    await server.call_tool("tts_set_mode", {"mode": "direct"})
+    # task should have been cancelled
+    await asyncio.sleep(0.1)
+    assert live._task is None or live._task.done()

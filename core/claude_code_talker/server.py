@@ -172,11 +172,26 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_set_mode(args):
-        mode = args.get("mode")
-        if mode not in state.modes:
-            raise ValueError(f"unknown mode: {mode}; available: {list(state.modes)}")
-        state.active_mode = mode
-        return f"active mode set to {mode}"
+        new_mode = args.get("mode")
+        if new_mode not in state.modes:
+            raise ValueError(f"unknown mode: {new_mode}; available: {list(state.modes)}")
+
+        # If switching AWAY from live, shut down the cadence loop
+        old_mode = state.active_mode
+        if old_mode == "live" and new_mode != "live":
+            live = state.modes.get("live")
+            if isinstance(live, LiveMode):
+                await live.shutdown()
+
+        state.active_mode = new_mode
+
+        # If switching TO live, start the cadence loop
+        if new_mode == "live":
+            live = state.modes.get("live")
+            if isinstance(live, LiveMode):
+                live.start()
+
+        return f"active mode set to {new_mode}"
 
     async def tts_status(args):
         enabled = state.cfg.get("enabled", True)
