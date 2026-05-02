@@ -90,6 +90,12 @@ def main():
     print("  claude-code-talker serve  - foreground daemon (Ctrl+C to stop)")
     print("  claude-code-talker stop   - graceful shutdown of running daemon")
     print()
+    print("== Modes ==")
+    print("  direct     - read each turn aloud (regex-cleaned)")
+    print("  brief      - LLM-translated turn summary at end of each turn")
+    print("  live       - sportscaster narration as Claude works (Phase 2B)")
+    print("Switch via the workspace config (mode: live) or the tts_set_mode MCP tool.")
+    print()
     print("== Hook integration ==")
     print(HOOK_INSTRUCTIONS)
 
