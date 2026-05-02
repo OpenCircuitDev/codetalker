@@ -118,6 +118,20 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         import logging
         logging.info("OpenAI API key not set; engine unavailable")
 
+    xtts_cfg = ((cfg.get("engines") or {}).get("xtts") or {})
+    xtts_refs = Path(xtts_cfg.get("references_dir") or
+                     (Path.home() / ".claude" / "scripts" / "voice-cloner" / "references"))
+    if xtts_refs.exists():
+        try:
+            from claude_code_talker.engines.xtts import XTTSEngine as _XTTS
+            engines["xtts"] = _XTTS(references_dir=xtts_refs)
+        except ImportError:
+            import logging
+            logging.info("TTS package not installed; xtts engine unavailable")
+    else:
+        import logging
+        logging.info("xtts references dir doesn't exist; xtts engine unavailable")
+
     live_cfg = cfg.get("live") or {}
     cadence_name = live_cfg.get("cadence", "periodic")
     cadence = make_cadence(cadence_name, live_cfg)
