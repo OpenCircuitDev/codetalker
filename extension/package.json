@@ -3,6 +3,7 @@
   "displayName": "Claude Code Talker",
   "description": "Voice companion for Claude Code — status bar, Command Palette, config editor",
   "version": "0.1.0",
+  "type": "commonjs",
   "publisher": "OpenCircuitDev",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Other"],

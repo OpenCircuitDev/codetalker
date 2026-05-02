@@ -3,11 +3,17 @@
     "module": "Node16",
     "target": "ES2022",
     "outDir": "out",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "moduleResolution": "Node16"
+    "moduleResolution": "Node16",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@modelcontextprotocol/sdk/client/index.js": ["./node_modules/@modelcontextprotocol/sdk/dist/cjs/client/index.d.ts"],
+      "@modelcontextprotocol/sdk/client/sse.js": ["./node_modules/@modelcontextprotocol/sdk/dist/cjs/client/sse.d.ts"]
+    }
   },
   "exclude": ["node_modules", ".vscode-test"]
 }
