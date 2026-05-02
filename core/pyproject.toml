@@ -26,6 +26,7 @@ dev = [
 ]
 edge = ["edge-tts>=6.1"]
 anthropic = ["anthropic>=0.40"]
+xtts = ["TTS>=0.22"]
 
 [project.scripts]
 claude-code-talker = "claude_code_talker.server:main"
