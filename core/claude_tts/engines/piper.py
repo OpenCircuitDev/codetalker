@@ -21,7 +21,7 @@ class PiperEngine(TTSEngine):
     def list_voices(self) -> list[str]:
         if not self.voices_dir.exists():
             return []
-        return [p.stem for p in self.voices_dir.glob("*.onnx")]
+        return sorted(p.stem for p in self.voices_dir.glob("*.onnx"))
 
     def synthesize(self, text: str, voice: str, rate: float) -> bytes:
         model_path = self.voices_dir / f"{voice}.onnx"
@@ -33,21 +33,22 @@ class PiperEngine(TTSEngine):
         fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="claude_tts_")
         os.close(fd)
         try:
-            proc = subprocess.run(
-                [
-                    str(self.piper_exe),
-                    "-m", str(model_path),
-                    "-f", wav_path,
-                    "--length-scale", str(length_scale),
-                ],
-                input=text,
-                capture_output=True,
-                text=True,
-                timeout=120,
-                encoding="utf-8",
-            )
+            try:
+                proc = subprocess.run(
+                    [
+                        str(self.piper_exe),
+                        "-m", str(model_path),
+                        "-f", wav_path,
+                        "--length-scale", str(length_scale),
+                    ],
+                    input=text.encode("utf-8"),
+                    capture_output=True,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(f"piper timed out after {exc.timeout}s") from exc
             if proc.returncode != 0:
-                raise RuntimeError(f"piper failed (rc={proc.returncode}): {proc.stderr[:300]}")
+                raise RuntimeError(f"piper failed (rc={proc.returncode}): {proc.stderr[:300].decode('utf-8', errors='replace')}")
             return Path(wav_path).read_bytes()
         finally:
             try:

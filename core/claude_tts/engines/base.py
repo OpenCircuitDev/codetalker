@@ -12,6 +12,11 @@ class TTSEngine(ABC):
 
     name: str = "base"
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.name == "base":
+            raise TypeError(f"{cls.__name__} must override the `name` class attribute")
+
     @abstractmethod
     def synthesize(self, text: str, voice: str, rate: float) -> bytes:
         """Synthesize `text` with `voice` at `rate` and return WAV bytes.

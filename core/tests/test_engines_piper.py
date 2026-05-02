@@ -32,7 +32,7 @@ def test_piper_synthesize_calls_subprocess(tmp_path):
          patch("claude_tts.engines.piper.os.close"), \
          patch("claude_tts.engines.piper.os.unlink"):
         mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
-        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        mock_run.return_value = MagicMock(returncode=0, stderr=b"")
         mock_read.return_value = b"FAKE_WAV_BYTES"
 
         wav = e.synthesize("hello", "test", rate=1.0)
@@ -55,7 +55,7 @@ def test_piper_synthesize_raises_on_subprocess_failure(tmp_path):
          patch("claude_tts.engines.piper.os.close"), \
          patch("claude_tts.engines.piper.os.unlink"):
         mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
-        mock_run.return_value = MagicMock(returncode=1, stderr="boom")
+        mock_run.return_value = MagicMock(returncode=1, stderr=b"boom")
 
         with pytest.raises(RuntimeError, match="piper failed"):
             e.synthesize("hello", "test", rate=1.0)
@@ -65,3 +65,28 @@ def test_piper_synthesize_unknown_voice_raises(tmp_path):
     e = PiperEngine(piper_exe=Path("/fake/piper.exe"), voices_dir=tmp_path)
     with pytest.raises(ValueError, match="unknown voice"):
         e.synthesize("hello", "doesnotexist", rate=1.0)
+
+
+def test_piper_synthesize_raises_on_timeout(tmp_path):
+    voice_path = tmp_path / "test.onnx"
+    voice_path.write_text("")
+    e = PiperEngine(piper_exe=Path("/fake/piper.exe"), voices_dir=tmp_path)
+
+    with patch("claude_tts.engines.piper.subprocess.run") as mock_run, \
+         patch("claude_tts.engines.piper.tempfile.mkstemp") as mock_mkstemp, \
+         patch("claude_tts.engines.piper.os.close"), \
+         patch("claude_tts.engines.piper.os.unlink"):
+        import subprocess as sp
+        mock_mkstemp.return_value = (1, str(tmp_path / "out.wav"))
+        mock_run.side_effect = sp.TimeoutExpired(cmd="piper", timeout=120)
+
+        with pytest.raises(RuntimeError, match="piper timed out"):
+            e.synthesize("hello", "test", rate=1.0)
+
+
+def test_piper_list_voices_returns_sorted(tmp_path):
+    (tmp_path / "z_voice.onnx").write_text("")
+    (tmp_path / "a_voice.onnx").write_text("")
+    (tmp_path / "m_voice.onnx").write_text("")
+    e = PiperEngine(piper_exe=Path("/fake"), voices_dir=tmp_path)
+    assert e.list_voices() == ["a_voice", "m_voice", "z_voice"]
