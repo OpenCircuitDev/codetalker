@@ -38,8 +38,16 @@ def test_edge_audio_format_is_mp3():
     assert EdgeEngine.audio_format == "mp3"
 
 
-@pytest.mark.skipif(os.environ.get("CCT_SKIP_REAL_API", "1") == "1", reason="real API skip (set CCT_SKIP_REAL_API=0 to run)")
+@pytest.mark.skipif(
+    os.environ.get("CCT_SKIP_REAL_API", "1") == "1",
+    reason="real API skip (set CCT_SKIP_REAL_API=0 to run)",
+)
 def test_edge_real_synthesize_smoke():
+    """Integration test: calls the real Microsoft Edge TTS endpoint.
+
+    Skipped by default (CCT_SKIP_REAL_API=1). Enable with:
+        set CCT_SKIP_REAL_API=0 && python -m pytest core/tests/test_engines_edge.py -v
+    """
     pytest.importorskip("edge_tts")
     from claude_code_talker.engines.edge import EdgeEngine
     e = EdgeEngine()
