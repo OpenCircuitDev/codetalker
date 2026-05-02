@@ -4,5 +4,6 @@ from claude_code_talker.cadence.periodic import PeriodicCadence
 from claude_code_talker.cadence.per_tool_call import PerToolCallCadence
 from claude_code_talker.cadence.per_cluster import PerClusterCadence
 from claude_code_talker.cadence.significant_only import SignificantOnlyCadence
+from claude_code_talker.cadence.hybrid import HybridCadence
 
-__all__ = ["CadenceStrategy", "Decision", "PeriodicCadence", "PerToolCallCadence", "PerClusterCadence", "SignificantOnlyCadence"]
+__all__ = ["CadenceStrategy", "Decision", "PeriodicCadence", "PerToolCallCadence", "PerClusterCadence", "SignificantOnlyCadence", "HybridCadence"]
