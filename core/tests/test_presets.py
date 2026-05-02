@@ -33,3 +33,9 @@ def test_brief_preset_uses_blacklist_filter():
 def test_synopsis_preset_suppresses_prose():
     p = get_preset("synopsis")
     assert p["content_filter"]["mode"] == "suppress"
+
+
+def test_monitor_preset_has_live_section():
+    p = get_preset("monitor")
+    assert "live" in p
+    assert p["live"]["cadence"] == "periodic"

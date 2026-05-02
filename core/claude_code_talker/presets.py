@@ -11,6 +11,17 @@ PRESETS: dict[str, dict] = {
         "content_filter": {"mode": "blacklist"},
         "synopsis": {"enabled": True, "style": "brief", "position": "append"},
         "paths": {"handling": "filename"},
+        "live": {
+            "cadence": "periodic",
+            "significance_threshold": 0.5,
+            "llm_latency_budget_seconds": 8,
+            "queue_max_depth": 5,
+            "staleness_seconds": 20,
+            "buffer_size": 30,
+            "periodic": {"period_seconds": 12.0},
+            "per_cluster": {"cluster_gap_seconds": 4.0, "max_cluster_size": 8},
+            "hybrid": {"period_seconds": 15.0},
+        },
     },
     "synopsis": {
         "text": {"max_chars": 800, "boundary_snap": "sentence"},
