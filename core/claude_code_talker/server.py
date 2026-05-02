@@ -186,6 +186,51 @@ def register_tools(server, state) -> None:
         # checks state.shutting_down and exits gracefully (Task 13).
         return "shutting down"
 
+    async def tts_handle_stop(args):
+        from claude_code_talker.hooks import handle_stop
+        if not state.cfg.get("enabled", True):
+            return "skipped: muted"
+        text = await handle_stop(
+            payload={"transcript_path": args.get("transcript_path", ""), "cwd": args.get("cwd", "")},
+            cfg=state.cfg,
+            mode_a=state.modes.get("direct"),
+            mode_b=state.modes.get("brief"),
+            active_mode=state.active_mode,
+        )
+        if not text:
+            return "skipped: no text"
+        engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
+        engine = state.engines.get(engine_name)
+        voice = (state.cfg.get("voice") or {}).get("model")
+        rate = float((state.cfg.get("voice") or {}).get("rate", 1.0))
+        if not voice:
+            voices = engine.list_voices()
+            if not voices:
+                return "skipped: no voices"
+            voice = voices[0]
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        return f"queued: {len(text)} chars"
+
+    async def tts_handle_notification(args):
+        from claude_code_talker.hooks import handle_notification
+        text = handle_notification(
+            payload={"message": args.get("message", "")},
+            cfg=state.cfg,
+        )
+        if not text:
+            return "skipped: no text"
+        engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
+        engine = state.engines.get(engine_name)
+        voice = (state.cfg.get("voice") or {}).get("model")
+        rate = float((state.cfg.get("voice") or {}).get("rate", 1.0))
+        if not voice:
+            voices = engine.list_voices()
+            if not voices:
+                return "skipped: no voices"
+            voice = voices[0]
+        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name))
+        return f"queued: {len(text)} chars"
+
     server.register(MCPTool("tts_speak", "Speak the given text using the active engine.", tts_speak))
     server.register(MCPTool("tts_set_mode", "Switch active mode: direct or brief.", tts_set_mode))
     server.register(MCPTool("tts_status", "Report current state.", tts_status))
@@ -193,6 +238,8 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_unmute", "Unmute TTS.", tts_unmute))
     server.register(MCPTool("tts_list_voices", "List available voices for an engine.", tts_list_voices))
     server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
+    server.register(MCPTool("tts_handle_stop", "Handle a Stop hook event.", tts_handle_stop))
+    server.register(MCPTool("tts_handle_notification", "Handle a Notification hook event.", tts_handle_notification))
 
 
 def build_mcp_server(state: ServerState) -> MCPServer:

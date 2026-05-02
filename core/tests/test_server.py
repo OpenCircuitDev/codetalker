@@ -1,5 +1,7 @@
 """Tests for the MCP server skeleton."""
+import json
 import pytest
+from unittest.mock import MagicMock
 from claude_code_talker.server import build_server_state
 
 
@@ -101,3 +103,71 @@ async def test_tts_shutdown_signals_state():
 
     assert "shutting down" in result.lower()
     assert state.shutting_down is True
+
+
+@pytest.mark.asyncio
+async def test_tts_handle_stop_enqueues(tmp_path):
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text(
+        json.dumps({"type": "user", "message": {"content": [{"type": "text", "text": "hi"}]}}) + "\n" +
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "Hello world."}]}}) + "\n"
+    )
+    state = build_server_state()
+    state.cfg["enabled"] = True
+    state.cfg.setdefault("voice", {})["model"] = "jenny"
+    state.cfg.setdefault("voice", {})["rate"] = 1.0
+
+    fake_engine = state.engines["piper"]
+    fake_engine.list_voices = lambda: ["jenny"]
+
+    submitted = []
+    state.audio_queue = MagicMock()
+    state.audio_queue.submit = lambda job: submitted.append(job)
+
+    server = build_mcp_server(state)
+    result = await server.call_tool("tts_handle_stop", {
+        "transcript_path": str(transcript),
+        "cwd": str(tmp_path),
+    })
+
+    assert "queued" in result.lower()
+    assert len(submitted) == 1
+    assert "Hello world" in submitted[0].text
+
+
+@pytest.mark.asyncio
+async def test_tts_handle_stop_skips_when_muted(tmp_path):
+    transcript = tmp_path / "t.jsonl"
+    transcript.write_text("")
+    state = build_server_state()
+    state.cfg["enabled"] = False
+    submitted = []
+    state.audio_queue = MagicMock()
+    state.audio_queue.submit = lambda job: submitted.append(job)
+    server = build_mcp_server(state)
+    result = await server.call_tool("tts_handle_stop", {"transcript_path": str(transcript)})
+    assert "skipped" in result.lower()
+    assert submitted == []
+
+
+@pytest.mark.asyncio
+async def test_tts_handle_notification_enqueues():
+    state = build_server_state()
+    state.cfg["enabled"] = True
+    state.cfg.setdefault("voice", {})["model"] = "jenny"
+    state.cfg.setdefault("voice", {})["rate"] = 1.0
+    fake_engine = state.engines["piper"]
+    fake_engine.list_voices = lambda: ["jenny"]
+
+    submitted = []
+    state.audio_queue = MagicMock()
+    state.audio_queue.submit = lambda job: submitted.append(job)
+
+    server = build_mcp_server(state)
+    result = await server.call_tool("tts_handle_notification", {
+        "message": "Permission needed.",
+    })
+
+    assert "queued" in result.lower()
+    assert len(submitted) == 1
+    assert "Claude. Permission needed." in submitted[0].text
