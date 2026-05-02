@@ -45,13 +45,23 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     piper = PiperEngine(piper_exe=PIPER_DIR / "piper.exe", voices_dir=VOICES_DIR)
     ollama = OllamaProvider()
 
+    engines: dict[str, object] = {"piper": piper}
+    try:
+        from claude_code_talker.engines.edge import EdgeEngine as _Edge
+        # Only register if the package is actually importable
+        import edge_tts  # noqa: F401
+        engines["edge"] = _Edge()
+    except ImportError:
+        import logging
+        logging.info("edge-tts not installed; edge engine unavailable")
+
     live_cfg = cfg.get("live") or {}
     cadence_name = live_cfg.get("cadence", "periodic")
     cadence = make_cadence(cadence_name, live_cfg)
 
     state = ServerState(
         cfg=cfg,
-        engines={"piper": piper},
+        engines=engines,
         providers={"ollama": ollama},
         modes={
             "direct": DirectMode(),
