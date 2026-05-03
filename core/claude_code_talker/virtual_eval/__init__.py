@@ -8,6 +8,7 @@ Public surface:
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import yaml
@@ -37,8 +38,12 @@ def _write_overlay_teacher_mode(overlay_path: Path, fields_to_set: dict) -> None
     if overlay_path.exists():
         try:
             existing = yaml.safe_load(overlay_path.read_text(encoding="utf-8")) or {}
-        except Exception:
-            existing = {}
+        except yaml.YAMLError as e:
+            logging.warning(
+                "overlay %s is unparseable (%s); refusing to overwrite to avoid data loss",
+                overlay_path, e,
+            )
+            return  # do not touch a file we can't safely merge into
     if not isinstance(existing, dict):
         existing = {}
     teacher = existing.get("teacher_mode") or {}
@@ -46,7 +51,9 @@ def _write_overlay_teacher_mode(overlay_path: Path, fields_to_set: dict) -> None
         teacher = {}
     teacher.update(fields_to_set)
     existing["teacher_mode"] = teacher
-    overlay_path.write_text(yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
+    tmp = overlay_path.with_suffix(overlay_path.suffix + ".tmp")
+    tmp.write_text(yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
+    os.replace(tmp, overlay_path)  # atomic on POSIX + Windows
 
 
 async def _generate_personas(provider) -> list[Persona]:
