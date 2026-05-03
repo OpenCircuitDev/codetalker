@@ -101,3 +101,15 @@ def test_parse_personas_response_strips_markdown_fence():
 def test_parse_personas_response_raises_on_garbage():
     with pytest.raises(ValueError):
         parse_personas_response("not json at all")
+
+
+def test_validate_personas_non_int_jargon_falls_back_to_3():
+    """When comfort_with_jargon isn't coercible to int, fall back to 3 (neutral)."""
+    raw = [
+        {"name": f"P{i}", "role": "r", "primary_lens": "l",
+         "comfort_with_jargon": "not-an-int", "what_they_care_about": "x"}
+        for i in range(5)
+    ]
+    out = validate_personas(raw)
+    for p in out:
+        assert p.comfort_with_jargon == 3
