@@ -1,4 +1,4 @@
-"""OpenRouter provider (any model via OpenAI-compatible endpoint)."""
+"""OpenAI as an LLM (chat completions) provider — separate from the OpenAI TTS engine."""
 from __future__ import annotations
 
 import json
@@ -9,14 +9,14 @@ import httpx
 from claude_code_talker.providers.base import LLMProvider
 
 
-class OpenRouterProvider(LLMProvider):
-    name = "openrouter"
+class OpenAIChatProvider(LLMProvider):
+    name = "openai"
     supports_streaming = True
-    BASE_URL = "https://openrouter.ai/api/v1"
+    BASE_URL = "https://api.openai.com/v1"
 
-    def __init__(self, api_key: str, model: str = "google/gemini-2.0-flash-001"):
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         if not api_key:
-            raise ValueError("OpenRouterProvider requires api_key")
+            raise ValueError("OpenAIChatProvider requires api_key")
         self.api_key = api_key
         self.model = model
 
@@ -36,10 +36,10 @@ class OpenRouterProvider(LLMProvider):
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
         except (httpx.HTTPError, KeyError, IndexError) as exc:
-            raise RuntimeError(f"openrouter request failed: {exc}") from exc
+            raise RuntimeError(f"openai request failed: {exc}") from exc
 
     async def stream(self, prompt: str, max_tokens: int) -> AsyncIterator[str]:
-        """Stream text deltas via OpenRouter's OpenAI-compatible SSE."""
+        """Stream text deltas via OpenAI SSE."""
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream(
@@ -71,4 +71,4 @@ class OpenRouterProvider(LLMProvider):
                         if delta:
                             yield delta
         except httpx.HTTPError as exc:
-            raise RuntimeError(f"openrouter stream failed: {exc}") from exc
+            raise RuntimeError(f"openai stream failed: {exc}") from exc

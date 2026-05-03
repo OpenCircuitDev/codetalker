@@ -1,6 +1,8 @@
 """Anthropic Claude provider (Haiku for speed, others for quality)."""
 from __future__ import annotations
 
+from typing import AsyncIterator
+
 from claude_code_talker.providers.base import LLMProvider
 
 
@@ -13,6 +15,7 @@ except ImportError:
 
 class AnthropicProvider(LLMProvider):
     name = "anthropic"
+    supports_streaming = True
 
     def __init__(self, api_key: str, model: str = "claude-haiku-4-5-20251001"):
         if not api_key:
@@ -35,3 +38,20 @@ class AnthropicProvider(LLMProvider):
             return ""
         except Exception as exc:
             raise RuntimeError(f"anthropic request failed: {exc}") from exc
+
+    async def stream(self, prompt: str, max_tokens: int) -> AsyncIterator[str]:
+        """Stream text deltas via Anthropic's native SDK streaming."""
+        if AsyncAnthropic is None:
+            raise RuntimeError("anthropic SDK not installed; pip install claude-code-talker[anthropic]")
+        try:
+            client = AsyncAnthropic(api_key=self.api_key)
+            async with client.messages.stream(
+                model=self.model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            ) as stream:
+                async for chunk in stream.text_stream:
+                    if chunk:
+                        yield chunk
+        except Exception as exc:
+            raise RuntimeError(f"anthropic stream failed: {exc}") from exc

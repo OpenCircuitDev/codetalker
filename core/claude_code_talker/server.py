@@ -23,6 +23,7 @@ from claude_code_talker.profiles import ProfileStore
 from claude_code_talker.providers import OllamaProvider
 from claude_code_talker.catalog import SessionCatalog
 from claude_code_talker.persistent_sessions import PersistentSessionStore
+from claude_code_talker.secrets_store import SecretsStore
 from claude_code_talker.sessions import SessionRegistry
 
 
@@ -45,6 +46,7 @@ class ServerState:
     profiles: ProfileStore = None
     catalog: SessionCatalog = None
     persistent_sessions: PersistentSessionStore = None
+    secrets: SecretsStore = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -65,13 +67,19 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     """Construct the server state with all engines, providers, and modes registered."""
     cfg = load_full_config(cwd=cwd)
 
+    # Read API keys from ~/.claude/scripts/codetalker/secrets.yaml (env vars
+    # always win, so a developer with .env-based setup is unaffected). Loaded
+    # ONCE here so providers/engines see consistent values for the daemon's
+    # lifetime; user-edited keys take effect on next daemon restart.
+    secrets = SecretsStore()
+
     piper = PiperEngine(piper_exe=PIPER_DIR / "piper.exe", voices_dir=VOICES_DIR)
     ollama = OllamaProvider()
 
     providers: dict[str, object] = {"ollama": ollama}
 
     anthropic_cfg = ((cfg.get("providers") or {}).get("anthropic") or {})
-    anthropic_key = os.environ.get(anthropic_cfg.get("api_key_env", "ANTHROPIC_API_KEY"))
+    anthropic_key = secrets.get("anthropic_api_key") or os.environ.get(anthropic_cfg.get("api_key_env", "ANTHROPIC_API_KEY"))
     if anthropic_key:
         try:
             from claude_code_talker.providers.anthropic import AnthropicProvider as _Anth
@@ -87,16 +95,31 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         logging.info("ANTHROPIC_API_KEY not set; anthropic provider unavailable")
 
     openrouter_cfg = ((cfg.get("providers") or {}).get("openrouter") or {})
-    openrouter_key = os.environ.get(openrouter_cfg.get("api_key_env", "OPENROUTER_API_KEY"))
+    openrouter_key = secrets.get("openrouter_api_key") or os.environ.get(openrouter_cfg.get("api_key_env", "OPENROUTER_API_KEY"))
     if openrouter_key:
         from claude_code_talker.providers.openrouter import OpenRouterProvider as _OR
         providers["openrouter"] = _OR(
             api_key=openrouter_key,
-            model=openrouter_cfg.get("model", "anthropic/claude-haiku-4-5"),
+            # User-locked default 2026-05-03: cheapest fast model for narration.
+            model=openrouter_cfg.get("model", "google/gemini-2.0-flash-001"),
         )
     else:
         import logging
         logging.info("OPENROUTER_API_KEY not set; openrouter provider unavailable")
+
+    # OpenAI as an LLM provider (chat completions). Requires `openai` package.
+    openai_chat_cfg = ((cfg.get("providers") or {}).get("openai") or {})
+    openai_chat_key = secrets.get("openai_api_key") or os.environ.get(openai_chat_cfg.get("api_key_env", "OPENAI_API_KEY"))
+    if openai_chat_key:
+        try:
+            from claude_code_talker.providers.openai_chat import OpenAIChatProvider as _OAIChat
+            providers["openai"] = _OAIChat(
+                api_key=openai_chat_key,
+                model=openai_chat_cfg.get("model", "gpt-4o-mini"),
+            )
+        except (ImportError, ValueError) as e:
+            import logging
+            logging.info("openai LLM provider unavailable: %s", e)
 
     engines: dict[str, object] = {"piper": piper}
     try:
@@ -109,7 +132,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         logging.info("edge-tts not installed; edge engine unavailable")
 
     elevenlabs_key_env = ((cfg.get("engines") or {}).get("elevenlabs") or {}).get("api_key_env", "ELEVENLABS_API_KEY")
-    elevenlabs_key = os.environ.get(elevenlabs_key_env)
+    elevenlabs_key = secrets.get("elevenlabs_api_key") or os.environ.get(elevenlabs_key_env)
     if elevenlabs_key:
         from claude_code_talker.engines.elevenlabs import ElevenLabsEngine as _EL
         engines["elevenlabs"] = _EL(api_key=elevenlabs_key)
@@ -118,7 +141,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         logging.info("ElevenLabs API key not set; engine unavailable")
 
     openai_key_env = ((cfg.get("engines") or {}).get("openai") or {}).get("api_key_env", "OPENAI_API_KEY")
-    openai_key = os.environ.get(openai_key_env)
+    openai_key = secrets.get("openai_api_key") or os.environ.get(openai_key_env)
     if openai_key:
         from claude_code_talker.engines.openai import OpenAIEngine as _OAI
         engines["openai"] = _OAI(api_key=openai_key)
@@ -158,6 +181,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     )
 
     state.profiles = profiles
+    state.secrets = secrets
     persistent_sessions = PersistentSessionStore()
     state.persistent_sessions = persistent_sessions
     state.sessions = SessionRegistry(
