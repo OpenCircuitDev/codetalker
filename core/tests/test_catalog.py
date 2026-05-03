@@ -75,3 +75,33 @@ def test_scan_ignores_non_jsonl(tmp_path):
     c.scan()
     assert len(c.entries()) == 1
     assert c.entry_for("abc") is not None
+
+
+def test_slug_for_simple_folder(tmp_path):
+    """A folder ending in '-MyProj' should produce slug 'MyProj'."""
+    d = tmp_path / "C--Users-brand-Dropbox-MyProj"
+    d.mkdir()
+    (d / "abc.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    assert c.entry_for("abc").project_slug == "MyProj"
+
+
+def test_slug_for_deep_path(tmp_path):
+    """Slug is just the trailing segment, regardless of how deep."""
+    d = tmp_path / "C--Users-brand-Dropbox-OCR-Open-Circuit-BF-Workspace"
+    d.mkdir()
+    (d / "abc.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    assert c.entry_for("abc").project_slug == "Workspace"
+
+
+def test_slug_for_folder_without_hyphens(tmp_path):
+    """Folder name with no hyphens — return the whole name."""
+    d = tmp_path / "JustOneWord"
+    d.mkdir()
+    (d / "abc.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    assert c.entry_for("abc").project_slug == "JustOneWord"
