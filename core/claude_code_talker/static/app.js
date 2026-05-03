@@ -223,6 +223,41 @@
       pill.classList.add("hidden");
     }
 
+    // Per-session Enable/Disable toggle
+    let toggleBtn = document.getElementById("session-toggle");
+    if (!toggleBtn) {
+      toggleBtn = document.createElement("button");
+      toggleBtn.id = "session-toggle";
+      const selectEl = document.getElementById("profile-attach-select");
+      selectEl.parentNode.insertBefore(toggleBtn, selectEl);
+    }
+    const sessionInList = state.sessions.find(x => x.session_id === s.session_id);
+    const isDisabled = sessionInList && sessionInList.enabled === false;
+    toggleBtn.textContent = isDisabled ? "🔇 Enable" : "🔊 Disable";
+    toggleBtn.title = isDisabled
+      ? "Currently disabled — click to enable narration for this session"
+      : "Currently enabled — click to mute narration for this session";
+    toggleBtn.onclick = async () => {
+      try {
+        let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+        if (!payload) {
+          payload = {
+            live_overlay: {},
+            attached_profile: s.attached_profile,
+            enabled: true,
+            display_name: null,
+            last_modified: 0.0,
+          };
+        }
+        payload.enabled = isDisabled ? true : false;
+        await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
+        toast(payload.enabled ? "Session enabled" : "Session disabled", "success");
+        await poll();
+      } catch (e) {
+        toast("Toggle failed: " + e.message, "error");
+      }
+    };
+
     const select = document.getElementById("profile-attach-select");
     select.innerHTML = '<option value="">Attach profile…</option>';
     for (const p of state.profiles) {
