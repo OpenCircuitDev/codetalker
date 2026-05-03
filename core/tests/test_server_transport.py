@@ -120,3 +120,56 @@ async def test_mcp_client_roundtrip_tts_status():
     finally:
         server.should_exit = True
         thread.join(timeout=5.0)
+
+
+@pytest.mark.asyncio
+async def test_composed_app_serves_health_endpoint():
+    """The composed ASGI app exposes /api/* alongside /sse."""
+    state = build_server_state()
+    state.cfg["enabled"] = True
+    app = build_asgi_app(state, **_NO_SECURITY)
+
+    import httpx
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url=_BASE_URL
+    ) as client:
+        r = await client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_composed_app_serves_static_ui_route():
+    """GET /ui/ returns 200 (or 404 if static dir is empty); not 500."""
+    state = build_server_state()
+    app = build_asgi_app(state, **_NO_SECURITY)
+
+    import httpx
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url=_BASE_URL
+    ) as client:
+        r = await client.get("/ui/")
+    # Should not be 500. Either 200 (index served) or 404 (no index yet).
+    assert r.status_code in (200, 404)
+
+
+@pytest.mark.asyncio
+async def test_composed_app_still_serves_sse():
+    """The existing /sse endpoint still works after composition."""
+    import asyncio
+    state = build_server_state()
+    app = build_asgi_app(state, **_NO_SECURITY)
+
+    import httpx
+
+    async def probe():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url=_BASE_URL
+        ) as client:
+            response = await client.get("/sse")
+            assert response.status_code != 404
+
+    try:
+        await asyncio.wait_for(probe(), timeout=1.0)
+    except asyncio.TimeoutError:
+        pass  # SSE held open — route exists

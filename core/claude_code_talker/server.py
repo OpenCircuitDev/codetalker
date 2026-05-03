@@ -501,11 +501,12 @@ def _register_tools_fastmcp(fmcp, state) -> None:
 
 
 def build_asgi_app(state: ServerState, *, disable_transport_security: bool = False):
-    """Build a Starlette ASGI app that serves all 9 tools over MCP-over-SSE.
+    """Compose a parent Starlette app from FastMCP + /ui static files + /api routes.
 
-    The returned app exposes:
-      GET  /sse        -- SSE connection endpoint for MCP clients
-      POST /messages   -- client-to-server message channel
+    Routes:
+      /sse, /messages   -- MCP-over-SSE (FastMCP)
+      /ui/*             -- static frontend served from package's static/ dir
+      /api/*            -- REST API for sessions, profiles, status, etc.
 
     Args:
         state: Populated ServerState from build_server_state().
@@ -516,6 +517,11 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     """
     from mcp.server.fastmcp import FastMCP
     from mcp.server.transport_security import TransportSecuritySettings
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+
+    from claude_code_talker.api import build_routes
 
     if disable_transport_security:
         security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
@@ -530,7 +536,14 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
 
     fmcp = FastMCP("claude-code-talker", transport_security=security)
     _register_tools_fastmcp(fmcp, state)
+    fmcp_app = fmcp.sse_app()
 
-    # sse_app() returns a pre-wired Starlette application with /sse and /messages
-    # routes already configured.  No manual Route/Mount plumbing required.
-    return fmcp.sse_app()
+    static_dir = Path(__file__).parent / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+
+    routes = []
+    routes.extend(build_routes(state))
+    routes.append(Mount("/ui", app=StaticFiles(directory=str(static_dir), html=True)))
+    routes.append(Mount("/", app=fmcp_app))  # FastMCP handles /sse and /messages at root
+
+    return Starlette(routes=routes)
