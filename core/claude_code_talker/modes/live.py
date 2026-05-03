@@ -57,7 +57,7 @@ _STREAMING_TIMEOUT_CEILING = 30.0
 class LiveMode(ModeStrategy):
     name = "live"
 
-    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict, narration_log=None, sessions=None):
+    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict, narration_log=None, sessions=None, session_focus=None):
         self.provider = provider
         self.cadence = cadence
         self.event_buffer = event_buffer
@@ -65,6 +65,7 @@ class LiveMode(ModeStrategy):
         self.cfg = cfg
         self.narration_log = narration_log  # Phase 11: optional NarrationLog
         self.sessions = sessions  # Phase 8.6: SessionRegistry for per-session voice
+        self.session_focus = session_focus  # Phase 13.5B: per-session WHY/CONTEXT block
         self._task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._current_session_id = ""  # set by hook handler before submitting
@@ -213,6 +214,14 @@ class LiveMode(ModeStrategy):
         if not events:
             return
 
+        # Phase 13.5B: update session focus counter + trigger background header refresh
+        if self.session_focus is not None and self._current_session_id:
+            focus = self.session_focus.get_or_create(self._current_session_id)
+            focus.narrations_since_refresh += 1
+            if focus.should_refresh_header():
+                # Fire-and-forget: refresh runs in background, never blocks this narration
+                asyncio.create_task(focus.refresh_header(self.provider))
+
         # Sub-task 2.1: cadence-aware verbosity check (applied before provider dispatch)
         verbosity_decision = self._decide_verbosity_for_events(events)
         if verbosity_decision == "skip":
@@ -341,8 +350,14 @@ class LiveMode(ModeStrategy):
                     out_summary = summarize_tool_response(tool, meta.get('response', ''), success)
                     lines.append(f"[T+{dt:.1f}s tool← {tool} {out_summary}]")
 
+        # Phase 13.5B: inject per-session SESSION FOCUS block (WHY/CONTEXT)
+        focus_block = ""
+        if self.session_focus is not None and self._current_session_id:
+            focus_block = self.session_focus.get_or_create(self._current_session_id).render_block()
+
         return (
             static_section
+            + (("\n" + focus_block) if focus_block else "")
             + "\n\n"
             + _EVENTS_HEADER
             + "\n".join(lines)

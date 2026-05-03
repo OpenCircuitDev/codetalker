@@ -29,6 +29,7 @@ from claude_code_talker.narration_log import NarrationLog
 from claude_code_talker.token_tracker import TokenTracker
 from claude_code_talker.tts_cache import TTSCache
 from claude_code_talker.virtual_eval.history import TuningHistory
+from claude_code_talker.session_focus import SessionFocusRegistry
 
 
 PIPER_DIR = Path.home() / ".claude" / "scripts" / "piper" / "piper"
@@ -56,6 +57,7 @@ class ServerState:
     tts_cache: TTSCache = None
     tuning_history: TuningHistory = None
     virtual_eval_latest: object = None
+    session_focus: SessionFocusRegistry = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -219,6 +221,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.token_tracker = TokenTracker()
     state.tts_cache = TTSCache()
     state.tuning_history = TuningHistory()
+    state.session_focus = SessionFocusRegistry()
     # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
     state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()
@@ -252,6 +255,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         cfg=cfg,
         narration_log=state.narration_log,
         sessions=state.sessions,
+        session_focus=state.session_focus,
     )
     return state
 
@@ -466,12 +470,15 @@ def register_tools(server, state) -> None:
         # the user's intent as context for WHY-focused narration.
         prompt_text = args.get("prompt", "") or ""
         if prompt_text:
-            state.event_buffer.push(Event(
+            _up_ev = Event(
                 timestamp=_t.time(),
                 type="USER_PROMPT",
                 metadata={"text": prompt_text[:500], "session_id": session_id},
                 significance=0.9,
-            ))
+            )
+            state.event_buffer.push(_up_ev)
+            if state.session_focus is not None:
+                state.session_focus.on_event(session_id, _up_ev)
         provider = _select_provider(state, "brief")  # cheap+fast for one-sentence brief
         text = await handle_user_prompt_submit(
             payload={"prompt": args.get("prompt", "")},
@@ -570,6 +577,8 @@ def register_tools(server, state) -> None:
         )
         ev.significance = score_significance(ev, keywords)
         state.event_buffer.push(ev)
+        if state.session_focus is not None:
+            state.session_focus.on_event(session_id, ev)
         return "recorded"
 
     async def tts_handle_posttool(args):
