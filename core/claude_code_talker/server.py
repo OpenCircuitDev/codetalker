@@ -220,6 +220,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         event_buffer=state.event_buffer,
         audio_queue=state.audio_queue,
         cfg=cfg,
+        narration_log=state.narration_log,
     )
     return state
 
@@ -458,6 +459,11 @@ def register_tools(server, state) -> None:
         if s is not None and not s.enabled:
             return "skipped: per-session disabled"
         cfg = state.sessions.config_for(session_id)
+        # Tell LiveMode which session the upcoming narration belongs to so the
+        # audit log gets the right session_id when this event triggers narration.
+        live = state.modes.get("live")
+        if live is not None:
+            live._current_session_id = session_id
         keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         ev = Event(
             timestamp=time.time(),

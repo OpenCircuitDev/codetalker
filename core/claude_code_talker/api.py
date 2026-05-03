@@ -735,6 +735,69 @@ def build_routes(state) -> list[Route]:
             state.sessions.invalidate(s.session_id)
         return JSONResponse(current)
 
+    async def put_llm_default(request: Request) -> JSONResponse:
+        """Set the default LLM provider + model for narration AND chat.
+
+        Body: {"provider": "openrouter", "model": "google/gemini-2.0-flash-001"}
+
+        Updates four things:
+          - state.cfg.providers.<provider>.model — model chosen for that provider
+          - state.cfg.modes.live.provider, state.cfg.modes.brief.provider —
+            so live/brief narration AND chat use this provider
+          - the live provider instance's model attribute (immediate effect)
+          - per-session resolved cfg caches are invalidated
+
+        Daemon restart reverts to whatever's in cfg on disk; for permanent
+        changes also edit ~/.claude/scripts/tts_config.yaml or call
+        /api/config/reload after editing.
+        """
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        provider = body.get("provider")
+        model = body.get("model")
+        if not provider or not isinstance(provider, str):
+            return _bad_request("provider is required")
+        if not model or not isinstance(model, str):
+            return _bad_request("model is required")
+        if provider not in (state.providers or {}):
+            return _bad_request(f"provider '{provider}' not registered (check API key, then restart daemon)")
+        cfg_providers = state.cfg.setdefault("providers", {})
+        cfg_providers.setdefault(provider, {})["model"] = model
+        # CRITICAL: also flip which provider live/brief modes use, otherwise
+        # _select_provider keeps falling back to ollama and live narration
+        # silently 404s when the user expected OpenRouter / OpenAI / Anthropic.
+        cfg_modes = state.cfg.setdefault("modes", {})
+        cfg_modes.setdefault("live", {})["provider"] = provider
+        cfg_modes.setdefault("brief", {})["provider"] = provider
+        # Update live provider instance's model attribute so the change takes
+        # effect immediately for in-flight calls.
+        prov_obj = (state.providers or {}).get(provider)
+        if prov_obj is not None and hasattr(prov_obj, "model"):
+            prov_obj.model = model
+        # Re-bind LiveMode + BriefMode to the new provider instance so future
+        # narrations use it (don't keep using the old ollama instance).
+        if hasattr(state, "modes") and state.modes:
+            from claude_code_talker.server import _select_provider
+            new_prov = _select_provider(state, "live")
+            if state.modes.get("live") is not None:
+                state.modes["live"].provider = new_prov
+            new_prov_brief = _select_provider(state, "brief")
+            if state.modes.get("brief") is not None:
+                state.modes["brief"].provider = new_prov_brief
+        # Invalidate per-session caches so resolved cfg picks up the new values.
+        for s in state.sessions.list_active():
+            state.sessions.invalidate(s.session_id)
+        # Persist to disk so the change survives daemon restart. Writes a tiny
+        # overlay file the daemon merges on top of the base cfg at startup.
+        _persist_default_provider(provider, model)
+        return JSONResponse({
+            "saved": True, "provider": provider, "model": model,
+            "live_uses": provider, "brief_uses": provider,
+            "persisted": True,
+        })
+
     async def refresh_openrouter_models(request: Request) -> JSONResponse:
         """Fetch fresh model list from OpenRouter's public /models endpoint.
 
@@ -797,6 +860,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/secrets", get_secrets, methods=["GET"]),
         Route("/api/secrets", put_secrets, methods=["PUT"]),
         Route("/api/llm-models", list_llm_models, methods=["GET"]),
+        Route("/api/llm-models/default", put_llm_default, methods=["PUT"]),
         Route("/api/llm-models/openrouter/refresh", refresh_openrouter_models, methods=["POST"]),
         Route("/api/teacher", get_teacher, methods=["GET"]),
         Route("/api/teacher", put_teacher, methods=["PUT"]),
@@ -824,6 +888,34 @@ def build_routes(state) -> list[Route]:
         Route("/api/unmute", unmute, methods=["POST"]),
         Route("/api/install-hooks", install_hooks, methods=["POST"]),
     ]
+
+
+def _persist_default_provider(provider: str, model: str) -> None:
+    """Write the user's chosen LLM default to a small overlay YAML at
+    ~/.claude/scripts/codetalker/cfg-overlay.yaml so it survives restarts.
+
+    The daemon's config loader merges this overlay on top of the base cfg.
+    Best-effort: any I/O failure is silenced (the in-memory PUT still works).
+    """
+    try:
+        import yaml as _yaml
+        from pathlib import Path as _P
+        p = _P.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        existing = {}
+        if p.exists():
+            try:
+                existing = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            except Exception:
+                existing = {}
+        if not isinstance(existing, dict):
+            existing = {}
+        existing.setdefault("providers", {}).setdefault(provider, {})["model"] = model
+        existing.setdefault("modes", {}).setdefault("live", {})["provider"] = provider
+        existing.setdefault("modes", {}).setdefault("brief", {})["provider"] = provider
+        p.write_text(_yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def _bad_request(message: str) -> JSONResponse:

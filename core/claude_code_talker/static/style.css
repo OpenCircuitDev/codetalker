@@ -628,3 +628,34 @@ dialog input { display: block; width: 100%; margin: 8px 0 16px 0; }
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
 }
+
+.session-enable-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.session-enable-btn:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.session-item.disabled .session-enable-btn {
+  opacity: 1;
+}
+
+.chat-message.narration {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-left: 3px solid var(--accent);
+}
+
+.chat-msg-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}

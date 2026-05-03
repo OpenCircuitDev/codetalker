@@ -27,14 +27,16 @@ NARRATION:"""
 class LiveMode(ModeStrategy):
     name = "live"
 
-    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict):
+    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict, narration_log=None):
         self.provider = provider
         self.cadence = cadence
         self.event_buffer = event_buffer
         self.audio_queue = audio_queue
         self.cfg = cfg
+        self.narration_log = narration_log  # Phase 11: optional NarrationLog
         self._task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._current_session_id = ""  # set by hook handler before submitting
 
     # build() satisfies ModeStrategy; not used in production
     def build(self, prose_entries, tool_uses, todos, cfg):
@@ -96,12 +98,32 @@ class LiveMode(ModeStrategy):
         voice_cfg = self.cfg.get("voice") or {}
         voice = voice_cfg.get("model")
         rate = float(voice_cfg.get("rate", 1.0))
+        # Default engine to piper when the resolved cfg doesn't set one
+        # (happens when a profile sets voice.model but not voice.engine).
+        engine_name = voice_cfg.get("engine") or "piper"
         if not voice:
+            logging.debug("live narration skipped: no voice configured")
             return
 
         self.audio_queue.submit(AudioJob(
             text=text, voice=voice, rate=rate, priority=priority,
+            engine_name=engine_name,
         ))
+        # Phase 11: append to narration audit log (best-effort, non-blocking).
+        if self.narration_log is not None:
+            try:
+                from claude_code_talker.narration_log import NarrationEntry
+                self.narration_log.append(NarrationEntry(
+                    timestamp=__import__("time").time(),
+                    session_id=self._current_session_id,
+                    text=text,
+                    voice=voice or "",
+                    engine=engine_name or "",
+                    mode="live",
+                    priority=priority,
+                ))
+            except Exception as _e:
+                logging.debug("narration log append failed: %s", _e)
 
     def _build_prompt(self, events) -> str:
         lines = []

@@ -145,8 +145,18 @@
       const title = document.createElement("div");
       title.className = "session-item-title";
       const fullName = s.display_name || s.project_slug || s.session_id.slice(0, 12);
-      title.textContent = truncateName(fullName, 24);
+      title.textContent = truncateName(fullName, 22);
       title.title = fullName;
+      const enableBtn = document.createElement("button");
+      enableBtn.className = "session-enable-btn";
+      enableBtn.textContent = s.enabled === false ? "🔇" : "🔊";
+      enableBtn.title = s.enabled === false
+        ? "Currently muted — click to enable narration"
+        : "Currently enabled — click to mute";
+      enableBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleSessionEnabled(s);
+      };
       const renameBtn = document.createElement("button");
       renameBtn.className = "session-rename-btn";
       renameBtn.textContent = "✎";
@@ -156,6 +166,7 @@
         renameSession(s);
       };
       titleRow.appendChild(title);
+      titleRow.appendChild(enableBtn);
       titleRow.appendChild(renameBtn);
       const meta = document.createElement("div");
       meta.className = "session-item-meta";
@@ -171,6 +182,25 @@
     if (!name) return "";
     if (name.length <= max) return name;
     return name.slice(0, max - 1) + "…";
+  }
+
+  async function toggleSessionEnabled(s) {
+    try {
+      let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+      if (!payload) {
+        payload = {
+          live_overlay: {}, attached_profile: s.attached_profile,
+          enabled: true, display_name: null, last_modified: 0.0,
+        };
+      }
+      const newEnabled = s.enabled === false;  // currently disabled → enable
+      payload.enabled = newEnabled;
+      await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
+      toast(newEnabled ? "Session enabled" : "Session muted", "success");
+      await poll();
+    } catch (e) {
+      toast("Toggle failed: " + e.message, "error");
+    }
   }
 
   async function renameSession(s) {
@@ -374,7 +404,7 @@
 
   TAB_RENDERERS.chat = function(pane, s, cfg) {
     pane.innerHTML = `
-      <p class="muted">Ask questions about this session. Uses the configured LLM provider + your teacher mode settings.</p>
+      <p class="muted">Ask questions about this session. Live narrations from this session also stream into this transcript.</p>
       <div class="chat-pane">
         <div class="chat-history" id="chat-history"></div>
         <div class="chat-input-row">
@@ -382,10 +412,36 @@
           <label class="checkbox-row"><input type="checkbox" id="chat-narrate" checked> Narrate</label>
           <button id="chat-send" class="primary-btn">Send</button>
         </div>
+        <div class="muted" style="font-size:11px;margin-top:6px;">
+          Provider: <span id="chat-provider-info">…</span>
+        </div>
       </div>
     `;
     const history = pane.querySelector('#chat-history');
     const input = pane.querySelector('#chat-input');
+    // Show what provider chat will use
+    api("/status").then(st => {
+      const liveProv = (cfg.modes?.live?.provider) || (st.providers?.[0]) || 'unknown';
+      pane.querySelector('#chat-provider-info').textContent = liveProv;
+    }).catch(() => {});
+
+    // Load recent narrations for this session (so the chat panel shows the
+    // same audio history the user has been hearing — Phase 11 audit log).
+    const renderNarrations = async () => {
+      try {
+        const entries = await api("/narration-log?limit=50&session_id=" + encodeURIComponent(s.session_id));
+        for (const e of entries) {
+          const div = document.createElement('div');
+          div.className = 'chat-message narration';
+          const ts = new Date((e.timestamp || 0) * 1000).toLocaleTimeString();
+          div.innerHTML = `<div class="chat-msg-meta">🔊 narrated · ${ts}</div><div>${escapeHtml(e.text || '')}</div>`;
+          history.appendChild(div);
+        }
+        history.scrollTop = history.scrollHeight;
+      } catch (e) { /* silent */ }
+    };
+    renderNarrations();
+
     const send = async () => {
       const q = input.value.trim();
       if (!q) return;
@@ -404,6 +460,9 @@
         const r = await api("/sessions/" + s.session_id + "/chat",
                             { method: "POST", body: { question: q, narrate } });
         pending.textContent = r.answer || '(no response)';
+        if (narrate && r.narrated) {
+          pending.innerHTML += ' <span class="muted" style="font-size:10px;">🔊 narrated</span>';
+        }
       } catch (e) {
         pending.textContent = 'Error: ' + e.message;
       }
@@ -578,6 +637,19 @@
       };
       provSel.onchange = fillModels;
       fillModels();
+      document.getElementById('save-llm-default-btn').onclick = async () => {
+        const provider = provSel.value;
+        const model = document.getElementById('model-select').value;
+        if (!provider || !model) {
+          toast("Pick a provider and model first", "error");
+          return;
+        }
+        try {
+          await api("/llm-models/default", { method: "PUT", body: { provider, model } });
+          toast(`Default set: ${provider} → ${model}`, "success");
+          await loadProviderPane();
+        } catch (e) { toast("Save failed: " + e.message, "error"); }
+      };
       document.getElementById('refresh-openrouter-btn').onclick = async () => {
         try {
           const r = await api("/llm-models/openrouter/refresh", { method: "POST" });

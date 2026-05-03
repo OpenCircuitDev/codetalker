@@ -117,8 +117,35 @@ def translate_workspace_overrides(ws_cfg: dict) -> dict:
     return o
 
 
+CFG_OVERLAY_PATH = Path.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+
+
+def _load_cfg_overlay() -> dict:
+    """Load the user-edited cfg overlay (UI-managed settings like default LLM
+    provider/model). Always wins over the base cfg. Returns {} if missing or
+    malformed.
+    """
+    if not CFG_OVERLAY_PATH.exists():
+        return {}
+    try:
+        with open(CFG_OVERLAY_PATH, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        if not isinstance(data, dict):
+            return {}
+        return data
+    except (OSError, yaml.YAMLError):
+        return {}
+
+
 def load_full_config(global_path: Path | None = None, cwd: str | None = None) -> dict:
-    """Load global + workspace configs and produce the fully resolved config dict."""
+    """Load global + workspace + UI-overlay configs and produce a fully
+    resolved config dict. Layer order (later wins):
+      1. Preset defaults
+      2. Global config (~/.claude/scripts/tts_config.yaml)
+      3. Workspace config (<cwd>/.claude/tts_workspace.yaml)
+      4. UI overlay (~/.claude/scripts/codetalker/cfg-overlay.yaml) — written
+         by codetalker's UI when the user clicks "Save as default" etc.
+    """
     cfg = load_global_config(global_path)
     ws_path = find_workspace_config(cwd)
     if ws_path:
@@ -130,6 +157,9 @@ def load_full_config(global_path: Path | None = None, cwd: str | None = None) ->
             cfg = deep_merge(cfg, translate_workspace_overrides(ws_cfg))
         except (OSError, yaml.YAMLError):
             pass
+    overlay = _load_cfg_overlay()
+    if overlay:
+        cfg = deep_merge(cfg, overlay)
     return cfg
 
 
