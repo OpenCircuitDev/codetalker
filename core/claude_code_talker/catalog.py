@@ -35,6 +35,10 @@ class SessionCatalog:
         with self._lock:
             return self._entries.get(session_id)
 
+    def entries_for_project(self, project_slug: str) -> list[CatalogEntry]:
+        with self._lock:
+            return [e for e in self._entries.values() if e.project_slug == project_slug]
+
     def scan(self) -> int:
         """Scan projects_dir for transcript files. Returns the number of entries."""
         new_entries: dict[str, CatalogEntry] = {}

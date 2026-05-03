@@ -105,3 +105,25 @@ def test_slug_for_folder_without_hyphens(tmp_path):
     c = SessionCatalog(projects_dir=tmp_path)
     c.scan()
     assert c.entry_for("abc").project_slug == "JustOneWord"
+
+
+def test_entries_for_project_filters(tmp_path):
+    proj_a = tmp_path / "C--proj-a"
+    proj_b = tmp_path / "C--proj-b"
+    proj_a.mkdir()
+    proj_b.mkdir()
+    (proj_a / "aaa.jsonl").write_text("")
+    (proj_a / "bbb.jsonl").write_text("")
+    (proj_b / "ccc.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    in_a = c.entries_for_project("a")
+    in_b = c.entries_for_project("b")
+    assert {e.session_id for e in in_a} == {"aaa", "bbb"}
+    assert {e.session_id for e in in_b} == {"ccc"}
+
+
+def test_entries_for_project_unknown_returns_empty(tmp_path):
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    assert c.entries_for_project("never-existed") == []
