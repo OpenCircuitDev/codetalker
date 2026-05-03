@@ -318,3 +318,49 @@ async def test_delete_profile_404(client):
     async with client as c:
         r = await c.delete("/api/profiles/ghost")
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_voices_for_engine(app):
+    application, state = app
+    from unittest.mock import MagicMock
+    state.engines["fake"] = MagicMock(list_voices=lambda: ["voice-a", "voice-b"])
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/voices?engine=fake")
+    assert r.status_code == 200
+    assert r.json() == ["voice-a", "voice-b"]
+
+
+@pytest.mark.asyncio
+async def test_voices_400_unknown_engine(client):
+    async with client as c:
+        r = await c.get("/api/voices?engine=does-not-exist")
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_voices_400_missing_engine_param(client):
+    async with client as c:
+        r = await c.get("/api/voices")
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_status_returns_summary(app):
+    application, state = app
+    state.cfg["enabled"] = True
+    state.sessions.touch("s1")
+    state.sessions.update_overlay("s1", {"active_mode": "live"})
+    state.sessions.touch("s2")
+    state.sessions.update_overlay("s2", {"active_mode": "brief"})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/status")
+    body = r.json()
+    assert body["enabled"] is True
+    assert body["session_count"] == 2
+    assert "engines" in body
+    assert "providers" in body

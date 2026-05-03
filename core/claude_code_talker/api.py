@@ -137,6 +137,32 @@ def build_routes(state) -> list[Route]:
         path = state.profiles.save(name, dict(s.live_overlay))
         return JSONResponse({"name": name, "path": str(path)})
 
+    async def list_voices(request: Request) -> JSONResponse:
+        engine_name = request.query_params.get("engine")
+        if not engine_name:
+            return _bad_request("query param 'engine' is required")
+        engine = state.engines.get(engine_name)
+        if engine is None:
+            return _bad_request(f"unknown engine: {engine_name}")
+        try:
+            voices = engine.list_voices()
+        except Exception as e:
+            return JSONResponse({"error": f"engine list_voices failed: {e}"}, status_code=500)
+        return JSONResponse(list(voices))
+
+    async def status(request: Request) -> JSONResponse:
+        active_modes = {}
+        for s in state.sessions.list_active():
+            cfg = state.sessions.config_for(s.session_id)
+            active_modes[s.session_id] = cfg.get("active_mode", state.active_mode)
+        return JSONResponse({
+            "enabled": state.cfg.get("enabled", True),
+            "session_count": len(state.sessions.list_active()),
+            "active_modes": active_modes,
+            "engines": list(state.engines),
+            "providers": list(state.providers),
+        })
+
     async def list_profiles(request: Request) -> JSONResponse:
         names = state.profiles.list()
         out = []
@@ -197,6 +223,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/profiles/{name}", get_profile, methods=["GET"]),
         Route("/api/profiles/{name}", put_profile, methods=["PUT"]),
         Route("/api/profiles/{name}", delete_profile, methods=["DELETE"]),
+        Route("/api/voices", list_voices, methods=["GET"]),
+        Route("/api/status", status, methods=["GET"]),
     ]
 
 
