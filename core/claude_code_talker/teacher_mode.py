@@ -154,6 +154,6 @@ DEFAULT_TEACHER_CONFIG: dict = {
     "substitution": False,
     "glossary": False,
     "reframe": False,
-    "verbosity": "concise",
+    "verbosity": "standard",  # Was 'concise'; user wants more descriptive default
     "granularity": "combined",
 }

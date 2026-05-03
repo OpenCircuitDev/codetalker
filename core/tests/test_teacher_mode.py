@@ -111,7 +111,7 @@ def test_default_config_is_enabled_at_depth_3():
     assert DEFAULT_TEACHER_CONFIG["substitution"] is False
     assert DEFAULT_TEACHER_CONFIG["glossary"] is False
     assert DEFAULT_TEACHER_CONFIG["reframe"] is False
-    assert DEFAULT_TEACHER_CONFIG["verbosity"] == "concise"
+    assert DEFAULT_TEACHER_CONFIG["verbosity"] == "standard"
     assert DEFAULT_TEACHER_CONFIG["granularity"] == "combined"
 
 

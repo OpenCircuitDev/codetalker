@@ -5,7 +5,13 @@ from claude_code_talker.transcript import collect_turn
 
 
 async def handle_stop(payload, cfg, mode_a, mode_b, active_mode):
-    """Handle a Stop event. Returns the speakable text (or "" to mute)."""
+    """Handle a Stop event. Returns the speakable text (or "" to mute).
+
+    Live mode normally returns "" because the cadence loop owns the audio.
+    But cfg.briefs.always_brief_on_stop (default True) makes Stop ALSO emit a
+    Brief even when active_mode is "live" — so the user hears a wrap-up at
+    end-of-turn (which the cadence loop doesn't naturally provide).
+    """
     if not cfg.get("enabled", True):
         return ""
 
@@ -21,6 +27,12 @@ async def handle_stop(payload, cfg, mode_a, mode_b, active_mode):
         return await mode_b.build_async(prose, tool_uses, todos, cfg)
     if active_mode == "direct" and mode_a is not None:
         return mode_a.build(prose, tool_uses, todos, cfg)
+    if active_mode == "live":
+        # Live + brief combo: even though cadence loop owns the in-flight
+        # narration, fire a Brief on Stop so the user hears a wrap-up of
+        # what just completed.  Toggleable via cfg.briefs.always_brief_on_stop.
+        if (cfg.get("briefs") or {}).get("always_brief_on_stop", True) and mode_b is not None:
+            return await mode_b.build_async(prose, tool_uses, todos, cfg)
     return ""
 
 
