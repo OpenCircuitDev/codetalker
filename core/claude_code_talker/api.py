@@ -318,11 +318,36 @@ def build_routes(state) -> list[Route]:
             return _not_found(f"no persistent settings for session: {sid}")
         return JSONResponse(payload)
 
+    async def put_persistent_session(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session_id: {sid!r}")
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        live_overlay = body.get("live_overlay")
+        if live_overlay is not None and not isinstance(live_overlay, dict):
+            return _bad_request("live_overlay must be a JSON object")
+        enabled = body.get("enabled")
+        if enabled is not None and not isinstance(enabled, bool):
+            return _bad_request("enabled must be a boolean")
+        # Build canonical payload — preserve any unknown keys for schema-drift forward-compat
+        payload = dict(body)
+        payload.setdefault("live_overlay", {})
+        payload.setdefault("enabled", True)
+        payload.setdefault("attached_profile", None)
+        payload.setdefault("display_name", None)
+        payload["last_modified"] = _rate_time.time()
+        state.persistent_sessions.save(sid, payload)
+        return JSONResponse({"saved": True, "session_id": sid})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
+        Route("/api/persistent-sessions/{session_id}", put_persistent_session, methods=["PUT"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),

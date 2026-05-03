@@ -154,3 +154,65 @@ async def test_get_persistent_session_invalid_sid_400(app):
     ) as c:
         r = await c.get("/api/persistent-sessions/../etc/passwd")
     assert r.status_code in (400, 404)
+
+
+@pytest.mark.asyncio
+async def test_put_persistent_session_saves(app):
+    application, state = app
+    payload = {
+        "live_overlay": {"voice": {"model": "marvin"}, "active_mode": "live"},
+        "enabled": True,
+        "attached_profile": None,
+        "display_name": None,
+        "last_modified": 1.0,
+    }
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/persistent-sessions/new-sid", json=payload)
+    assert r.status_code == 200
+    assert state.persistent_sessions.exists("new-sid")
+    saved = state.persistent_sessions.get("new-sid")
+    assert saved["enabled"] is True
+    assert saved["live_overlay"]["voice"]["model"] == "marvin"
+
+
+@pytest.mark.asyncio
+async def test_put_rejects_non_bool_enabled(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/persistent-sessions/sid", json={
+            "live_overlay": {}, "enabled": "yes",
+            "attached_profile": None, "display_name": None, "last_modified": 1.0,
+        })
+    assert r.status_code == 400
+    assert "enabled" in r.json()["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_put_rejects_non_object_live_overlay(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/persistent-sessions/sid", json={
+            "live_overlay": "not an object",
+            "enabled": True, "attached_profile": None,
+            "display_name": None, "last_modified": 1.0,
+        })
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_put_invalid_session_id_400(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/persistent-sessions/bad..name", json={
+            "live_overlay": {}, "enabled": True,
+            "attached_profile": None, "display_name": None, "last_modified": 1.0,
+        })
+    assert r.status_code == 400
