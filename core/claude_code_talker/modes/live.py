@@ -10,6 +10,7 @@ from claude_code_talker.cadence.base import CadenceStrategy
 from claude_code_talker.audio import AudioJob
 from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
+from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
 
 
 # The system portion is kept constant so that Google Gemini's implicit prefix
@@ -328,10 +329,17 @@ class LiveMode(ModeStrategy):
                 elif ev.type == "NOTIFICATION":
                     lines.append(f"[T+{dt:.1f}s NOTIFICATION] {meta.get('message', '')[:120]}")
                 elif ev.type == "PRE_TOOL":
-                    lines.append(f"[T+{dt:.1f}s tool→ {meta.get('tool_name', '?')}]")
+                    tool = meta.get('tool_name', '?')
+                    arg_summary = summarize_tool_input(tool, meta.get('input', ''))
+                    if arg_summary:
+                        lines.append(f"[T+{dt:.1f}s tool→ {tool} {arg_summary}]")
+                    else:
+                        lines.append(f"[T+{dt:.1f}s tool→ {tool}]")
                 elif ev.type == "POST_TOOL":
-                    ok = "ok" if meta.get('success', True) else "FAILED"
-                    lines.append(f"[T+{dt:.1f}s tool← {meta.get('tool_name', '?')} {ok}]")
+                    tool = meta.get('tool_name', '?')
+                    success = meta.get('success', True)
+                    out_summary = summarize_tool_response(tool, meta.get('response', ''), success)
+                    lines.append(f"[T+{dt:.1f}s tool← {tool} {out_summary}]")
 
         return (
             static_section
