@@ -133,3 +133,56 @@ async def test_delete_overlay_keypath(app):
         r = await c.delete("/api/sessions/sess-1/overlay/voice.model")
     assert r.status_code == 200
     assert state.sessions.get("sess-1").live_overlay == {"voice": {"rate": 1.2}}
+
+
+@pytest.mark.asyncio
+async def test_attach_profile_records_and_invalidates_cache(app):
+    application, state = app
+    state.profiles.save("verbose", {"voice": {"model": "marvin"}})
+    state.sessions.touch("sess-1", cwd="/proj/a")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/attach-profile", json={"name": "verbose"})
+    assert r.status_code == 200
+    assert state.sessions.get("sess-1").attached_profile == "verbose"
+    assert state.profiles.last_profile_for_cwd("/proj/a") == "verbose"
+
+
+@pytest.mark.asyncio
+async def test_attach_profile_400_when_profile_missing(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/attach-profile", json={"name": "ghost"})
+    assert r.status_code == 400
+    assert "ghost" in r.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_attach_profile_400_invalid_name(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/attach-profile", json={"name": "../etc/passwd"})
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_detach_profile_clears_and_clears_binding(app):
+    application, state = app
+    state.profiles.save("verbose", {"x": 1})
+    state.sessions.touch("sess-1", cwd="/proj/a")
+    state.sessions.attach_profile("sess-1", "verbose")
+    state.profiles.set_last_profile_for_cwd("/proj/a", "verbose")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.delete("/api/sessions/sess-1/profile")
+    assert r.status_code == 200
+    assert state.sessions.get("sess-1").attached_profile is None
+    assert state.profiles.last_profile_for_cwd("/proj/a") is None

@@ -5,6 +5,7 @@ import json
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
+from claude_code_talker.profiles import is_valid_profile_name
 
 
 def build_routes(state) -> list[Route]:
@@ -83,12 +84,52 @@ def build_routes(state) -> list[Route]:
             "resolved_cfg": cfg,
         })
 
+    async def attach_profile(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        s = state.sessions.get(sid)
+        if s is None:
+            return _not_found(f"unknown session: {sid}")
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        name = body.get("name", "")
+        if not is_valid_profile_name(name):
+            return _bad_request(f"invalid profile name: {name!r}")
+        if not state.profiles.exists(name):
+            return _bad_request(f"profile not found: {name}")
+        state.sessions.attach_profile(sid, name)
+        if s.cwd:
+            state.profiles.set_last_profile_for_cwd(s.cwd, name)
+        cfg = state.sessions.config_for(sid)
+        return JSONResponse({
+            "state": {"session_id": s.session_id, "attached_profile": s.attached_profile},
+            "resolved_cfg": cfg,
+        })
+
+    async def detach_profile(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        s = state.sessions.get(sid)
+        if s is None:
+            return _not_found(f"unknown session: {sid}")
+        prev_cwd = s.cwd
+        state.sessions.detach_profile(sid)
+        if prev_cwd:
+            state.profiles.clear_last_profile_for_cwd(prev_cwd)
+        cfg = state.sessions.config_for(sid)
+        return JSONResponse({
+            "state": {"session_id": s.session_id, "attached_profile": None},
+            "resolved_cfg": cfg,
+        })
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),
         Route("/api/sessions/{session_id}/overlay/{keypath:path}", delete_overlay_keypath, methods=["DELETE"]),
+        Route("/api/sessions/{session_id}/attach-profile", attach_profile, methods=["POST"]),
+        Route("/api/sessions/{session_id}/profile", detach_profile, methods=["DELETE"]),
     ]
 
 
