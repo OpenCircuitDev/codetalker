@@ -140,16 +140,61 @@
       if (s.is_live) li.classList.add("live");
       if (s.enabled === false) li.classList.add("disabled");
       if (s.session_id === state.selectedSessionId) li.classList.add("selected");
+      const titleRow = document.createElement("div");
+      titleRow.className = "session-item-row";
       const title = document.createElement("div");
       title.className = "session-item-title";
-      title.textContent = s.display_name || s.project_slug || s.session_id.slice(0, 12);
+      const fullName = s.display_name || s.project_slug || s.session_id.slice(0, 12);
+      title.textContent = truncateName(fullName, 24);
+      title.title = fullName;
+      const renameBtn = document.createElement("button");
+      renameBtn.className = "session-rename-btn";
+      renameBtn.textContent = "✎";
+      renameBtn.title = "Rename this session";
+      renameBtn.onclick = (e) => {
+        e.stopPropagation();
+        renameSession(s);
+      };
+      titleRow.appendChild(title);
+      titleRow.appendChild(renameBtn);
       const meta = document.createElement("div");
       meta.className = "session-item-meta";
       meta.textContent = (s.attached_profile || "—") + " · " + idleAgo(s.last_modified);
-      li.appendChild(title);
+      li.appendChild(titleRow);
       li.appendChild(meta);
       li.onclick = () => selectSession(s.session_id);
       list.appendChild(li);
+    }
+  }
+
+  function truncateName(name, max) {
+    if (!name) return "";
+    if (name.length <= max) return name;
+    return name.slice(0, max - 1) + "…";
+  }
+
+  async function renameSession(s) {
+    const current = (s.display_name && s.display_name !== s.project_slug) ? s.display_name : "";
+    const next = prompt("Rename session:", current);
+    if (next === null) return;  // cancelled
+    const trimmed = next.trim();
+    try {
+      let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+      if (!payload) {
+        payload = {
+          live_overlay: {},
+          attached_profile: s.attached_profile,
+          enabled: true,
+          display_name: null,
+          last_modified: 0.0,
+        };
+      }
+      payload.display_name = trimmed || null;
+      await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
+      toast(trimmed ? "Renamed: " + trimmed : "Name cleared", "success");
+      await poll();
+    } catch (e) {
+      toast("Rename failed: " + e.message, "error");
     }
   }
 

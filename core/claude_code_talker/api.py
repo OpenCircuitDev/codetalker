@@ -68,11 +68,18 @@ def build_routes(state) -> list[Route]:
             seen_sids.add(sid)
             live_match = live_by_sid.get(sid)
             persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
+            # Display priority: persistent display_name > catalog title > project_slug
+            display_name = (
+                (persistent.get("display_name") if persistent else None)
+                or (c.title or None)
+                or c.project_slug
+            )
             merged.append({
                 "session_id": sid,
                 "cwd": (live_match.cwd if live_match else "") or "",
                 "project_slug": c.project_slug,
-                "display_name": (persistent.get("display_name") if persistent else None) or c.project_slug,
+                "title": c.title,
+                "display_name": display_name,
                 "last_modified": max(
                     c.last_modified,
                     live_match.last_hook_at if live_match else 0.0,
@@ -335,6 +342,7 @@ def build_routes(state) -> list[Route]:
                 "project_slug": e.project_slug,
                 "transcript_path": str(e.transcript_path),
                 "last_modified": e.last_modified,
+                "title": e.title,
             }
             for e in entries
         ]

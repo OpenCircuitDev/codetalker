@@ -1,12 +1,90 @@
 """SessionCatalog: filesystem scan of ~/.claude/projects/**/*.jsonl."""
 from __future__ import annotations
 
+import json
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 
 DEFAULT_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+
+# Read up to this many leading lines of a transcript looking for ai-title /
+# first user message. Claude Code typically emits ai-title within the first ~10
+# lines; 50 is a safety margin across older transcript formats.
+_TITLE_SCAN_MAX_LINES = 200
+_TITLE_FIRST_USER_TRUNCATE = 80
+
+# IDE / Claude Code system-injected wrappers that aren't user-authored prose.
+# When the first user message is just one of these, keep scanning for real text.
+_SYSTEM_USER_PREFIXES = (
+    "<ide_opened_file>",
+    "<ide_selection>",
+    "<local-command-caveat>",
+    "<local-command-stdout>",
+    "<local-command-stderr>",
+    "<command-name>",
+    "<command-args>",
+    "<command-stdout>",
+    "<command-stderr>",
+    "<system-reminder>",
+    "<bash-input>",
+    "<bash-stdout>",
+    "<bash-stderr>",
+    "<task-notification>",
+)
+
+
+def _is_system_injected(text: str) -> bool:
+    stripped = text.lstrip()
+    return any(stripped.startswith(p) for p in _SYSTEM_USER_PREFIXES)
+
+
+def _read_transcript_title(transcript: Path) -> str:
+    """Best-effort: extract a friendly title from a Claude Code transcript.
+
+    Prefers ``{"type":"ai-title","aiTitle":"..."}`` lines (Claude Code's
+    auto-generated session title). Falls back to the first user message that
+    isn't an IDE/Claude Code system-injected wrapper. Returns "" if nothing
+    suitable is found or the file can't be read.
+    """
+    first_user: str = ""
+    try:
+        with transcript.open(encoding="utf-8") as f:
+            for i, raw in enumerate(f):
+                if i >= _TITLE_SCAN_MAX_LINES:
+                    break
+                try:
+                    d = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                if not isinstance(d, dict):
+                    continue
+                if d.get("type") == "ai-title":
+                    title = d.get("aiTitle")
+                    if isinstance(title, str) and title.strip():
+                        return title.strip()
+                if not first_user and d.get("type") == "user":
+                    msg = d.get("message")
+                    text = ""
+                    if isinstance(msg, dict):
+                        content = msg.get("content")
+                        if isinstance(content, str):
+                            text = content
+                        elif isinstance(content, list) and content:
+                            head = content[0]
+                            if isinstance(head, dict):
+                                text = head.get("text") or ""
+                    text = text.strip()
+                    if text and not _is_system_injected(text):
+                        first_user = text
+    except OSError:
+        return ""
+    if first_user:
+        first_user = " ".join(first_user.split())
+        if len(first_user) > _TITLE_FIRST_USER_TRUNCATE:
+            first_user = first_user[: _TITLE_FIRST_USER_TRUNCATE - 1] + "…"
+    return first_user
 
 
 @dataclass
@@ -16,6 +94,7 @@ class CatalogEntry:
     transcript_path: Path
     last_modified: float
     line_count: int = 0
+    title: str = ""
 
 
 class SessionCatalog:
@@ -42,12 +121,20 @@ class SessionCatalog:
             return [e for e in self._entries.values() if e.project_slug == project_slug]
 
     def scan(self) -> int:
-        """Scan projects_dir for transcript files. Returns the number of entries."""
+        """Scan projects_dir for transcript files. Returns the number of entries.
+
+        Titles are derived from each transcript on first sight and carried
+        forward across re-scans (titles don't change once Claude Code assigns
+        one), so re-scanning a large catalog stays fast.
+        """
         new_entries: dict[str, CatalogEntry] = {}
         if not self._projects_dir.exists():
             with self._lock:
                 self._entries = new_entries
             return 0
+        # Snapshot existing titles so re-scans don't re-read every transcript.
+        with self._lock:
+            prior_titles = {sid: e.title for sid, e in self._entries.items() if e.title}
         for project_dir in self._projects_dir.iterdir():
             if not project_dir.is_dir():
                 continue
@@ -58,11 +145,13 @@ class SessionCatalog:
                 except OSError:
                     continue
                 sid = transcript.stem
+                title = prior_titles.get(sid) or _read_transcript_title(transcript)
                 new_entries[sid] = CatalogEntry(
                     session_id=sid,
                     project_slug=project_slug,
                     transcript_path=transcript,
                     last_modified=stat.st_mtime,
+                    title=title,
                 )
         # Apply max_entries cap by keeping the most-recent-mtime entries.
         if len(new_entries) > self._max_entries:

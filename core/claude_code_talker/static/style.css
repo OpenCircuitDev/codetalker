@@ -396,3 +396,36 @@ dialog input { display: block; width: 100%; margin: 8px 0 16px 0; }
   content: '🔇 ';
   font-size: 12px;
 }
+
+.session-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.session-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-rename-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.session-item:hover .session-rename-btn {
+  opacity: 1;
+}
+
+.session-rename-btn:hover {
+  color: var(--accent);
+}
