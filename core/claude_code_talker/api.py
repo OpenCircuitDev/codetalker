@@ -891,6 +891,60 @@ def build_routes(state) -> list[Route]:
         _openrouter_models_cache["fetched_at"] = _t.time()
         return JSONResponse({"refreshed": True, "model_count": len(models)})
 
+    async def virtual_eval_run(request: Request) -> JSONResponse:
+        """Phase-13: kick off a virtual user eval and return the report."""
+        if not _rate_limit_check(state, "virtual_eval_run", 10.0):
+            return JSONResponse({"error": "rate limited (1 run per 10s)"}, status_code=429)
+        from claude_code_talker.virtual_eval import run_eval as _run
+        from pathlib import Path as _P
+        from claude_code_talker.server import _select_provider
+        provider = _select_provider(state, "live")
+        if provider is None:
+            return JSONResponse({"error": "no LLM provider available"}, status_code=503)
+        current_teacher_cfg = state.cfg.get("teacher_mode") or {}
+        deployed_at = float((state.cfg.get("virtual_eval") or {}).get("deployed_at", 0.0))
+        max_narrations = int((state.cfg.get("virtual_eval") or {}).get("max_narrations", 50))
+        overlay_path = _P.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+        try:
+            report = await _run(
+                narration_log=state.narration_log, history=state.tuning_history,
+                current_cfg=current_teacher_cfg, provider=provider,
+                overlay_path=overlay_path, catalog=state.catalog,
+                deployed_at=deployed_at, max_narrations=max_narrations,
+            )
+        except Exception as e:
+            return JSONResponse({"error": f"eval failed: {e}"}, status_code=500)
+        state.virtual_eval_latest = report
+        if report.get("applied"):
+            state.cfg.setdefault("teacher_mode", {}).update(
+                report["proposal"]["fields_to_set"]
+            )
+            for s in state.sessions.list_active():
+                state.sessions.invalidate(s.session_id)
+        return JSONResponse(report)
+
+    async def virtual_eval_latest(request: Request) -> JSONResponse:
+        return JSONResponse({"latest": getattr(state, "virtual_eval_latest", None)})
+
+    async def virtual_eval_history(request: Request) -> JSONResponse:
+        if state.tuning_history is None:
+            return JSONResponse([])
+        from dataclasses import asdict
+        entries = state.tuning_history.list_all()
+        return JSONResponse([asdict(e) for e in entries])
+
+    async def virtual_eval_revert(request: Request) -> JSONResponse:
+        from claude_code_talker.virtual_eval import revert_tuning
+        from pathlib import Path as _P
+        entry_id = request.path_params["entry_id"]
+        overlay_path = _P.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+        ok = revert_tuning(history=state.tuning_history, entry_id=entry_id, overlay_path=overlay_path)
+        if not ok:
+            return _not_found(f"tuning entry not found or not applied: {entry_id}")
+        for s in state.sessions.list_active():
+            state.sessions.invalidate(s.session_id)
+        return JSONResponse({"reverted": True})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -928,6 +982,10 @@ def build_routes(state) -> list[Route]:
         Route("/api/mute", mute, methods=["POST"]),
         Route("/api/unmute", unmute, methods=["POST"]),
         Route("/api/install-hooks", install_hooks, methods=["POST"]),
+        Route("/api/virtual-eval/run", virtual_eval_run, methods=["POST"]),
+        Route("/api/virtual-eval/latest", virtual_eval_latest, methods=["GET"]),
+        Route("/api/virtual-eval/history", virtual_eval_history, methods=["GET"]),
+        Route("/api/virtual-eval/revert/{entry_id}", virtual_eval_revert, methods=["POST"]),
     ]
 
 

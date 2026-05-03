@@ -28,6 +28,7 @@ from claude_code_talker.sessions import SessionRegistry
 from claude_code_talker.narration_log import NarrationLog
 from claude_code_talker.token_tracker import TokenTracker
 from claude_code_talker.tts_cache import TTSCache
+from claude_code_talker.virtual_eval.history import TuningHistory
 
 
 PIPER_DIR = Path.home() / ".claude" / "scripts" / "piper" / "piper"
@@ -53,6 +54,8 @@ class ServerState:
     narration_log: NarrationLog = None
     token_tracker: TokenTracker = None
     tts_cache: TTSCache = None
+    tuning_history: TuningHistory = None
+    virtual_eval_latest: object = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -215,6 +218,9 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.narration_log = NarrationLog()
     state.token_tracker = TokenTracker()
     state.tts_cache = TTSCache()
+    state.tuning_history = TuningHistory()
+    # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
+    state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()
     state.persistent_sessions = persistent_sessions
     state.sessions = SessionRegistry(
