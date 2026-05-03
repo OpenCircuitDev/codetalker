@@ -110,3 +110,23 @@ def test_get_rejects_invalid_session_id(store):
 def test_delete_rejects_invalid_session_id(store):
     with pytest.raises(SessionIdError):
         store.delete("../etc/passwd")
+
+
+# --- Task 11: Schema-drift / unknown-keys preservation ---
+
+def test_unknown_keys_preserved_on_roundtrip(store):
+    """Schema drift: unknown top-level keys roundtrip via save → get."""
+    payload = {
+        "live_overlay": {"voice": {"model": "marvin"}},
+        "enabled": True,
+        "attached_profile": None,
+        "display_name": None,
+        "last_modified": 1.0,
+        "future_field_we_dont_know_about": "preserved",
+        "another_unknown": {"nested": "data"},
+    }
+    store.save("abc", payload)
+    loaded = store.get("abc")
+    assert loaded == payload
+    assert loaded["future_field_we_dont_know_about"] == "preserved"
+    assert loaded["another_unknown"]["nested"] == "data"
