@@ -56,6 +56,7 @@
       state.sessions = sessions;
       state.profiles = profiles;
       state.enabled = status.enabled;
+      state.providers = status.providers || ["ollama"];
       // Lazy-load voices for engines we haven't seen
       for (const eng of status.engines || []) {
         if (!state.voicesByEngine[eng]) {
@@ -265,6 +266,44 @@
 
   async function playSample(sessionId) {
     toast("Sample playback wires up in next task (uses a forthcoming /api/sessions/<id>/speak-sample endpoint)", "info");
+  }
+
+  const CADENCES = ["periodic", "per_tool_call", "per_cluster", "significant_only", "hybrid"];
+
+  TAB_RENDERERS.behavior = function(pane, s, cfg) {
+    const mode = cfg.active_mode || "direct";
+    const liveCfg = cfg.live || {};
+    pane.appendChild(makeFieldSelect("Mode", "active_mode",
+      ["direct", "brief", "live"], mode, s.session_id));
+
+    if (mode === "live") {
+      pane.appendChild(makeFieldSelect("Cadence", "live.cadence",
+        CADENCES, liveCfg.cadence || "periodic", s.session_id));
+      pane.appendChild(makeFieldNumber("Significance threshold", "live.significance_threshold",
+        liveCfg.significance_threshold ?? 0.5, 0.0, 1.0, 0.05, s.session_id));
+    } else {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "Cadence and significance threshold apply to live mode only.";
+      pane.appendChild(note);
+    }
+
+    if (mode === "brief" || mode === "live") {
+      pane.appendChild(makeFieldSelect("LLM Provider",
+        "modes." + (mode === "live" ? "live" : "brief") + ".provider",
+        providersFromStatus(),
+        getProviderForMode(cfg, mode),
+        s.session_id));
+    }
+  };
+
+  function providersFromStatus() {
+    return state.providers || ["ollama"];
+  }
+
+  function getProviderForMode(cfg, mode) {
+    const modeKey = mode === "live" ? "live" : "brief";
+    return ((cfg.modes || {})[modeKey] || {}).provider || "ollama";
   }
 
   TAB_RENDERERS.audio = function(pane, s, cfg) {
