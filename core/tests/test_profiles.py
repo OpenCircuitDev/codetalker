@@ -69,3 +69,37 @@ def test_list_skips_corrupted_files(store, tmp_path):
     (tmp_path / "bad.yaml").write_text("{not valid yaml: [unclosed")
     # list() doesn't parse, just lists files
     assert sorted(store.list()) == ["bad", "good"]
+
+
+from claude_code_talker.profiles import is_valid_profile_name, ProfileNameError
+
+
+def test_valid_names():
+    for name in ["marvin", "verbose-marvin", "x", "x_y_z", "ABC-123", "a" * 64]:
+        assert is_valid_profile_name(name)
+
+
+def test_invalid_names():
+    for name in ["", "  ", "../etc/passwd", "name/with/slash", "a" * 65,
+                 "name.with.dot", "name with space", "café", "💀"]:
+        assert not is_valid_profile_name(name)
+
+
+def test_save_rejects_invalid_name(store):
+    with pytest.raises(ProfileNameError):
+        store.save("../etc/passwd", {"x": 1})
+
+
+def test_save_rejects_empty_name(store):
+    with pytest.raises(ProfileNameError):
+        store.save("", {"x": 1})
+
+
+def test_get_rejects_invalid_name(store):
+    with pytest.raises(ProfileNameError):
+        store.get("../etc/passwd")
+
+
+def test_delete_rejects_invalid_name(store):
+    with pytest.raises(ProfileNameError):
+        store.delete("../etc/passwd")

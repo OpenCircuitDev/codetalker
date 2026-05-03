@@ -1,12 +1,28 @@
 """ProfileStore: file-backed CRUD on ~/.claude/scripts/profiles/*.yaml."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
 
 
 DEFAULT_PROFILES_DIR = Path.home() / ".claude" / "scripts" / "profiles"
+
+_PROFILE_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
+
+class ProfileNameError(ValueError):
+    """Raised when a profile name fails validation."""
+
+
+def is_valid_profile_name(name: str) -> bool:
+    return bool(_PROFILE_NAME_RE.match(name or ""))
+
+
+def _require_valid_name(name: str) -> None:
+    if not is_valid_profile_name(name):
+        raise ProfileNameError(f"invalid profile name: {name!r}")
 
 
 class ProfileStore:
@@ -21,9 +37,11 @@ class ProfileStore:
         return sorted(p.stem for p in self._dir.glob("*.yaml"))
 
     def exists(self, name: str) -> bool:
+        _require_valid_name(name)
         return (self._dir / f"{name}.yaml").exists()
 
     def get(self, name: str) -> dict:
+        _require_valid_name(name)
         path = self._dir / f"{name}.yaml"
         if not path.exists():
             raise FileNotFoundError(f"profile not found: {name}")
@@ -31,6 +49,7 @@ class ProfileStore:
 
     def save(self, name: str, content: dict) -> Path:
         """Atomic write: serialize to .tmp, then rename to .yaml."""
+        _require_valid_name(name)
         self._dir.mkdir(parents=True, exist_ok=True)
         target = self._dir / f"{name}.yaml"
         tmp = self._dir / f"{name}.yaml.tmp"
@@ -46,6 +65,7 @@ class ProfileStore:
         return target
 
     def delete(self, name: str) -> None:
+        _require_valid_name(name)
         path = self._dir / f"{name}.yaml"
         try:
             path.unlink()
