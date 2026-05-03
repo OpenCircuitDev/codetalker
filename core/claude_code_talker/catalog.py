@@ -80,26 +80,28 @@ class SessionCatalog:
 
     def start_watcher(self, *, interval_seconds: float = 30.0) -> None:
         """Start a background thread that re-scans on a timer."""
-        if self._watcher_thread is not None and self._watcher_thread.is_alive():
-            return
-        self._watcher_stop.clear()
+        with self._lock:
+            if self._watcher_thread is not None and self._watcher_thread.is_alive():
+                return
+            self._watcher_stop.clear()
 
-        def _run():
-            while not self._watcher_stop.wait(interval_seconds):
-                try:
-                    self.refresh()
-                except Exception:
-                    import logging
-                    logging.warning("catalog watcher iteration failed", exc_info=True)
+            def _run():
+                while not self._watcher_stop.wait(interval_seconds):
+                    try:
+                        self.refresh()
+                    except Exception:
+                        import logging
+                        logging.warning("catalog watcher iteration failed", exc_info=True)
 
-        self._watcher_thread = threading.Thread(
-            target=_run, daemon=True, name="codetalker-catalog-watcher"
-        )
-        self._watcher_thread.start()
+            self._watcher_thread = threading.Thread(
+                target=_run, daemon=True, name="codetalker-catalog-watcher"
+            )
+            self._watcher_thread.start()
 
     def stop_watcher(self) -> None:
         self._watcher_stop.set()
-        t = self._watcher_thread
+        with self._lock:
+            t = self._watcher_thread
         if t is not None:
             t.join(timeout=2.0)
 
