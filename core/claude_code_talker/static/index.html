@@ -94,6 +94,7 @@
         <button type="button" class="settings-tab" data-stab="usage">Usage &amp; Cost</button>
         <button type="button" class="settings-tab" data-stab="cache">TTS Cache</button>
         <button type="button" class="settings-tab" data-stab="audit">Audit Log</button>
+        <button type="button" class="settings-tab" data-stab="eval">Eval</button>
       </nav>
       <div class="settings-pane active" data-spane="keys">
         <p class="muted">API keys are stored at <code>~/.claude/scripts/codetalker/secrets.yaml</code>. Environment variables override file values. Restart daemon for changes to take effect.</p>
@@ -179,6 +180,14 @@
         <p class="muted">Recent narrated lines. Use this to audit "what did codetalker say earlier?".</p>
         <button type="button" id="reload-audit-btn" class="secondary-btn">Reload</button>
         <ul id="audit-list" class="audit-list"></ul>
+      </div>
+      <div class="settings-pane" data-spane="eval">
+        <p class="muted">Spin up 5 LLM-generated personas to score recent narrations and auto-tune teacher mode. <a href="javascript:void(0)" id="eval-doc-link">Read more</a>.</p>
+        <button type="button" id="eval-run-btn" class="primary-btn">Run virtual user eval</button>
+        <div id="eval-status" class="muted" style="margin-top:8px"></div>
+        <div id="eval-report" class="eval-report"></div>
+        <h4 style="margin-top:16px">Tuning history</h4>
+        <ul id="eval-history-list" class="audit-list"></ul>
       </div>
       <div class="dialog-actions">
         <button type="button" id="settings-close-btn" class="secondary-btn">Close</button>

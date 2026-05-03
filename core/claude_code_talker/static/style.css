@@ -698,3 +698,73 @@ dialog input { display: block; width: 100%; margin: 8px 0 16px 0; }
   display: flex;
   flex-direction: column;
 }
+
+.eval-report {
+  margin-top: 12px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.eval-report h5 {
+  margin: 8px 0 4px 0;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.eval-report .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.eval-report .row:last-child {
+  border-bottom: none;
+}
+
+.eval-report .applied-banner {
+  background: var(--accent-bg);
+  color: var(--accent);
+  padding: 6px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.eval-report .pending-banner {
+  background: #5a3a1a;
+  color: #f0c060;
+  padding: 6px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.eval-report .systemic-term {
+  display: inline-block;
+  background: #3a2a1a;
+  color: #f0c060;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  margin: 2px;
+}
+
+.eval-history-revert {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.eval-history-revert:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
