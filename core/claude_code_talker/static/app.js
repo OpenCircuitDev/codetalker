@@ -15,6 +15,7 @@
     activeTab: "quick",
     enabled: true,
     offline: false,
+    filter: 'all',  // 'all' | 'live' | 'enabled'
   };
 
   // ---- HTTP helpers ----
@@ -98,42 +99,53 @@
     muteBtn.textContent = state.enabled ? "🔊" : "🔇";
     muteBtn.classList.toggle("muted", !state.enabled);
 
-    renderSessions();
+    renderCatalog();
     renderProfiles();
     renderDetail();
   }
 
-  function renderSessions() {
+  function renderCatalog() {
     const list = document.getElementById("session-list");
     const count = document.getElementById("session-count");
-    count.textContent = "(" + state.sessions.length + ")";
+    const filtered = state.sessions.filter(s => {
+      if (state.filter === 'all') return true;
+      if (state.filter === 'live') return s.is_live === true;
+      if (state.filter === 'enabled') return s.enabled !== false;
+      return true;
+    });
+    count.textContent = "(" + filtered.length +
+      (state.sessions.length !== filtered.length ? " of " + state.sessions.length : "") + ")";
     list.innerHTML = "";
-    if (state.sessions.length === 0) {
+    if (filtered.length === 0) {
       const li = document.createElement("li");
       li.className = "empty-state";
-      li.innerHTML = `
-        No sessions yet.<br>
-        Start a Claude Code conversation, or
-        <a href="#" id="install-hooks-link">install hooks</a> if not yet set up.
-      `;
-      list.appendChild(li);
-      const link = document.getElementById("install-hooks-link");
-      if (link) link.onclick = (e) => {
-        e.preventDefault();
-        installHooks();
-      };
+      if (state.sessions.length === 0) {
+        li.innerHTML = `
+          No sessions yet.<br>
+          Start a Claude Code conversation, or
+          <a href="#" id="install-hooks-link">install hooks</a> if not yet set up.
+        `;
+        list.appendChild(li);
+        const link = document.getElementById("install-hooks-link");
+        if (link) link.onclick = (e) => { e.preventDefault(); installHooks(); };
+      } else {
+        li.textContent = "No sessions match the current filter.";
+        list.appendChild(li);
+      }
       return;
     }
-    for (const s of state.sessions) {
+    for (const s of filtered) {
       const li = document.createElement("li");
       li.className = "session-item";
+      if (s.is_live) li.classList.add("live");
+      if (s.enabled === false) li.classList.add("disabled");
       if (s.session_id === state.selectedSessionId) li.classList.add("selected");
       const title = document.createElement("div");
       title.className = "session-item-title";
-      title.textContent = s.cwd ? shortName(s.cwd) : s.session_id.slice(0, 12);
+      title.textContent = s.display_name || s.project_slug || s.session_id.slice(0, 12);
       const meta = document.createElement("div");
       meta.className = "session-item-meta";
-      meta.textContent = (s.attached_profile || "—") + " · " + idleAgo(s.last_hook_at);
+      meta.textContent = (s.attached_profile || "—") + " · " + idleAgo(s.last_modified);
       li.appendChild(title);
       li.appendChild(meta);
       li.onclick = () => selectSession(s.session_id);
@@ -486,6 +498,14 @@
     document.querySelectorAll(".tab").forEach(t => {
       t.onclick = () => {
         state.activeTab = t.dataset.tab;
+        render();
+      };
+    });
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.onclick = () => {
+        state.filter = chip.dataset.filter;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
         render();
       };
     });
