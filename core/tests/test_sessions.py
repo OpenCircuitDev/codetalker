@@ -142,3 +142,22 @@ def test_remove_overlay_keypath():
     r.update_overlay("abc", {"voice": {"model": "marvin", "rate": 1.2}, "active_mode": "live"})
     r.remove_overlay_keypath("abc", "voice.model")
     assert r.get("abc").live_overlay == {"voice": {"rate": 1.2}, "active_mode": "live"}
+
+
+def test_sweeper_starts_and_stops_cleanly():
+    r = SessionRegistry()
+    r.start_sweeper(interval_seconds=0.05, max_idle_seconds=0.1)
+    assert r._sweeper_thread is not None
+    assert r._sweeper_thread.is_alive()
+    r.stop_sweeper()
+    time.sleep(0.1)
+    assert not r._sweeper_thread.is_alive()
+
+
+def test_sweeper_expires_idle_sessions():
+    r = SessionRegistry()
+    r.touch("ephemeral")
+    r.start_sweeper(interval_seconds=0.05, max_idle_seconds=0.1)
+    time.sleep(0.3)  # well past max_idle
+    r.stop_sweeper()
+    assert r.get("ephemeral") is None

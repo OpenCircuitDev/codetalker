@@ -37,6 +37,8 @@ class SessionRegistry:
         self._sessions: dict[str, SessionState] = {}
         self._lock = threading.RLock()
         self._max_active = max_active
+        self._sweeper_thread: threading.Thread | None = None
+        self._sweeper_stop = threading.Event()
 
     def get(self, session_id: str) -> SessionState | None:
         with self._lock:
@@ -121,6 +123,31 @@ class SessionRegistry:
             s = self._sessions.get(session_id)
             if s is not None:
                 s.cached_cfg = None
+
+    def start_sweeper(self, *, interval_seconds: float = 60.0, max_idle_seconds: float = 1800.0) -> None:
+        """Start a background thread that calls expire_idle on a timer."""
+        if self._sweeper_thread is not None and self._sweeper_thread.is_alive():
+            return
+        self._sweeper_stop.clear()
+
+        def _run():
+            while not self._sweeper_stop.wait(interval_seconds):
+                try:
+                    self.expire_idle(max_idle_seconds=max_idle_seconds)
+                except Exception:
+                    import logging
+                    logging.warning("session sweeper iteration failed", exc_info=True)
+
+        self._sweeper_thread = threading.Thread(
+            target=_run, daemon=True, name="codetalker-session-sweeper"
+        )
+        self._sweeper_thread.start()
+
+    def stop_sweeper(self) -> None:
+        self._sweeper_stop.set()
+        t = self._sweeper_thread
+        if t is not None:
+            t.join(timeout=2.0)
 
     def _evict_oldest_if_full_locked(self) -> None:
         """Caller holds self._lock. Drops the oldest-idle session if at capacity."""
