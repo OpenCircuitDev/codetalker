@@ -364,3 +364,29 @@ async def test_status_returns_summary(app):
     assert body["session_count"] == 2
     assert "engines" in body
     assert "providers" in body
+
+
+@pytest.mark.asyncio
+async def test_mute_sets_enabled_false(app):
+    application, state = app
+    state.cfg["enabled"] = True
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/mute")
+    assert r.status_code == 200
+    assert r.json() == {"enabled": False}
+    assert state.cfg["enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_unmute_sets_enabled_true(app):
+    application, state = app
+    state.cfg["enabled"] = False
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/unmute")
+    assert r.status_code == 200
+    assert r.json() == {"enabled": True}
+    assert state.cfg["enabled"] is True

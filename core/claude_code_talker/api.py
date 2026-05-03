@@ -137,6 +137,14 @@ def build_routes(state) -> list[Route]:
         path = state.profiles.save(name, dict(s.live_overlay))
         return JSONResponse({"name": name, "path": str(path)})
 
+    async def mute(request: Request) -> JSONResponse:
+        state.cfg["enabled"] = False
+        return JSONResponse({"enabled": False})
+
+    async def unmute(request: Request) -> JSONResponse:
+        state.cfg["enabled"] = True
+        return JSONResponse({"enabled": True})
+
     async def list_voices(request: Request) -> JSONResponse:
         engine_name = request.query_params.get("engine")
         if not engine_name:
@@ -225,6 +233,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/profiles/{name}", delete_profile, methods=["DELETE"]),
         Route("/api/voices", list_voices, methods=["GET"]),
         Route("/api/status", status, methods=["GET"]),
+        Route("/api/mute", mute, methods=["POST"]),
+        Route("/api/unmute", unmute, methods=["POST"]),
     ]
 
 
