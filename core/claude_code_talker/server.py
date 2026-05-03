@@ -342,6 +342,9 @@ def register_tools(server, state) -> None:
         cwd = args.get("cwd", "")
         transcript_path = args.get("transcript_path", "")
         state.sessions.touch(session_id, cwd=cwd, transcript_path=transcript_path)
+        s = state.sessions.get(session_id)
+        if s is not None and not s.enabled:
+            return "skipped: per-session disabled"
         cfg = state.sessions.config_for(session_id)
         if not cfg.get("enabled", True):
             return "skipped: muted"
