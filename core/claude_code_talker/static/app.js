@@ -334,11 +334,36 @@
   async function updateOverlayKeypath(sessionId, keypath, value) {
     const partial = setNested({}, keypath, value);
     try {
+      // 1. Update live overlay (only meaningful if session is currently live)
       await api("/sessions/" + sessionId + "/overlay",
-                { method: "PUT", body: partial });
+                { method: "PUT", body: partial }).catch(() => {});
+      // 2. Persist for next time the session fires hooks
+      let payload = await api("/persistent-sessions/" + sessionId).catch(() => null);
+      if (!payload) {
+        payload = {
+          live_overlay: {},
+          attached_profile: null,
+          enabled: true,
+          display_name: null,
+          last_modified: 0.0,
+        };
+      }
+      _mergeNested(payload.live_overlay, partial);
+      await api("/persistent-sessions/" + sessionId, { method: "PUT", body: payload });
       await poll();
     } catch (e) {
-      toast("Update failed: " + e.message, "error");
+      toast("Save failed: " + e.message, "error");
+    }
+  }
+
+  function _mergeNested(target, partial) {
+    for (const k in partial) {
+      if (partial[k] && typeof partial[k] === 'object' && !Array.isArray(partial[k])) {
+        if (!target[k] || typeof target[k] !== 'object') target[k] = {};
+        _mergeNested(target[k], partial[k]);
+      } else {
+        target[k] = partial[k];
+      }
     }
   }
 
