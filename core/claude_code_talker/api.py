@@ -309,10 +309,20 @@ def build_routes(state) -> list[Route]:
         scanned = state.catalog.refresh()
         return JSONResponse({"scanned": scanned})
 
+    async def get_persistent_session(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session_id: {sid!r}")
+        payload = state.persistent_sessions.get(sid)
+        if payload is None:
+            return _not_found(f"no persistent settings for session: {sid}")
+        return JSONResponse(payload)
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
+        Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),

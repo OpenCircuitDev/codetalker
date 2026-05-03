@@ -116,3 +116,41 @@ async def test_refresh_rate_limited_within_5s(app):
         r2 = await c.post("/api/catalog/refresh")
     assert r1.status_code == 200
     assert r2.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_get_persistent_session_404_when_missing(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/persistent-sessions/never-saved")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_persistent_session_returns_payload(app):
+    application, state = app
+    state.persistent_sessions.save("saved-sid", {
+        "live_overlay": {"voice": {"model": "marvin"}},
+        "enabled": True, "attached_profile": "verbose",
+        "display_name": None, "last_modified": 1.0,
+    })
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/persistent-sessions/saved-sid")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["enabled"] is True
+    assert body["attached_profile"] == "verbose"
+
+
+@pytest.mark.asyncio
+async def test_get_persistent_session_invalid_sid_400(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/persistent-sessions/../etc/passwd")
+    assert r.status_code in (400, 404)
