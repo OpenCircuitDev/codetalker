@@ -76,7 +76,11 @@ async def dispatch_hook(payload: dict) -> None:
         return  # unknown event — silent no-op
 
     try:
-        await asyncio.wait_for(_call_mcp_tool(tool_name, tool_args), timeout=2.0)
+        # Timeout sized for Python cold-start + SSE handshake (~2-3s on Windows/Dropbox)
+        # plus the actual tool dispatch. Hook events run with `async: true` in Claude Code's
+        # hook config so the user's chat never blocks on us — we just need to finish before
+        # the OS reaps the process.
+        await asyncio.wait_for(_call_mcp_tool(tool_name, tool_args), timeout=10.0)
     except (ConnectionRefusedError, asyncio.TimeoutError, OSError):
         # Daemon not reachable. Spawn it detached and exit silently.
         # Next hook will succeed.
