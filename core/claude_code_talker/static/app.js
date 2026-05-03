@@ -267,6 +267,41 @@
     toast("Sample playback wires up in next task (uses a forthcoming /api/sessions/<id>/speak-sample endpoint)", "info");
   }
 
+  TAB_RENDERERS.audio = function(pane, s, cfg) {
+    const voiceCfg = cfg.voice || {};
+    const enginesAvail = Object.keys(state.voicesByEngine);
+    pane.appendChild(makeFieldSelect("Engine", "voice.engine",
+      enginesAvail.length ? enginesAvail : ["piper"],
+      voiceCfg.engine || "piper", s.session_id));
+    pane.appendChild(makeFieldSelect("Voice", "voice.model",
+      voicesForEngine(voiceCfg.engine || "piper"),
+      voiceCfg.model || "(none)", s.session_id));
+    pane.appendChild(makeFieldNumber("Rate", "voice.rate",
+      voiceCfg.rate ?? 1.0, 0.5, 2.0, 0.05, s.session_id));
+  };
+
+  function makeFieldNumber(label, keypath, current, min, max, step, sessionId) {
+    const row = makeFieldRow(label);
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = String(current);
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step);
+    input.style.width = "100px";
+    input.onchange = () => {
+      const n = parseFloat(input.value);
+      if (isNaN(n) || n < min || n > max) {
+        toast(`${label} must be ${min}–${max}`, "error");
+        input.value = String(current);
+        return;
+      }
+      updateOverlayKeypath(sessionId, keypath, n);
+    };
+    row.querySelector(".field-control").appendChild(input);
+    return row;
+  }
+
   async function detachProfile(sessionId) {
     try {
       await api("/sessions/" + sessionId + "/profile", { method: "DELETE" });
