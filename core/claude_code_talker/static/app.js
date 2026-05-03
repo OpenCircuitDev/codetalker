@@ -109,7 +109,19 @@
     count.textContent = "(" + state.sessions.length + ")";
     list.innerHTML = "";
     if (state.sessions.length === 0) {
-      list.innerHTML = '<li class="empty-state">No sessions yet. Start a Claude Code conversation to see it here.</li>';
+      const li = document.createElement("li");
+      li.className = "empty-state";
+      li.innerHTML = `
+        No sessions yet.<br>
+        Start a Claude Code conversation, or
+        <a href="#" id="install-hooks-link">install hooks</a> if not yet set up.
+      `;
+      list.appendChild(li);
+      const link = document.getElementById("install-hooks-link");
+      if (link) link.onclick = (e) => {
+        e.preventDefault();
+        installHooks();
+      };
       return;
     }
     for (const s of state.sessions) {
@@ -126,6 +138,16 @@
       li.appendChild(meta);
       li.onclick = () => selectSession(s.session_id);
       list.appendChild(li);
+    }
+  }
+
+  async function installHooks() {
+    if (!confirm("Add codetalker hooks to ~/.claude/settings.json? Existing hooks will be preserved.")) return;
+    try {
+      const r = await api("/install-hooks", { method: "POST" });
+      toast(`Hooks installed (${r.hooks_added} added)`, "success");
+    } catch (e) {
+      toast("Install failed: " + e.message, "error");
     }
   }
 
