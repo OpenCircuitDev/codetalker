@@ -12,7 +12,8 @@
   "contributes": {
     "commands": [
       { "command": "claude-tts.toggle",      "title": "Claude TTS: Toggle Mute" },
-      { "command": "claude-tts.openWebUI",   "title": "Claude TTS: Open Web UI" }
+      { "command": "claude-tts.openWebUI",   "title": "Claude TTS: Open Web UI" },
+      { "command": "claude-tts.setSecret",   "title": "Claude TTS: Set API Key" }
     ],
     "configuration": {
       "title": "Claude Code Talker",

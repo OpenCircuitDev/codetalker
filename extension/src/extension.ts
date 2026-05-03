@@ -2,8 +2,11 @@ import * as vscode from "vscode";
 import { StatusBar } from "./statusBar";
 import { isDaemonAlive, spawnDaemonWithEnv } from "./daemonProcess";
 import { ensureHooksInstalled } from "./hookInstaller";
+import { loadAllSecrets } from "./secretStorage";
+import { maybeOfferMigration } from "./migrationPrompt";
 import { registerOpenWebUI } from "./commands/openWebUI";
 import { registerToggle } from "./commands/toggle";
+import { registerSetSecret } from "./commands/setSecret";
 
 let statusBar: StatusBar | undefined;
 
@@ -15,7 +18,8 @@ export async function activate(context: vscode.ExtensionContext) {
   if (cfg.get<boolean>("autoSpawnDaemon", true)) {
     if (!isDaemonAlive(context)) {
       try {
-        spawnDaemonWithEnv(context, {});
+        const env = await loadAllSecrets(context);
+        spawnDaemonWithEnv(context, env);
         await new Promise((r) => setTimeout(r, 1500));
       } catch {
         vscode.window.showWarningMessage("Could not auto-spawn Claude TTS daemon");
@@ -25,6 +29,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Hook auto-install — silent on first activation per spec Q3 = A
   ensureHooksInstalled(host, port).catch(() => { /* best-effort */ });
+  maybeOfferMigration(context).catch(() => { /* best-effort */ });
 
   statusBar = new StatusBar();
   statusBar.start(cfg.get<number>("statusBarPollIntervalMs", 2000));
@@ -32,6 +37,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   registerOpenWebUI(context);
   registerToggle(context, () => statusBar!.refresh());
+  registerSetSecret(context);
 }
 
 export function deactivate() {
