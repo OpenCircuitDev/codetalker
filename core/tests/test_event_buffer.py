@@ -78,3 +78,18 @@ def test_subscriber_exception_doesnt_break_buffer():
     b.subscribe(lambda e: 1/0)  # raises every call
     b.push(Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5))
     assert len(b.recent()) == 1  # buffer still got the event
+
+
+def test_event_has_session_id_default_empty():
+    e = Event(timestamp=1.0, type="PRE_TOOL", metadata={})
+    assert e.session_id == ""
+
+
+def test_event_session_id_persists_through_buffer():
+    buf = EventBuffer(max_size=10)
+    buf.push(Event(timestamp=1.0, type="PRE_TOOL", metadata={}, session_id="sess-A"))
+    buf.push(Event(timestamp=2.0, type="PRE_TOOL", metadata={}, session_id="sess-B"))
+    items = buf.recent(10)
+    assert len(items) == 2
+    assert items[0].session_id == "sess-A"
+    assert items[1].session_id == "sess-B"

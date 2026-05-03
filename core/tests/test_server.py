@@ -218,6 +218,43 @@ async def test_tts_handle_posttool_pushes_event():
 
 
 @pytest.mark.asyncio
+async def test_pretool_event_carries_session_id():
+    """session_id from hook payload must propagate into the pushed Event."""
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.event_buffer.clear()
+
+    await server.call_tool("tts_handle_pretool", {
+        "tool_name": "Read",
+        "tool_input": {"file_path": "c:/foo.py"},
+        "session_id": "sess-X",
+    })
+
+    events = state.event_buffer.recent()
+    assert len(events) == 1
+    assert events[0].session_id == "sess-X"
+
+
+@pytest.mark.asyncio
+async def test_posttool_event_carries_session_id():
+    """session_id from hook payload must propagate into the pushed POST_TOOL Event."""
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.event_buffer.clear()
+
+    await server.call_tool("tts_handle_posttool", {
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "c:/foo.py"},
+        "tool_response": {"success": True, "output": "ok"},
+        "session_id": "sess-Y",
+    })
+
+    events = state.event_buffer.recent()
+    assert len(events) == 1
+    assert events[0].session_id == "sess-Y"
+
+
+@pytest.mark.asyncio
 async def test_set_mode_live_starts_cadence_loop():
     state = build_server_state()
     server = build_mcp_server(state)

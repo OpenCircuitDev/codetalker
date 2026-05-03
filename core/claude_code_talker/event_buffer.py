@@ -10,9 +10,10 @@ from typing import Callable
 @dataclass
 class Event:
     timestamp: float
-    type: str  # PRE_TOOL | POST_TOOL | PROSE | NOTIFICATION
+    type: str  # USER_PROMPT | PRE_TOOL | POST_TOOL | PROSE | NOTIFICATION
     metadata: dict
     significance: float = 0.2
+    session_id: str = ""  # set by push site from the hook payload's session_id
 
 
 class EventBuffer:

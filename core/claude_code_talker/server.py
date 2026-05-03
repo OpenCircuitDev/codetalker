@@ -475,6 +475,7 @@ def register_tools(server, state) -> None:
                 type="USER_PROMPT",
                 metadata={"text": prompt_text[:500], "session_id": session_id},
                 significance=0.9,
+                session_id=session_id,
             )
             state.event_buffer.push(_up_ev)
             if state.session_focus is not None:
@@ -574,6 +575,7 @@ def register_tools(server, state) -> None:
                 "input": str(args.get("tool_input", ""))[:200],
             },
             significance=0.0,
+            session_id=session_id,
         )
         ev.significance = score_significance(ev, keywords)
         state.event_buffer.push(ev)
@@ -602,6 +604,7 @@ def register_tools(server, state) -> None:
                 "success": response.get("success", True) if isinstance(response, dict) else True,
             },
             significance=0.0,
+            session_id=session_id,
         )
         ev.significance = score_significance(ev, keywords)
         state.event_buffer.push(ev)
