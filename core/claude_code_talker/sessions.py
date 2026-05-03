@@ -11,6 +11,7 @@ from typing import Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from claude_code_talker.profiles import ProfileStore
+    from claude_code_talker.persistent_sessions import PersistentSessionStore
 
 
 @dataclass
@@ -22,6 +23,7 @@ class SessionState:
     live_overlay: dict = field(default_factory=dict)
     attached_profile: str | None = None
     cached_cfg: dict | None = None
+    enabled: bool = True
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -42,6 +44,7 @@ class SessionRegistry:
         max_active: int = 50,
         *,
         profile_store: "ProfileStore | None" = None,
+        persistent_session_store: "PersistentSessionStore | None" = None,
         base_cfg_provider: "Callable[[], dict] | None" = None,
     ):
         self._sessions: dict[str, SessionState] = {}
@@ -50,6 +53,7 @@ class SessionRegistry:
         self._sweeper_thread: threading.Thread | None = None
         self._sweeper_stop = threading.Event()
         self._profile_store = profile_store
+        self._persistent_session_store = persistent_session_store
         self._base_cfg_provider = base_cfg_provider
 
     def get(self, session_id: str) -> SessionState | None:
@@ -61,7 +65,8 @@ class SessionRegistry:
             return list(self._sessions.values())
 
     def touch(self, session_id: str, *, cwd: str = "", transcript_path: str = "") -> SessionState:
-        """Create-or-update a session. On first creation with a known cwd, auto-attach last_profile."""
+        """Create-or-update a session. On first creation, load persistent settings if any,
+        else fall back to cwd-based last_profile binding."""
         import time
         with self._lock:
             s = self._sessions.get(session_id)
@@ -76,12 +81,29 @@ class SessionRegistry:
                 s.transcript_path = transcript_path
             s.last_hook_at = time.time()
 
-            # Auto-attach last_profile binding only on first creation, only if no profile yet
-            if is_new and cwd and self._profile_store is not None and s.attached_profile is None:
-                last = self._profile_store.last_profile_for_cwd(cwd)
-                if last is not None and self._profile_store.exists(last):
-                    s.attached_profile = last
-                    s.cached_cfg = None
+            if is_new:
+                # Phase 8: persistent session store WINS over cwd-binding.
+                loaded_persistent = False
+                if self._persistent_session_store is not None:
+                    from claude_code_talker.persistent_sessions import SessionIdError
+                    try:
+                        payload = self._persistent_session_store.get(session_id)
+                    except SessionIdError:
+                        # cwd-fallback session_ids (e.g. Windows paths) can't be
+                        # persisted; treat as "no payload for this session".
+                        payload = None
+                    if payload is not None:
+                        s.live_overlay = dict(payload.get("live_overlay") or {})
+                        s.attached_profile = payload.get("attached_profile")
+                        s.enabled = bool(payload.get("enabled", True))
+                        s.cached_cfg = None
+                        loaded_persistent = True
+                # Phase 7 cwd-binding: only fall back if no persistent settings loaded.
+                if not loaded_persistent and cwd and self._profile_store is not None and s.attached_profile is None:
+                    last = self._profile_store.last_profile_for_cwd(cwd)
+                    if last is not None and self._profile_store.exists(last):
+                        s.attached_profile = last
+                        s.cached_cfg = None
             return s
 
     def expire_idle(self, max_idle_seconds: float = 1800.0) -> int:
