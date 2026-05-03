@@ -135,7 +135,14 @@ def main():
     print("Note: XTTS is GPU-accelerated; CPU synthesis is 3-8s per phrase.")
 
     print()
+    print("== Web UI ==")
+    print("Open the multi-session control panel in any browser:")
+    print("  http://127.0.0.1:17832/ui/")
+    print("From there: see active Claude sessions, tune voice/mode/cadence per session,")
+    print("save settings as named profiles, install hooks with one click.")
+    print()
     print("== Hook integration ==")
+    print("(Optional — the Web UI's 'install hooks' link does this for you, idempotently.)")
     print(HOOK_INSTRUCTIONS)
 
 
