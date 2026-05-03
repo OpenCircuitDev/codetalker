@@ -596,6 +596,136 @@
     if (name === 'usage') return loadUsagePane();
     if (name === 'cache') return loadCachePane();
     if (name === 'audit') return loadAuditPane();
+    if (name === 'eval') return loadEvalPane();
+  }
+
+  async function loadEvalPane() {
+    try {
+      const latest = (await api("/virtual-eval/latest")).latest;
+      renderEvalReport(latest);
+      await loadEvalHistory();
+    } catch (e) {
+      toast("Load eval failed: " + e.message, "error");
+    }
+    document.getElementById('eval-run-btn').onclick = async () => {
+      const btn = document.getElementById('eval-run-btn');
+      const status = document.getElementById('eval-status');
+      btn.disabled = true;
+      status.textContent = 'Running… (~30s for 100-narration sample)';
+      try {
+        const report = await api("/virtual-eval/run", { method: "POST" });
+        status.textContent = 'Eval complete.';
+        renderEvalReport(report);
+        await loadEvalHistory();
+        if (report.applied) {
+          toast("Auto-tuning applied — restart daemon for full effect", "success");
+        } else if (report.proposal && report.proposal.pending_approval) {
+          toast("Eval proposed " + Object.keys(report.proposal.fields_to_set).length + " changes — approval needed", "info");
+        } else {
+          toast("Eval done. No tuning suggested.", "info");
+        }
+      } catch (e) {
+        status.textContent = '';
+        toast("Eval failed: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  }
+
+  function renderEvalReport(report) {
+    const el = document.getElementById('eval-report');
+    if (!report) {
+      el.innerHTML = '<p class="muted">No eval has been run yet. Click the button above to start.</p>';
+      return;
+    }
+    const agg = report.aggregate || {};
+    const overall = agg.overall || {};
+    const personas = agg.per_persona || {};
+    const jargon = agg.systemic_jargon || {};
+    const missing = agg.missing_context_samples || [];
+    const proposal = report.proposal || {};
+    const fields = proposal.fields_to_set || {};
+    let html = '';
+    if (report.applied) {
+      html += '<div class="applied-banner">✓ Auto-tuning applied: ' + escapeHtml(JSON.stringify(fields)) + '</div>';
+    } else if (proposal.pending_approval) {
+      html += '<div class="pending-banner">⚠ ' + Object.keys(fields).length + ' changes proposed — exceeds max-divergence gate. Approve via tuning history below.</div>';
+    } else if (Object.keys(fields).length === 0) {
+      html += '<div class="muted">No tuning suggested by this eval.</div>';
+    }
+    html += '<h5>Overall</h5>';
+    html += '<div class="row"><span>Narrations evaluated</span><span>' + (report.narrations_evaluated || 0) + '</span></div>';
+    html += '<div class="row"><span>Personas</span><span>' + (report.personas_count || 0) + '</span></div>';
+    html += '<div class="row"><span>Clarity avg</span><span>' + (overall.clarity_avg || 0).toFixed(2) + ' / 5</span></div>';
+    html += '<div class="row"><span>Helpfulness avg</span><span>' + (overall.helpfulness_avg || 0).toFixed(2) + ' / 5</span></div>';
+    html += '<div class="row"><span>Jargon load avg</span><span>' + (overall.jargon_load_avg || 0).toFixed(2) + ' / 5</span></div>';
+    if (Object.keys(personas).length > 0) {
+      html += '<h5>Per persona</h5>';
+      for (const [name, p] of Object.entries(personas)) {
+        html += '<div class="row"><span>' + escapeHtml(name) + ' (n=' + p.n + ')</span>';
+        html += '<span>C ' + p.clarity_avg.toFixed(1) + ' · H ' + p.helpfulness_avg.toFixed(1) + ' · J ' + p.jargon_load_avg.toFixed(1) + '</span></div>';
+      }
+    }
+    if (Object.keys(jargon).length > 0) {
+      html += '<h5>Systemic jargon</h5><div>';
+      for (const [term, count] of Object.entries(jargon)) {
+        html += '<span class="systemic-term">' + escapeHtml(term) + ' ×' + count + '</span>';
+      }
+      html += '</div>';
+    }
+    if (missing.length > 0) {
+      html += '<h5>Missing context</h5><ul style="font-size:11px;color:var(--text-muted)">';
+      for (const m of missing.slice(0, 8)) {
+        html += '<li>' + escapeHtml(m) + '</li>';
+      }
+      html += '</ul>';
+    }
+    if (proposal.reasoning) {
+      html += '<h5>Reasoning</h5><p class="muted" style="font-size:11px">' + escapeHtml(proposal.reasoning) + '</p>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadEvalHistory() {
+    try {
+      const entries = await api("/virtual-eval/history");
+      const ul = document.getElementById('eval-history-list');
+      ul.innerHTML = '';
+      if (entries.length === 0) {
+        ul.innerHTML = '<li class="muted">No tuning history yet.</li>';
+        return;
+      }
+      for (const e of entries.slice().reverse()) {
+        const li = document.createElement('li');
+        const ts = new Date((e.timestamp || 0) * 1000).toLocaleString();
+        const tag = e.applied ? '✓ applied' : '⏳ pending';
+        const fieldList = Object.keys(e.after).join(', ');
+        li.innerHTML =
+          '<div>' + tag + ' · ' + escapeHtml(fieldList) + '</div>' +
+          '<div class="meta">' + ts + ' · ' + escapeHtml(e.reasoning || '') + '</div>';
+        if (e.applied) {
+          const btn = document.createElement('button');
+          btn.className = 'eval-history-revert';
+          btn.textContent = 'Revert';
+          btn.onclick = async () => {
+            if (!confirm('Revert this tuning?')) return;
+            try {
+              await api("/virtual-eval/revert/" + encodeURIComponent(e.id), { method: "POST" });
+              toast("Reverted", "success");
+              await loadEvalHistory();
+              await loadEvalPane();
+            } catch (err) {
+              toast("Revert failed: " + err.message, "error");
+            }
+          };
+          li.appendChild(btn);
+        }
+        ul.appendChild(li);
+      }
+    } catch (e) {
+      toast("Load history failed: " + e.message, "error");
+    }
   }
 
   async function loadKeysPane() {
