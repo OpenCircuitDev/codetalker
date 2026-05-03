@@ -3,14 +3,34 @@ from __future__ import annotations
 
 import json
 import json as _json_lib
+import re
+import time as _rate_time
 from pathlib import Path
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from claude_code_talker.profiles import is_valid_profile_name
+from claude_code_talker.persistent_sessions import is_valid_session_id
 
 
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
+
+_PROJECT_RE = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
+
+# Module-level rate-limit state, keyed on id(state) so tests with multiple
+# state instances don't interfere with each other.
+_REFRESH_LAST_AT: dict[int, float] = {}
+
+
+def _rate_limit_check(state, key: str, min_interval: float) -> bool:
+    """Returns True if allowed, False if rate-limited."""
+    now = _rate_time.time()
+    bucket_key = id(state)
+    last = _REFRESH_LAST_AT.get(bucket_key, 0.0)
+    if now - last < min_interval:
+        return False
+    _REFRESH_LAST_AT[bucket_key] = now
+    return True
 
 _HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse"]
 _HOOK_ENTRY = {
@@ -260,8 +280,30 @@ def build_routes(state) -> list[Route]:
         state.profiles.delete(name)
         return JSONResponse({"deleted": True, "detached_from_sessions": detached})
 
+    async def list_catalog(request: Request) -> JSONResponse:
+        project = request.query_params.get("project")
+        if project is not None and not _PROJECT_RE.match(project):
+            return _bad_request(f"invalid project: {project!r}")
+        if state.catalog is None:
+            return JSONResponse([])
+        if project:
+            entries = state.catalog.entries_for_project(project)
+        else:
+            entries = state.catalog.entries()
+        out = [
+            {
+                "session_id": e.session_id,
+                "project_slug": e.project_slug,
+                "transcript_path": str(e.transcript_path),
+                "last_modified": e.last_modified,
+            }
+            for e in entries
+        ]
+        return JSONResponse(out)
+
     return [
         Route("/api/health", health, methods=["GET"]),
+        Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),
