@@ -13,8 +13,40 @@ def build_routes(state) -> list[Route]:
     async def health(request: Request) -> JSONResponse:
         return JSONResponse({"ok": True})
 
+    async def list_sessions(request: Request) -> JSONResponse:
+        out = []
+        for s in state.sessions.list_active():
+            out.append({
+                "session_id": s.session_id,
+                "cwd": s.cwd,
+                "transcript_path": s.transcript_path,
+                "last_hook_at": s.last_hook_at,
+                "attached_profile": s.attached_profile,
+            })
+        return JSONResponse(out)
+
+    async def get_session(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        s = state.sessions.get(sid)
+        if s is None:
+            return _not_found(f"unknown session: {sid}")
+        cfg = state.sessions.config_for(sid)
+        return JSONResponse({
+            "state": {
+                "session_id": s.session_id,
+                "cwd": s.cwd,
+                "transcript_path": s.transcript_path,
+                "last_hook_at": s.last_hook_at,
+                "live_overlay": s.live_overlay,
+                "attached_profile": s.attached_profile,
+            },
+            "resolved_cfg": cfg,
+        })
+
     return [
         Route("/api/health", health, methods=["GET"]),
+        Route("/api/sessions", list_sessions, methods=["GET"]),
+        Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
     ]
 
 
