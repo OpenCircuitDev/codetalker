@@ -34,7 +34,8 @@ async def test_live_narrate_calls_provider_and_enqueues():
         "voice": {"model": "jenny", "rate": 1.0},
     }
     mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
-    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.2)]
+    # significance=0.6 is above the cadence-aware skip threshold (0.3) and concise threshold (0.5)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6)]
     await mode._narrate(events, priority="normal")
 
     provider.complete.assert_called_once()

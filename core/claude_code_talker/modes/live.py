@@ -158,11 +158,19 @@ class LiveMode(ModeStrategy):
     # Streaming narration path (Sub-task 1.1)
     # ------------------------------------------------------------------
 
-    async def _narrate_streaming(self, events, priority) -> None:
-        """Stream LLM output through AudioStreamer, emitting one AudioJob per sentence."""
+    async def _narrate_streaming(self, events, priority, verbosity_decision: str = "standard") -> None:
+        """Stream LLM output through AudioStreamer, emitting one AudioJob per sentence.
+
+        ``verbosity_decision`` is pre-computed by ``_narrate`` (caller already
+        ran _decide_verbosity_for_events and skipped if "skip").
+        """
         prompt = self._build_prompt(events)
         budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
         teacher_cfg = self._resolve_teacher_cfg()
+        # Override verbosity with cadence-aware decision (don't mutate original)
+        if verbosity_decision in ("concise", "standard", "expanded"):
+            teacher_cfg = dict(teacher_cfg) if teacher_cfg else {}
+            teacher_cfg["verbosity"] = verbosity_decision
         max_tokens = max_tokens_for(teacher_cfg, default=150)
         voice, rate, engine_name = self._resolve_voice_cfg()
 
@@ -204,19 +212,29 @@ class LiveMode(ModeStrategy):
         if not events:
             return
 
+        # Sub-task 2.1: cadence-aware verbosity check (applied before provider dispatch)
+        verbosity_decision = self._decide_verbosity_for_events(events)
+        if verbosity_decision == "skip":
+            logging.debug("live narration skipped: no significant events")
+            return
+
         # Dispatch to streaming path when the provider supports it.
         # Use `is True` (strict) to avoid matching truthy mock objects in tests.
         if (
             self.provider is not None
             and getattr(self.provider, "supports_streaming", False) is True
         ):
-            await self._narrate_streaming(events, priority)
+            await self._narrate_streaming(events, priority, verbosity_decision=verbosity_decision)
             return
 
         # ---- Non-streaming (original) path ----
         prompt = self._build_prompt(events)
         budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
         teacher_cfg = self._resolve_teacher_cfg()
+        # Override verbosity with cadence-aware decision (don't mutate original)
+        if verbosity_decision in ("concise", "standard", "expanded"):
+            teacher_cfg = dict(teacher_cfg) if teacher_cfg else {}
+            teacher_cfg["verbosity"] = verbosity_decision
         max_tokens = max_tokens_for(teacher_cfg, default=150)
         try:
             text = await asyncio.wait_for(
@@ -241,6 +259,46 @@ class LiveMode(ModeStrategy):
             engine_name=engine_name,
         ))
         self._append_narration_log(text, voice, engine_name, priority, mode="live")
+
+    # ------------------------------------------------------------------
+    # Cadence-aware verbosity (Sub-task 2.1)
+    # ------------------------------------------------------------------
+
+    def _decide_verbosity_for_events(self, events) -> str:
+        """Determine the verbosity level for a batch of events.
+
+        Returns one of: "skip", "concise", "standard", "expanded".
+
+        When cfg.live.cadence_aware_verbosity is False, always returns the
+        teacher-configured verbosity (no skip, no override).
+        """
+        live_cfg = self.cfg.get("live") or {}
+        cadence_aware = live_cfg.get("cadence_aware_verbosity", True)
+
+        # When the feature is disabled, return the teacher's verbosity unchanged.
+        if not cadence_aware:
+            teacher_cfg = self._resolve_teacher_cfg() or {}
+            verbosity = teacher_cfg.get("verbosity", "standard")
+            if verbosity not in ("concise", "standard", "expanded"):
+                verbosity = "standard"
+            return verbosity
+
+        if not events:
+            return "skip"
+
+        max_sig = max(
+            (e.significance for e in events if e.significance is not None),
+            default=0.0,
+        )
+        event_count = len(events)
+
+        if max_sig < 0.3 and event_count <= 2:
+            return "skip"
+        if max_sig < 0.5:
+            return "concise"
+        if max_sig >= 0.8 and event_count >= 5:
+            return "expanded"
+        return "standard"
 
     def _build_prompt(self, events) -> str:
         # --- Static prefix: system instructions + teacher directives (Sub-task 1.2) ---
