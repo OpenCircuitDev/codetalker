@@ -8,10 +8,15 @@ from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.event_buffer import Event, EventBuffer
 from claude_code_talker.cadence.base import CadenceStrategy
 from claude_code_talker.audio import AudioJob
+from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 
 
-LIVE_NARRATION_PROMPT = """\
+# The system portion is kept constant so that Google Gemini's implicit prefix
+# caching (>=1024-token prefix) can kick in across cadence calls with the same
+# teacher_cfg. Dynamic content (events) is appended AFTER this block via
+# _build_prompt so the static prefix is byte-identical across calls.
+LIVE_NARRATION_SYSTEM = """\
 You are narrating Claude Code's work in real time for an audio listener.
 
 Default behavior is play-by-play: report what Claude is doing right now —
@@ -29,12 +34,23 @@ Rules:
 
 If TEACHER MODE directives appear below, follow them — they will reshape this
 narration to also explain WHY the actions matter, anchored to the user's
-most recent USER_PROMPT.
+most recent USER_PROMPT."""
 
-RECENT EVENTS (most recent last; USER lines = what the user asked for):
-{events}
+# Separator before the dynamic events block. Presence of this exact string is
+# used by tests to locate the boundary between static prefix and dynamic suffix.
+_EVENTS_HEADER = "---\nRECENT EVENTS (most recent last; USER lines = what the user asked for):\n"
 
-NARRATION:"""
+# For backward-compat: the old LIVE_NARRATION_PROMPT constant is kept so
+# external code that imported it won't break. It is no longer used internally.
+LIVE_NARRATION_PROMPT = (
+    LIVE_NARRATION_SYSTEM
+    + "\n\n"
+    + _EVENTS_HEADER
+    + "{events}\n\nNARRATION:"
+)
+
+# Hard ceiling on streaming timeout to avoid runaway waits.
+_STREAMING_TIMEOUT_CEILING = 30.0
 
 
 class LiveMode(ModeStrategy):
@@ -91,21 +107,117 @@ class LiveMode(ModeStrategy):
             except Exception as e:
                 logging.warning("live cadence loop: %s", e)
 
-    async def _narrate(self, events, priority):
-        if not events:
-            return
-        prompt = self._build_prompt(events)
-        budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
-        # Token budget driven by teacher.verbosity (concise/standard/expanded).
-        # Resolve from the active session's cfg so per-session verbosity wins.
-        teacher_cfg_for_tokens = self.cfg.get("teacher_mode")
+    # ------------------------------------------------------------------
+    # Shared helpers: resolve per-session voice/token config
+    # ------------------------------------------------------------------
+
+    def _resolve_teacher_cfg(self):
+        """Return the teacher_mode cfg dict for the current session (or global)."""
+        teacher_cfg = self.cfg.get("teacher_mode")
         if self.sessions is not None and self._current_session_id:
             try:
                 session_cfg = self.sessions.config_for(self._current_session_id)
-                teacher_cfg_for_tokens = session_cfg.get("teacher_mode") or teacher_cfg_for_tokens
+                teacher_cfg = session_cfg.get("teacher_mode") or teacher_cfg
             except Exception:
                 pass
-        max_tokens = max_tokens_for(teacher_cfg_for_tokens, default=150)
+        return teacher_cfg
+
+    def _resolve_voice_cfg(self):
+        """Return (voice, rate, engine_name) for the current session."""
+        session_cfg = self.cfg
+        if self.sessions is not None and self._current_session_id:
+            try:
+                session_cfg = self.sessions.config_for(self._current_session_id)
+            except Exception:
+                session_cfg = self.cfg
+        voice_cfg = session_cfg.get("voice") or {}
+        voice = voice_cfg.get("model")
+        rate = float(voice_cfg.get("rate", 1.0))
+        engine_name = voice_cfg.get("engine") or "piper"
+        return voice, rate, engine_name
+
+    def _append_narration_log(self, text: str, voice: str, engine_name: str, priority: str, mode: str = "live") -> None:
+        """Best-effort append to the narration audit log."""
+        if self.narration_log is None:
+            return
+        try:
+            from claude_code_talker.narration_log import NarrationEntry
+            self.narration_log.append(NarrationEntry(
+                timestamp=__import__("time").time(),
+                session_id=self._current_session_id,
+                text=text,
+                voice=voice or "",
+                engine=engine_name or "",
+                mode=mode,
+                priority=priority,
+            ))
+        except Exception as _e:
+            logging.debug("narration log append failed: %s", _e)
+
+    # ------------------------------------------------------------------
+    # Streaming narration path (Sub-task 1.1)
+    # ------------------------------------------------------------------
+
+    async def _narrate_streaming(self, events, priority) -> None:
+        """Stream LLM output through AudioStreamer, emitting one AudioJob per sentence."""
+        prompt = self._build_prompt(events)
+        budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
+        teacher_cfg = self._resolve_teacher_cfg()
+        max_tokens = max_tokens_for(teacher_cfg, default=150)
+        voice, rate, engine_name = self._resolve_voice_cfg()
+
+        if not voice:
+            logging.debug("live narration skipped: no voice configured")
+            return
+
+        # Use 2× the configured budget for streaming (full completion takes longer),
+        # capped at the hard ceiling.
+        stream_budget = min(budget * 2.0, _STREAMING_TIMEOUT_CEILING)
+
+        def _emit_chunk(chunk: str) -> None:
+            chunk = chunk.strip()
+            if not chunk:
+                return
+            self.audio_queue.submit(AudioJob(
+                text=chunk,
+                voice=voice,
+                rate=rate,
+                priority=priority,
+                engine_name=engine_name,
+            ))
+            self._append_narration_log(chunk, voice, engine_name, priority, mode="live-stream")
+
+        streamer = AudioStreamer(emit=_emit_chunk)
+        try:
+            await asyncio.wait_for(
+                streamer.consume(self.provider.stream(prompt, max_tokens=max_tokens)),
+                timeout=stream_budget,
+            )
+        except (asyncio.TimeoutError, Exception) as e:
+            logging.debug("live streaming narration skipped: %s", e)
+
+    # ------------------------------------------------------------------
+    # Main narration entry point — dispatches to streaming or non-streaming
+    # ------------------------------------------------------------------
+
+    async def _narrate(self, events, priority):
+        if not events:
+            return
+
+        # Dispatch to streaming path when the provider supports it.
+        # Use `is True` (strict) to avoid matching truthy mock objects in tests.
+        if (
+            self.provider is not None
+            and getattr(self.provider, "supports_streaming", False) is True
+        ):
+            await self._narrate_streaming(events, priority)
+            return
+
+        # ---- Non-streaming (original) path ----
+        prompt = self._build_prompt(events)
+        budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
+        teacher_cfg = self._resolve_teacher_cfg()
+        max_tokens = max_tokens_for(teacher_cfg, default=150)
         try:
             text = await asyncio.wait_for(
                 self.provider.complete(prompt, max_tokens=max_tokens),
@@ -119,22 +231,7 @@ class LiveMode(ModeStrategy):
         if not text:
             return
 
-        # Per-session voice: look up the resolved cfg for the session that
-        # most recently fired a hook. Each session keeps its own voice/
-        # engine/rate via profile or live_overlay; this lets multiple live
-        # sessions narrate with distinct voices.
-        session_cfg = self.cfg
-        if self.sessions is not None and self._current_session_id:
-            try:
-                session_cfg = self.sessions.config_for(self._current_session_id)
-            except Exception:
-                session_cfg = self.cfg
-        voice_cfg = session_cfg.get("voice") or {}
-        voice = voice_cfg.get("model")
-        rate = float(voice_cfg.get("rate", 1.0))
-        # Default engine to piper when the resolved cfg doesn't set one
-        # (happens when a profile sets voice.model but not voice.engine).
-        engine_name = voice_cfg.get("engine") or "piper"
+        voice, rate, engine_name = self._resolve_voice_cfg()
         if not voice:
             logging.debug("live narration skipped: no voice configured")
             return
@@ -143,23 +240,19 @@ class LiveMode(ModeStrategy):
             text=text, voice=voice, rate=rate, priority=priority,
             engine_name=engine_name,
         ))
-        # Phase 11: append to narration audit log (best-effort, non-blocking).
-        if self.narration_log is not None:
-            try:
-                from claude_code_talker.narration_log import NarrationEntry
-                self.narration_log.append(NarrationEntry(
-                    timestamp=__import__("time").time(),
-                    session_id=self._current_session_id,
-                    text=text,
-                    voice=voice or "",
-                    engine=engine_name or "",
-                    mode="live",
-                    priority=priority,
-                ))
-            except Exception as _e:
-                logging.debug("narration log append failed: %s", _e)
+        self._append_narration_log(text, voice, engine_name, priority, mode="live")
 
     def _build_prompt(self, events) -> str:
+        # --- Static prefix: system instructions + teacher directives (Sub-task 1.2) ---
+        # The teacher block is appended to the system portion BEFORE the events so
+        # the static prefix grows (and stays byte-identical) when teacher mode is on.
+        # Events come LAST, after a fixed separator, so the dynamic tail never
+        # disrupts the leading cache-eligible prefix.
+        teacher_cfg = self._resolve_teacher_cfg()
+        # Build the static section: system text + optional teacher block
+        static_section = merge_teacher_into_prompt(LIVE_NARRATION_SYSTEM, teacher_cfg)
+
+        # --- Dynamic suffix: events list ---
         lines = []
         if not events:
             lines.append("(no events)")
@@ -181,14 +274,11 @@ class LiveMode(ModeStrategy):
                 elif ev.type == "POST_TOOL":
                     ok = "ok" if meta.get('success', True) else "FAILED"
                     lines.append(f"[T+{dt:.1f}s tool← {meta.get('tool_name', '?')} {ok}]")
-        # Resolved cfg for the most recent active session — its teacher_mode
-        # overlay should drive narration shape (per-session control).
-        teacher_cfg = self.cfg.get("teacher_mode")
-        if self.sessions is not None and self._current_session_id:
-            try:
-                session_cfg = self.sessions.config_for(self._current_session_id)
-                teacher_cfg = session_cfg.get("teacher_mode") or teacher_cfg
-            except Exception:
-                pass
-        base = LIVE_NARRATION_PROMPT.format(events="\n".join(lines))
-        return merge_teacher_into_prompt(base, teacher_cfg)
+
+        return (
+            static_section
+            + "\n\n"
+            + _EVENTS_HEADER
+            + "\n".join(lines)
+            + "\n\nNARRATION:"
+        )
