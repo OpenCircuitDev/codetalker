@@ -1,7 +1,7 @@
 """Aggregate persona scores into actionable report data."""
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from claude_code_talker.virtual_eval.runner import PersonaScore

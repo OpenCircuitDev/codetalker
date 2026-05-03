@@ -128,3 +128,40 @@ def test_aggregate_overall_includes_expectation_match():
     ]
     rep = aggregate_scores(scores)
     assert rep.overall["expectation_match_avg"] == 3.0
+
+
+def test_aggregate_gap_cap_does_not_truncate_jargon_or_missing_context():
+    """Scores arriving after the expectation_gaps cap (30) must still contribute
+    to systemic_jargon and missing_context_samples.  Previously a shared loop
+    with `break` silently dropped them."""
+    # 30 scores that each trigger an expectation gap (match <= 2, has expected/received)
+    scores: list[PersonaScore] = []
+    for i in range(30):
+        scores.append(PersonaScore(
+            persona_name=f"P{i}",
+            narration_text="x",
+            clarity=3, helpfulness=3, jargon_load=3,
+            expectation_match=2,
+            expected="x", received="y",
+            confusing_terms=[],
+            missing_context="",
+        ))
+    # 5 more scores arriving AFTER the cap — distinct personas so threshold fires
+    for i in range(30, 35):
+        scores.append(PersonaScore(
+            persona_name=f"P_late_{i}",
+            narration_text="x",
+            clarity=4, helpfulness=4, jargon_load=4,
+            expectation_match=5,
+            expected="", received="",
+            confusing_terms=["late_term"],
+            missing_context="late context note",
+        ))
+
+    rep = aggregate_scores(scores, systemic_threshold=3)
+    assert "late_term" in rep.systemic_jargon, (
+        "jargon collection was truncated by the gap cap"
+    )
+    assert any("late context" in s for s in rep.missing_context_samples), (
+        "missing-context collection was truncated by the gap cap"
+    )
