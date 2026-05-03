@@ -319,6 +319,58 @@
       voiceCfg.rate ?? 1.0, 0.5, 2.0, 0.05, s.session_id));
   };
 
+  TAB_RENDERERS.advanced = function(pane, s, cfg) {
+    const liveCfg = cfg.live || {};
+    pane.appendChild(makeFieldNumber("Queue max depth", "live.queue_max_depth",
+      liveCfg.queue_max_depth ?? 5, 1, 100, 1, s.session_id));
+    pane.appendChild(makeFieldNumber("Staleness (s)", "live.staleness_seconds",
+      liveCfg.staleness_seconds ?? 20, 1, 600, 1, s.session_id));
+    pane.appendChild(makeFieldSelect("Code blocks", "code_blocks",
+      ["stub", "speak"], cfg.code_blocks || "stub", s.session_id));
+    pane.appendChild(makeFieldSelect("File paths", "paths.handling",
+      ["filename", "omit"], (cfg.paths || {}).handling || "filename", s.session_id));
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.style.marginTop = "16px";
+    note.textContent = "These knobs are per-session live overrides. Defaults come from your global + workspace config.";
+    pane.appendChild(note);
+
+    const resetRow = makeFieldRow("Reset overlay");
+    const btn = document.createElement("button");
+    btn.textContent = "Clear all overrides";
+    btn.onclick = async () => {
+      if (!confirm("Clear all per-session overrides? This reverts to global/workspace/profile defaults.")) return;
+      const overlay = state.selectedSessionDetail.state.live_overlay;
+      const paths = collectKeypaths(overlay);
+      for (const path of paths) {
+        try {
+          await api("/sessions/" + s.session_id + "/overlay/" + encodeURIComponent(path),
+                    { method: "DELETE" });
+        } catch (e) {
+          toast("Reset failed for " + path + ": " + e.message, "error");
+        }
+      }
+      toast("Overlay cleared", "success");
+      await poll();
+    };
+    resetRow.querySelector(".field-control").appendChild(btn);
+    pane.appendChild(resetRow);
+  };
+
+  function collectKeypaths(obj, prefix = "") {
+    const out = [];
+    for (const k in obj) {
+      const path = prefix ? prefix + "." + k : k;
+      if (obj[k] && typeof obj[k] === "object" && !Array.isArray(obj[k])) {
+        out.push(...collectKeypaths(obj[k], path));
+      } else {
+        out.push(path);
+      }
+    }
+    return out;
+  }
+
   function makeFieldNumber(label, keypath, current, min, max, step, sessionId) {
     const row = makeFieldRow(label);
     const input = document.createElement("input");
