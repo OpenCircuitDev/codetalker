@@ -135,7 +135,31 @@
     for (const p of state.profiles) {
       const li = document.createElement("li");
       li.className = "profile-item";
-      li.textContent = p.name;
+      const name = document.createElement("span");
+      name.textContent = p.name;
+      const del = document.createElement("button");
+      del.textContent = "✕";
+      del.title = "Delete profile";
+      del.style.marginLeft = "auto";
+      del.style.background = "none";
+      del.style.border = "none";
+      del.style.color = "var(--text-muted)";
+      del.style.cursor = "pointer";
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm("Delete profile '" + p.name + "'? Sessions using it will be detached.")) return;
+        try {
+          const r = await api("/profiles/" + encodeURIComponent(p.name), { method: "DELETE" });
+          toast(`Deleted '${p.name}' (detached from ${r.detached_from_sessions} session${r.detached_from_sessions === 1 ? "" : "s"})`, "success");
+          await poll();
+        } catch (err) {
+          toast("Delete failed: " + err.message, "error");
+        }
+      };
+      li.style.display = "flex";
+      li.style.alignItems = "center";
+      li.appendChild(name);
+      li.appendChild(del);
       list.appendChild(li);
     }
   }
@@ -447,6 +471,36 @@
         render();
       };
     });
+    const saveBtn = document.getElementById("save-as-profile-btn");
+    const dialog = document.getElementById("save-profile-dialog");
+    const nameInput = document.getElementById("save-profile-name");
+
+    saveBtn.onclick = () => {
+      if (!state.selectedSessionId) {
+        toast("Select a session first", "error");
+        return;
+      }
+      nameInput.value = "";
+      dialog.showModal();
+    };
+
+    dialog.addEventListener("close", async () => {
+      if (dialog.returnValue !== "save") return;
+      const name = nameInput.value.trim();
+      if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+        toast("Invalid profile name", "error");
+        return;
+      }
+      try {
+        await api("/sessions/" + state.selectedSessionId + "/save-as-profile",
+                  { method: "POST", body: { name } });
+        toast("Profile saved: " + name, "success");
+        await poll();
+      } catch (e) {
+        toast("Save failed: " + e.message, "error");
+      }
+    });
+
     document.getElementById("profile-attach-select").onchange = async (e) => {
       const name = e.target.value;
       if (!name || !state.selectedSessionId) return;
