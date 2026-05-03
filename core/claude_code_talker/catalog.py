@@ -2,12 +2,104 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import shutil
+import sqlite3
+import sys
+import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 
 DEFAULT_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+
+
+def _vscode_user_dirs() -> list[Path]:
+    """Return likely VS Code user data root directories for this OS."""
+    home = Path.home()
+    if sys.platform == "win32":
+        roaming = os.environ.get("APPDATA")
+        roots = [Path(roaming) / "Code" / "User"] if roaming else []
+    elif sys.platform == "darwin":
+        roots = [home / "Library" / "Application Support" / "Code" / "User"]
+    else:
+        roots = [home / ".config" / "Code" / "User"]
+    # Also include VS Code Insiders if present.
+    extras = []
+    for r in list(roots):
+        ins = Path(str(r).replace("/Code/", "/Code - Insiders/"))
+        if ins.exists() and ins != r:
+            extras.append(ins)
+    return [r for r in roots + extras if r.exists()]
+
+
+def _read_vscode_session_labels() -> dict[str, str]:
+    """Read user-set Claude Code session labels from VS Code workspace state DBs.
+
+    The Claude Code VS Code extension stores its session list (with the names
+    the user set in the panel) in each workspace's ``state.vscdb`` under the
+    key ``agentSessions.model.cache``. The value is a JSON array; each entry's
+    ``resource`` is a URL like ``claude-code:/<session_id>`` and ``label`` is
+    the user-visible name.
+
+    Returns ``{}`` on any failure (no VS Code, no DB, locked, schema change).
+    Best-effort and forward-compatible — never raises.
+    """
+    out: dict[str, str] = {}
+    for user_dir in _vscode_user_dirs():
+        ws_root = user_dir / "workspaceStorage"
+        if not ws_root.exists():
+            continue
+        for db in ws_root.glob("*/state.vscdb"):
+            tmp = Path(tempfile.gettempdir()) / f"codetalker-vscdb-{os.getpid()}.db"
+            try:
+                shutil.copy(db, tmp)
+                con = sqlite3.connect(str(tmp))
+                try:
+                    cur = con.cursor()
+                    cur.execute(
+                        "SELECT value FROM ItemTable WHERE key='agentSessions.model.cache'"
+                    )
+                    row = cur.fetchone()
+                finally:
+                    con.close()
+            except (sqlite3.Error, OSError):
+                continue
+            finally:
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
+            if not row or not row[0]:
+                continue
+            raw = row[0]
+            if isinstance(raw, bytes):
+                try:
+                    raw = raw.decode("utf-8", errors="replace")
+                except Exception:
+                    continue
+            try:
+                entries = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                resource = entry.get("resource", "")
+                if not isinstance(resource, str):
+                    continue
+                m = re.match(r"^claude-code:/+(.+)$", resource)
+                if not m:
+                    continue
+                sid = m.group(1).strip()
+                label = entry.get("label")
+                if isinstance(label, str) and label.strip():
+                    out[sid] = label.strip()
+    return out
 
 # Read up to this many leading lines of a transcript looking for ai-title /
 # first user message. Claude Code typically emits ai-title within the first ~10
@@ -99,6 +191,7 @@ class CatalogEntry:
     last_modified: float
     line_count: int = 0
     title: str = ""
+    vscode_label: str = ""  # user-set label from Claude Code's VS Code panel
 
 
 class SessionCatalog:
@@ -139,6 +232,8 @@ class SessionCatalog:
         # Snapshot existing titles so re-scans don't re-read every transcript.
         with self._lock:
             prior_titles = {sid: e.title for sid, e in self._entries.items() if e.title}
+        # Best-effort: pull user-set labels from the VS Code Claude Code panel.
+        vscode_labels = _read_vscode_session_labels()
         for project_dir in self._projects_dir.iterdir():
             if not project_dir.is_dir():
                 continue
@@ -156,6 +251,7 @@ class SessionCatalog:
                     transcript_path=transcript,
                     last_modified=stat.st_mtime,
                     title=title,
+                    vscode_label=vscode_labels.get(sid, ""),
                 )
         # Apply max_entries cap by keeping the most-recent-mtime entries.
         if len(new_entries) > self._max_entries:

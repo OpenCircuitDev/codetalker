@@ -68,9 +68,11 @@ def build_routes(state) -> list[Route]:
             seen_sids.add(sid)
             live_match = live_by_sid.get(sid)
             persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
-            # Display priority: persistent display_name > catalog title > project_slug
+            # Display priority: persistent display_name > Claude Code panel
+            # label > catalog auto-title > project_slug
             display_name = (
                 (persistent.get("display_name") if persistent else None)
+                or (c.vscode_label or None)
                 or (c.title or None)
                 or c.project_slug
             )
@@ -343,6 +345,7 @@ def build_routes(state) -> list[Route]:
                 "transcript_path": str(e.transcript_path),
                 "last_modified": e.last_modified,
                 "title": e.title,
+                "vscode_label": e.vscode_label,
             }
             for e in entries
         ]
