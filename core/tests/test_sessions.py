@@ -75,3 +75,70 @@ def test_eviction_caps_at_max_active():
     assert r.get("b") is not None
     assert r.get("c") is not None
     assert r.get("d") is not None
+
+
+def test_update_overlay_deep_merges():
+    r = SessionRegistry()
+    r.touch("abc")
+    r.update_overlay("abc", {"voice": {"model": "marvin"}})
+    r.update_overlay("abc", {"voice": {"rate": 1.2}, "active_mode": "live"})
+    assert r.get("abc").live_overlay == {
+        "voice": {"model": "marvin", "rate": 1.2},
+        "active_mode": "live",
+    }
+
+
+def test_update_overlay_invalidates_cache():
+    r = SessionRegistry()
+    r.touch("abc")
+    r.get("abc").cached_cfg = {"some": "cache"}
+    r.update_overlay("abc", {"voice": {"model": "marvin"}})
+    assert r.get("abc").cached_cfg is None
+
+
+def test_attach_profile_sets_name_and_invalidates():
+    r = SessionRegistry()
+    r.touch("abc")
+    r.get("abc").cached_cfg = {"x": 1}
+    r.attach_profile("abc", "verbose-marvin")
+    assert r.get("abc").attached_profile == "verbose-marvin"
+    assert r.get("abc").cached_cfg is None
+
+
+def test_detach_profile_clears_and_invalidates():
+    r = SessionRegistry()
+    r.touch("abc")
+    r.attach_profile("abc", "verbose-marvin")
+    r.get("abc").cached_cfg = {"x": 1}
+    r.detach_profile("abc")
+    assert r.get("abc").attached_profile is None
+    assert r.get("abc").cached_cfg is None
+
+
+def test_invalidate_drops_cache_only():
+    r = SessionRegistry()
+    r.touch("abc")
+    s = r.get("abc")
+    s.live_overlay = {"a": 1}
+    s.attached_profile = "x"
+    s.cached_cfg = {"y": 2}
+    r.invalidate("abc")
+    s2 = r.get("abc")
+    assert s2.cached_cfg is None
+    assert s2.live_overlay == {"a": 1}
+    assert s2.attached_profile == "x"
+
+
+def test_update_overlay_on_missing_session_raises():
+    import pytest
+    r = SessionRegistry()
+    with pytest.raises(KeyError):
+        r.update_overlay("nope", {"x": 1})
+
+
+def test_remove_overlay_keypath():
+    r = SessionRegistry()
+    r.touch("abc")
+    r.update_overlay("abc", {"voice": {"model": "marvin", "rate": 1.2}, "active_mode": "live"})
+    r.remove_overlay_keypath("abc", "voice.model")
+    assert r.get("abc").live_overlay == {"voice": {"rate": 1.2}, "active_mode": "live"}
