@@ -390,3 +390,69 @@ async def test_unmute_sets_enabled_true(app):
     assert r.status_code == 200
     assert r.json() == {"enabled": True}
     assert state.cfg["enabled"] is True
+
+
+import json
+from pathlib import Path
+
+
+@pytest.mark.asyncio
+async def test_install_hooks_creates_settings_when_absent(app, tmp_path, monkeypatch):
+    application, state = app
+    settings_path = tmp_path / "settings.json"
+    monkeypatch.setattr("claude_code_talker.api.CLAUDE_SETTINGS_PATH", settings_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/install-hooks")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["installed"] is True
+    assert body["hooks_added"] == 4
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert "hooks" in data
+    assert "Stop" in data["hooks"]
+    assert "Notification" in data["hooks"]
+    assert "PreToolUse" in data["hooks"]
+    assert "PostToolUse" in data["hooks"]
+
+
+@pytest.mark.asyncio
+async def test_install_hooks_idempotent(app, tmp_path, monkeypatch):
+    application, state = app
+    settings_path = tmp_path / "settings.json"
+    monkeypatch.setattr("claude_code_talker.api.CLAUDE_SETTINGS_PATH", settings_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r1 = await c.post("/api/install-hooks")
+        r2 = await c.post("/api/install-hooks")
+    assert r1.status_code == 200
+    assert r2.status_code == 200
+    assert r2.json()["hooks_added"] == 0
+
+
+@pytest.mark.asyncio
+async def test_install_hooks_preserves_unrelated_hooks(app, tmp_path, monkeypatch):
+    application, state = app
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(json.dumps({
+        "hooks": {
+            "Stop": [{"hooks": [{"type": "command", "command": "user-script"}]}]
+        },
+        "other_setting": "preserved",
+    }))
+    monkeypatch.setattr("claude_code_talker.api.CLAUDE_SETTINGS_PATH", settings_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/install-hooks")
+    assert r.status_code == 200
+    data = json.loads(settings_path.read_text())
+    stop_entries = data["hooks"]["Stop"]
+    assert len(stop_entries) == 2
+    assert any(any(h.get("command") == "user-script" for h in e.get("hooks", []))
+               for e in stop_entries)
+    assert any(any(h.get("command") == "claude-code-talker-hook" for h in e.get("hooks", []))
+               for e in stop_entries)
+    assert data["other_setting"] == "preserved"

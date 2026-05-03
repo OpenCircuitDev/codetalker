@@ -2,10 +2,30 @@
 from __future__ import annotations
 
 import json
+import json as _json_lib
+from pathlib import Path
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from claude_code_talker.profiles import is_valid_profile_name
+
+
+CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
+
+_HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse"]
+_HOOK_ENTRY = {
+    "hooks": [
+        {"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": True}
+    ]
+}
+
+
+def _has_codetalker_hook(entries: list) -> bool:
+    for e in entries:
+        for h in e.get("hooks", []):
+            if h.get("command") == "claude-code-talker-hook":
+                return True
+    return False
 
 
 def build_routes(state) -> list[Route]:
@@ -137,6 +157,28 @@ def build_routes(state) -> list[Route]:
         path = state.profiles.save(name, dict(s.live_overlay))
         return JSONResponse({"name": name, "path": str(path)})
 
+    async def install_hooks(request: Request) -> JSONResponse:
+        path = CLAUDE_SETTINGS_PATH
+        if path.exists():
+            try:
+                data = _json_lib.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    data = {}
+            except Exception:
+                data = {}
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            data = {}
+        data.setdefault("hooks", {})
+        added = 0
+        for ev in _HOOK_EVENT_NAMES:
+            entries = data["hooks"].setdefault(ev, [])
+            if not _has_codetalker_hook(entries):
+                entries.append(dict(_HOOK_ENTRY))
+                added += 1
+        path.write_text(_json_lib.dumps(data, indent=2), encoding="utf-8")
+        return JSONResponse({"installed": True, "hooks_added": added})
+
     async def mute(request: Request) -> JSONResponse:
         state.cfg["enabled"] = False
         return JSONResponse({"enabled": False})
@@ -235,6 +277,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/status", status, methods=["GET"]),
         Route("/api/mute", mute, methods=["POST"]),
         Route("/api/unmute", unmute, methods=["POST"]),
+        Route("/api/install-hooks", install_hooks, methods=["POST"]),
     ]
 
 
