@@ -55,16 +55,55 @@ def build_routes(state) -> list[Route]:
         return JSONResponse({"ok": True})
 
     async def list_sessions(request: Request) -> JSONResponse:
-        out = []
-        for s in state.sessions.list_active():
-            out.append({
-                "session_id": s.session_id,
-                "cwd": s.cwd,
-                "transcript_path": s.transcript_path,
-                "last_hook_at": s.last_hook_at,
-                "attached_profile": s.attached_profile,
+        live = state.sessions.list_active()
+        live_by_sid = {s.session_id: s for s in live}
+        merged = []
+        if state.catalog is not None:
+            catalog_entries = state.catalog.entries()
+        else:
+            catalog_entries = []
+        seen_sids = set()
+        for c in catalog_entries:
+            sid = c.session_id
+            seen_sids.add(sid)
+            live_match = live_by_sid.get(sid)
+            persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
+            merged.append({
+                "session_id": sid,
+                "cwd": (live_match.cwd if live_match else "") or "",
+                "project_slug": c.project_slug,
+                "display_name": (persistent.get("display_name") if persistent else None) or c.project_slug,
+                "last_modified": max(
+                    c.last_modified,
+                    live_match.last_hook_at if live_match else 0.0,
+                ),
+                "is_live": live_match is not None,
+                "enabled": (persistent.get("enabled", True) if persistent else True),
+                "attached_profile": (
+                    live_match.attached_profile if live_match else (
+                        persistent.get("attached_profile") if persistent else None
+                    )
+                ),
+                "has_persistent_settings": persistent is not None,
             })
-        return JSONResponse(out)
+        # Live sessions not in the catalog (newly created since last scan)
+        for sid, live_match in live_by_sid.items():
+            if sid in seen_sids:
+                continue
+            persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
+            merged.append({
+                "session_id": sid,
+                "cwd": live_match.cwd or "",
+                "project_slug": "",
+                "display_name": (persistent.get("display_name") if persistent else None) or sid[:12],
+                "last_modified": live_match.last_hook_at,
+                "is_live": True,
+                "enabled": (persistent.get("enabled", True) if persistent else True),
+                "attached_profile": live_match.attached_profile,
+                "has_persistent_settings": persistent is not None,
+            })
+        merged.sort(key=lambda e: e["last_modified"], reverse=True)
+        return JSONResponse(merged)
 
     async def get_session(request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]

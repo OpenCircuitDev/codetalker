@@ -8,8 +8,19 @@ from claude_code_talker.profiles import ProfileStore
 
 
 @pytest.fixture
-def app(tmp_path):
+def app(tmp_path, monkeypatch):
+    # Isolate from real ~/.claude/projects (catalog scan) and persistent sessions
+    # so the merged /api/sessions view doesn't surface the user's real history.
+    monkeypatch.setattr(
+        "claude_code_talker.catalog.DEFAULT_PROJECTS_DIR",
+        tmp_path / "projects",
+    )
+    monkeypatch.setattr(
+        "claude_code_talker.persistent_sessions.DEFAULT_SESSIONS_DIR",
+        tmp_path / "persistent",
+    )
     state = build_server_state()
+    state.catalog._entries.clear()
     # Override ProfileStore with a tmp_path-isolated instance so tests don't
     # pollute or read the real ~/.claude/scripts/profiles directory.
     state.profiles = ProfileStore(profiles_dir=tmp_path / "profiles")
