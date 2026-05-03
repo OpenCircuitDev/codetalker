@@ -76,3 +76,60 @@ async def test_get_session_404_when_unknown(client):
     async with client as c:
         r = await c.get("/api/sessions/nope")
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_overlay_merges(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/sessions/sess-1/overlay",
+                        json={"voice": {"model": "marvin"}, "active_mode": "live"})
+    assert r.status_code == 200
+    s = state.sessions.get("sess-1")
+    assert s.live_overlay == {"voice": {"model": "marvin"}, "active_mode": "live"}
+    assert s.cached_cfg is None
+
+
+@pytest.mark.asyncio
+async def test_put_overlay_404_unknown_session(client):
+    async with client as c:
+        r = await c.put("/api/sessions/nope/overlay", json={"voice": {"model": "x"}})
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_overlay_400_malformed_body(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/sessions/sess-1/overlay", content=b"{not json")
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_put_overlay_400_array_body(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/sessions/sess-1/overlay", json=[1, 2, 3])
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_overlay_keypath(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    state.sessions.update_overlay("sess-1", {"voice": {"model": "marvin", "rate": 1.2}})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.delete("/api/sessions/sess-1/overlay/voice.model")
+    assert r.status_code == 200
+    assert state.sessions.get("sess-1").live_overlay == {"voice": {"rate": 1.2}}

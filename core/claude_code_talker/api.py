@@ -43,10 +43,52 @@ def build_routes(state) -> list[Route]:
             "resolved_cfg": cfg,
         })
 
+    async def put_overlay(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        if state.sessions.get(sid) is None:
+            return _not_found(f"unknown session: {sid}")
+        try:
+            partial = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        try:
+            state.sessions.update_overlay(sid, partial)
+        except KeyError:
+            return _not_found(f"unknown session: {sid}")
+        cfg = state.sessions.config_for(sid)
+        state.sessions.invalidate(sid)  # keep cache cleared after resolving for response
+        s = state.sessions.get(sid)
+        return JSONResponse({
+            "state": {
+                "session_id": s.session_id,
+                "live_overlay": s.live_overlay,
+                "attached_profile": s.attached_profile,
+            },
+            "resolved_cfg": cfg,
+        })
+
+    async def delete_overlay_keypath(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        keypath = request.path_params["keypath"]
+        if state.sessions.get(sid) is None:
+            return _not_found(f"unknown session: {sid}")
+        try:
+            state.sessions.remove_overlay_keypath(sid, keypath)
+        except KeyError:
+            return _not_found(f"unknown session: {sid}")
+        cfg = state.sessions.config_for(sid)
+        s = state.sessions.get(sid)
+        return JSONResponse({
+            "state": {"session_id": s.session_id, "live_overlay": s.live_overlay},
+            "resolved_cfg": cfg,
+        })
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
+        Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),
+        Route("/api/sessions/{session_id}/overlay/{keypath:path}", delete_overlay_keypath, methods=["DELETE"]),
     ]
 
 
