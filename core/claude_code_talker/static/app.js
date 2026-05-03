@@ -330,6 +330,89 @@
   // Pane renderers — populated as each tab task lands.
   const TAB_RENDERERS = {};
 
+  TAB_RENDERERS.teacher = function(pane, s, cfg) {
+    const t = (cfg.teacher_mode || {});
+    pane.innerHTML = `
+      <p class="muted">Reshape narration for the listener. Per-session overrides the global setting.</p>
+      <label class="checkbox-row"><input type="checkbox" id="t-enabled" ${t.enabled ? 'checked' : ''}> Enable teacher mode</label>
+      <label>Depth (1=expert ↔ 5=full beginner): <span id="t-depth-display">${t.depth_level || 3}</span></label>
+      <input type="range" id="t-depth" min="1" max="5" step="1" value="${t.depth_level || 3}">
+      <label class="checkbox-row"><input type="checkbox" id="t-substitution" ${t.substitution ? 'checked' : ''}> Substitute jargon</label>
+      <label class="checkbox-row"><input type="checkbox" id="t-glossary" ${t.glossary ? 'checked' : ''}> Inline glossary</label>
+      <label class="checkbox-row"><input type="checkbox" id="t-reframe" ${t.reframe ? 'checked' : ''}> Reframe as teaching moments</label>
+    `;
+    const persistTeacher = async () => {
+      const overlay = {
+        teacher_mode: {
+          enabled: document.getElementById('t-enabled').checked,
+          depth_level: parseInt(document.getElementById('t-depth').value, 10),
+          substitution: document.getElementById('t-substitution').checked,
+          glossary: document.getElementById('t-glossary').checked,
+          reframe: document.getElementById('t-reframe').checked,
+        }
+      };
+      try {
+        await api("/sessions/" + s.session_id + "/overlay",
+                  { method: "PUT", body: overlay }).catch(() => {});
+        let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+        if (!payload) {
+          payload = { live_overlay: {}, attached_profile: null, enabled: true, display_name: null, last_modified: 0.0 };
+        }
+        _mergeNested(payload.live_overlay, overlay);
+        await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
+        toast("Teacher settings saved", "success");
+        await poll();
+      } catch (e) { toast("Save failed: " + e.message, "error"); }
+    };
+    pane.querySelectorAll('input').forEach(el => {
+      el.onchange = persistTeacher;
+      if (el.id === 't-depth') {
+        el.oninput = () => { document.getElementById('t-depth-display').textContent = el.value; };
+      }
+    });
+  };
+
+  TAB_RENDERERS.chat = function(pane, s, cfg) {
+    pane.innerHTML = `
+      <p class="muted">Ask questions about this session. Uses the configured LLM provider + your teacher mode settings.</p>
+      <div class="chat-pane">
+        <div class="chat-history" id="chat-history"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Ask about this session...">
+          <label class="checkbox-row"><input type="checkbox" id="chat-narrate" checked> Narrate</label>
+          <button id="chat-send" class="primary-btn">Send</button>
+        </div>
+      </div>
+    `;
+    const history = pane.querySelector('#chat-history');
+    const input = pane.querySelector('#chat-input');
+    const send = async () => {
+      const q = input.value.trim();
+      if (!q) return;
+      const userMsg = document.createElement('div');
+      userMsg.className = 'chat-message user';
+      userMsg.textContent = q;
+      history.appendChild(userMsg);
+      input.value = '';
+      const pending = document.createElement('div');
+      pending.className = 'chat-message assistant';
+      pending.textContent = '…';
+      history.appendChild(pending);
+      history.scrollTop = history.scrollHeight;
+      try {
+        const narrate = pane.querySelector('#chat-narrate').checked;
+        const r = await api("/sessions/" + s.session_id + "/chat",
+                            { method: "POST", body: { question: q, narrate } });
+        pending.textContent = r.answer || '(no response)';
+      } catch (e) {
+        pending.textContent = 'Error: ' + e.message;
+      }
+      history.scrollTop = history.scrollHeight;
+    };
+    pane.querySelector('#chat-send').onclick = send;
+    input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+  };
+
   TAB_RENDERERS.quick = function(pane, s, cfg) {
     const voiceCfg = cfg.voice || {};
     pane.appendChild(makeFieldSelect("Mode", "active_mode",
@@ -399,6 +482,194 @@
     } catch (e) {
       toast("Save failed: " + e.message, "error");
     }
+  }
+
+  // ---- Settings dialog ----
+
+  async function openSettings() {
+    const dlg = document.getElementById("settings-dialog");
+    if (!dlg) return;
+    // Wire tab switching
+    dlg.querySelectorAll('.settings-tab').forEach(tab => {
+      tab.onclick = () => {
+        dlg.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        dlg.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        dlg.querySelector(`.settings-pane[data-spane="${tab.dataset.stab}"]`).classList.add('active');
+        loadSettingsPane(tab.dataset.stab);
+      };
+    });
+    await loadSettingsPane('keys');
+    dlg.showModal();
+  }
+
+  async function loadSettingsPane(name) {
+    if (name === 'keys') return loadKeysPane();
+    if (name === 'provider') return loadProviderPane();
+    if (name === 'teacher') return loadTeacherPane();
+    if (name === 'usage') return loadUsagePane();
+    if (name === 'cache') return loadCachePane();
+    if (name === 'audit') return loadAuditPane();
+  }
+
+  async function loadKeysPane() {
+    try {
+      const data = await api("/secrets");
+      for (const row of document.querySelectorAll('.key-row')) {
+        const k = row.dataset.keyname;
+        const info = data[k] || { set: false, redacted: null, source: null };
+        const input = row.querySelector('input');
+        input.placeholder = info.set ? `${info.redacted}` : 'not set';
+        input.value = '';
+        const src = row.querySelector('.key-source');
+        src.textContent = info.set ? `(${info.source})` : '';
+        row.querySelector('.key-clear').onclick = async () => {
+          if (!confirm(`Clear ${k}? Daemon restart required.`)) return;
+          const body = {}; body[k] = '';
+          await api("/secrets", { method: "PUT", body });
+          toast("Cleared " + k, "success");
+          await loadKeysPane();
+        };
+      }
+      document.getElementById('save-keys-btn').onclick = async () => {
+        const body = {};
+        for (const row of document.querySelectorAll('.key-row')) {
+          const v = row.querySelector('input').value.trim();
+          if (v) body[row.dataset.keyname] = v;
+        }
+        if (Object.keys(body).length === 0) {
+          toast("No keys to save", "info");
+          return;
+        }
+        try {
+          const r = await api("/secrets", { method: "PUT", body: body });
+          toast("Saved " + Object.keys(body).length + " key(s) — " + (r.note || ""), "success");
+          await loadKeysPane();
+        } catch (e) { toast("Save failed: " + e.message, "error"); }
+      };
+    } catch (e) { toast("Load keys failed: " + e.message, "error"); }
+  }
+
+  async function loadProviderPane() {
+    try {
+      const data = await api("/llm-models");
+      const provSel = document.getElementById('provider-select');
+      provSel.innerHTML = '';
+      for (const provider of Object.keys(data)) {
+        const opt = document.createElement('option');
+        opt.value = provider;
+        const av = data[provider].available ? '' : ' (key not set)';
+        opt.textContent = provider + av;
+        provSel.appendChild(opt);
+      }
+      const fillModels = () => {
+        const provider = provSel.value;
+        const modelSel = document.getElementById('model-select');
+        modelSel.innerHTML = '';
+        for (const m of (data[provider]?.models || [])) {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.label + (m.tier ? ` [${m.tier}]` : '');
+          if (m.id === data[provider].default) opt.selected = true;
+          modelSel.appendChild(opt);
+        }
+        document.getElementById('model-tier-hint').textContent =
+          'Default: ' + (data[provider]?.default || '(unset)');
+      };
+      provSel.onchange = fillModels;
+      fillModels();
+      document.getElementById('refresh-openrouter-btn').onclick = async () => {
+        try {
+          const r = await api("/llm-models/openrouter/refresh", { method: "POST" });
+          toast(`Refreshed ${r.model_count} OpenRouter models`, "success");
+          await loadProviderPane();
+        } catch (e) { toast("Refresh failed: " + e.message, "error"); }
+      };
+    } catch (e) { toast("Load providers failed: " + e.message, "error"); }
+  }
+
+  async function loadTeacherPane() {
+    try {
+      const t = await api("/teacher");
+      document.getElementById('teacher-enabled').checked = !!t.enabled;
+      document.getElementById('teacher-depth').value = t.depth_level || 3;
+      document.getElementById('teacher-depth-display').textContent = t.depth_level || 3;
+      document.getElementById('teacher-substitution').checked = !!t.substitution;
+      document.getElementById('teacher-glossary').checked = !!t.glossary;
+      document.getElementById('teacher-reframe').checked = !!t.reframe;
+      document.getElementById('teacher-depth').oninput = (e) => {
+        document.getElementById('teacher-depth-display').textContent = e.target.value;
+      };
+      document.getElementById('save-teacher-btn').onclick = async () => {
+        const body = {
+          enabled: document.getElementById('teacher-enabled').checked,
+          depth_level: parseInt(document.getElementById('teacher-depth').value, 10),
+          substitution: document.getElementById('teacher-substitution').checked,
+          glossary: document.getElementById('teacher-glossary').checked,
+          reframe: document.getElementById('teacher-reframe').checked,
+        };
+        try {
+          await api("/teacher", { method: "PUT", body });
+          toast("Teacher mode saved", "success");
+        } catch (e) { toast("Save failed: " + e.message, "error"); }
+      };
+    } catch (e) { toast("Load teacher failed: " + e.message, "error"); }
+  }
+
+  async function loadUsagePane() {
+    try {
+      const r = await api("/usage");
+      const el = document.getElementById('usage-summary');
+      el.innerHTML = `
+        <div class="usage-row"><span>Total cost</span><span>$${(r.total_cost_usd || 0).toFixed(4)}</span></div>
+        <div class="usage-row"><span>Total tokens</span><span>${r.total_tokens || 0}</span></div>
+        <div class="usage-row"><span>Events tracked</span><span>${r.event_count || 0}</span></div>
+        <h4>By session</h4>
+        ${Object.entries(r.by_session || {}).map(([sid, v]) => `<div class="usage-row"><span>${sid.slice(0,12)}</span><span>$${v.cost.toFixed(4)} · ${v.tokens} tok</span></div>`).join('') || '<p class="muted">No usage yet</p>'}
+        <h4>By model</h4>
+        ${Object.entries(r.by_model || {}).map(([m, v]) => `<div class="usage-row"><span>${m}</span><span>$${v.cost.toFixed(4)} · ${v.tokens} tok</span></div>`).join('') || ''}
+      `;
+    } catch (e) { toast("Load usage failed: " + e.message, "error"); }
+  }
+
+  async function loadCachePane() {
+    try {
+      const r = await api("/tts-cache");
+      const el = document.getElementById('cache-stats');
+      el.innerHTML = `
+        <div class="cache-row"><span>Entries</span><span>${r.entries || 0}</span></div>
+        <div class="cache-row"><span>Bytes</span><span>${(r.bytes || 0).toLocaleString()} / ${(r.max_bytes || 0).toLocaleString()}</span></div>
+        <div class="cache-row"><span>Hits</span><span>${r.hits || 0}</span></div>
+        <div class="cache-row"><span>Misses</span><span>${r.misses || 0}</span></div>
+        <div class="cache-row"><span>Hit ratio</span><span>${((r.hit_ratio || 0) * 100).toFixed(1)}%</span></div>
+      `;
+      document.getElementById('clear-cache-btn').onclick = async () => {
+        if (!confirm("Clear TTS cache?")) return;
+        const r = await api("/tts-cache", { method: "DELETE" });
+        toast(`Cleared ${r.deleted} cached entries`, "success");
+        await loadCachePane();
+      };
+    } catch (e) { toast("Load cache failed: " + e.message, "error"); }
+  }
+
+  async function loadAuditPane() {
+    try {
+      const entries = await api("/narration-log?limit=100");
+      const ul = document.getElementById('audit-list');
+      ul.innerHTML = '';
+      for (const e of entries.slice().reverse()) {
+        const li = document.createElement('li');
+        const ts = new Date((e.timestamp || 0) * 1000).toLocaleString();
+        li.innerHTML = `<div>${escapeHtml(e.text || '')}</div><div class="meta">${ts} · ${e.session_id || '?'} · ${e.engine || '?'}/${e.voice || '?'}</div>`;
+        ul.appendChild(li);
+      }
+      if (entries.length === 0) ul.innerHTML = '<li class="muted">Audit log is empty.</li>';
+      document.getElementById('reload-audit-btn').onclick = loadAuditPane;
+    } catch (e) { toast("Load audit failed: " + e.message, "error"); }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   }
 
   function _mergeNested(target, partial) {
@@ -600,6 +871,7 @@
       }
     };
     document.getElementById("reconnect-btn").onclick = () => poll();
+    document.getElementById("settings-btn").onclick = () => openSettings();
     document.querySelectorAll(".tab").forEach(t => {
       t.onclick = () => {
         state.activeTab = t.dataset.tab;
