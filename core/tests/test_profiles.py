@@ -103,3 +103,25 @@ def test_get_rejects_invalid_name(store):
 def test_delete_rejects_invalid_name(store):
     with pytest.raises(ProfileNameError):
         store.delete("../etc/passwd")
+
+
+def test_last_profile_set_and_get(store):
+    store.set_last_profile_for_cwd("/proj/a", "verbose-marvin")
+    assert store.last_profile_for_cwd("/proj/a") == "verbose-marvin"
+
+
+def test_last_profile_missing_returns_none(store):
+    assert store.last_profile_for_cwd("/proj/never-seen") is None
+
+
+def test_last_profile_clear(store):
+    store.set_last_profile_for_cwd("/proj/a", "x")
+    store.clear_last_profile_for_cwd("/proj/a")
+    assert store.last_profile_for_cwd("/proj/a") is None
+
+
+def test_last_profile_isolated_per_cwd(store):
+    store.set_last_profile_for_cwd("/proj/a", "marvin")
+    store.set_last_profile_for_cwd("/proj/b", "jenny")
+    assert store.last_profile_for_cwd("/proj/a") == "marvin"
+    assert store.last_profile_for_cwd("/proj/b") == "jenny"
