@@ -1,13 +1,17 @@
 import * as vscode from "vscode";
-import { CodeTalkerClient } from "../mcpClient";
 
-export function registerToggle(context: vscode.ExtensionContext, client: CodeTalkerClient) {
+export function registerToggle(context: vscode.ExtensionContext, refresh: () => Promise<void>) {
   context.subscriptions.push(
     vscode.commands.registerCommand("claude-tts.toggle", async () => {
+      const cfg = vscode.workspace.getConfiguration("claudeTts");
+      const host = cfg.get<string>("daemonHost", "127.0.0.1");
+      const port = cfg.get<number>("daemonPort", 17832);
+      const baseUrl = `http://${host}:${port}`;
       try {
-        const status = await client.callTool("tts_status");
-        const muted = status.includes("muted");
-        await client.callTool(muted ? "tts_unmute" : "tts_mute");
+        const status = await (await fetch(baseUrl + "/api/status")).json();
+        const next = status.enabled ? "/api/mute" : "/api/unmute";
+        await fetch(baseUrl + next, { method: "POST" });
+        await refresh();
       } catch (e) {
         vscode.window.showErrorMessage(`Claude TTS toggle failed: ${e}`);
       }
