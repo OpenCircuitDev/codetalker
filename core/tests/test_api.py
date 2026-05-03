@@ -186,3 +186,51 @@ async def test_detach_profile_clears_and_clears_binding(app):
     assert r.status_code == 200
     assert state.sessions.get("sess-1").attached_profile is None
     assert state.profiles.last_profile_for_cwd("/proj/a") is None
+
+
+@pytest.mark.asyncio
+async def test_save_as_profile_serializes_overlay(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    state.sessions.update_overlay("sess-1", {"voice": {"model": "marvin"}, "active_mode": "live"})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/save-as-profile",
+                         json={"name": "verbose-marvin"})
+    assert r.status_code == 200
+    assert state.profiles.exists("verbose-marvin")
+    assert state.profiles.get("verbose-marvin") == {"voice": {"model": "marvin"}, "active_mode": "live"}
+
+
+@pytest.mark.asyncio
+async def test_save_as_profile_overwrites_existing(app):
+    application, state = app
+    state.profiles.save("verbose-marvin", {"old": "data"})
+    state.sessions.touch("sess-1")
+    state.sessions.update_overlay("sess-1", {"voice": {"model": "marvin"}})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/save-as-profile",
+                         json={"name": "verbose-marvin"})
+    assert r.status_code == 200
+    assert state.profiles.get("verbose-marvin") == {"voice": {"model": "marvin"}}
+
+
+@pytest.mark.asyncio
+async def test_save_as_profile_400_invalid_name(app):
+    application, state = app
+    state.sessions.touch("sess-1")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/sessions/sess-1/save-as-profile", json={"name": "bad/name"})
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_save_as_profile_404_unknown_session(client):
+    async with client as c:
+        r = await c.post("/api/sessions/nope/save-as-profile", json={"name": "x"})
+    assert r.status_code == 404

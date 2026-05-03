@@ -122,6 +122,21 @@ def build_routes(state) -> list[Route]:
             "resolved_cfg": cfg,
         })
 
+    async def save_as_profile(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        s = state.sessions.get(sid)
+        if s is None:
+            return _not_found(f"unknown session: {sid}")
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        name = body.get("name", "")
+        if not is_valid_profile_name(name):
+            return _bad_request(f"invalid profile name: {name!r}")
+        path = state.profiles.save(name, dict(s.live_overlay))
+        return JSONResponse({"name": name, "path": str(path)})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
@@ -130,6 +145,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/sessions/{session_id}/overlay/{keypath:path}", delete_overlay_keypath, methods=["DELETE"]),
         Route("/api/sessions/{session_id}/attach-profile", attach_profile, methods=["POST"]),
         Route("/api/sessions/{session_id}/profile", detach_profile, methods=["DELETE"]),
+        Route("/api/sessions/{session_id}/save-as-profile", save_as_profile, methods=["POST"]),
     ]
 
 
