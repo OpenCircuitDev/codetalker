@@ -21,6 +21,7 @@ from claude_code_talker.modes.brief import BriefMode
 from claude_code_talker.modes.live import LiveMode
 from claude_code_talker.profiles import ProfileStore
 from claude_code_talker.providers import OllamaProvider
+from claude_code_talker.catalog import SessionCatalog
 from claude_code_talker.sessions import SessionRegistry
 
 
@@ -41,6 +42,7 @@ class ServerState:
     event_buffer: EventBuffer = None  # NEW: rolling event buffer for Mode C live narration
     sessions: SessionRegistry = None
     profiles: ProfileStore = None
+    catalog: SessionCatalog = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -159,6 +161,11 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         base_cfg_provider=lambda: state.cfg,
     )
     state.sessions.start_sweeper(interval_seconds=60.0, max_idle_seconds=1800.0)
+
+    catalog = SessionCatalog()
+    catalog.scan()
+    state.catalog = catalog
+    state.catalog.start_watcher(interval_seconds=30.0)
 
     state.event_buffer = EventBuffer(max_size=int(live_cfg.get("buffer_size", 30)))
     state.audio_queue = AudioQueue(
