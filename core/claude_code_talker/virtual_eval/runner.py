@@ -1,8 +1,12 @@
 """Sample selection + batch eval execution for virtual user evaluation."""
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import random
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 
 from claude_code_talker.narration_log import NarrationLog
 
@@ -57,3 +61,207 @@ def select_narration_sample(log: NarrationLog, request: EvalRequest) -> list[dic
         if remaining and deficit > 0:
             sampled.extend(rng.sample(remaining, min(deficit, len(remaining))))
     return sampled[:request.max_narrations]
+
+
+# ---------------------------------------------------------------------------
+# Task 3: PersonaScore + LLM scoring machinery
+# ---------------------------------------------------------------------------
+
+from claude_code_talker.virtual_eval.personas import Persona  # noqa: E402
+
+
+SCORE_PROMPT_TEMPLATE = """\
+You are {name}, {role}. Your primary lens for consuming this content: {primary_lens}.
+Your jargon comfort: {comfort_with_jargon}/5 (1=jargon-allergic, 5=fluent).
+What you most care about hearing: {what_they_care_about}.
+
+SESSION CONTEXT (so you can judge the narration in context, not in isolation):
+
+User's most recent prompt in this session:
+  "{last_user_prompt}"
+
+Recent transcript turns (most recent last):
+{transcript_lines}
+
+Prior narrations you would have already heard from this session:
+{prior_narrations}
+
+NARRATION TO SCORE (the latest one):
+
+  "{narration}"
+
+THIS IS A TWO-STEP EXERCISE:
+
+Step 1 — Before judging the narration, write down (in your own voice, one short
+sentence) WHAT YOU EXPECTED to hear given the session context above. What were
+you hoping codetalker would tell you here?
+
+Step 2 — Now compare that expectation to what was actually said. Score on a
+1-5 scale (integers only):
+  - clarity: how easily YOU (with your background) understood THIS narration
+  - helpfulness: did it tell you something useful given what was already happening
+  - jargon_load: 1=plain English, 5=dense jargon
+  - expectation_match: how close was the narration to what you expected (1=miles off, 5=spot on)
+
+Then briefly answer:
+  - expected: what you were hoping to hear (one sentence — your Step 1 answer)
+  - received: what you actually got, in your own words (one short sentence)
+  - confusing_terms: list any terms that needed defining (array of strings, may be empty)
+  - missing_context: what would have made this more useful (one short sentence; "" if nothing)
+
+Respond as JSON ONLY, no preamble. Schema:
+{{"clarity": <1-5>, "helpfulness": <1-5>, "jargon_load": <1-5>, "expectation_match": <1-5>,
+  "expected": "...", "received": "...",
+  "confusing_terms": [...], "missing_context": "..."}}"""
+
+
+@dataclass
+class PersonaScore:
+    persona_name: str
+    narration_text: str
+    clarity: int
+    helpfulness: int
+    jargon_load: int
+    # Expectation gap — measures the distance between what the persona was
+    # HOPING to hear (given session context) and what they actually heard.
+    # Surfaces "flying blind" gaps that pure clarity scores miss.
+    expectation_match: int = 3
+    expected: str = ""    # one-sentence description of what the persona expected
+    received: str = ""    # one-sentence description of what they actually got
+    confusing_terms: list[str] = field(default_factory=list)
+    missing_context: str = ""
+
+
+def build_score_prompt(persona: Persona, narration) -> str:
+    """Render the score-request prompt for one (persona, narration) pair.
+
+    Accepts EITHER a plain narration string (back-compat) OR a
+    NarrationWithContext for full session-aware scoring (preferred path).
+    """
+    from claude_code_talker.virtual_eval.context import NarrationWithContext
+    if isinstance(narration, NarrationWithContext):
+        narration_text = narration.text[:1500]
+        last_user_prompt = (narration.last_user_prompt or "(no prior user prompt found)")[:600]
+        transcript_lines = (
+            "\n".join(narration.recent_transcript_lines) or "(no transcript context available)"
+        )
+        prior_narrations = (
+            "\n".join(f"- {p}" for p in narration.prior_narrations)
+            or "(no prior narrations in this session)"
+        )
+    else:
+        # Back-compat: plain string narration with no context.
+        narration_text = str(narration)[:1500]
+        last_user_prompt = "(context unavailable)"
+        transcript_lines = "(context unavailable)"
+        prior_narrations = "(context unavailable)"
+    return SCORE_PROMPT_TEMPLATE.format(
+        name=persona.name,
+        role=persona.role,
+        primary_lens=persona.primary_lens,
+        comfort_with_jargon=persona.comfort_with_jargon,
+        what_they_care_about=persona.what_they_care_about,
+        last_user_prompt=last_user_prompt,
+        transcript_lines=transcript_lines,
+        prior_narrations=prior_narrations,
+        narration=narration_text,
+    )
+
+
+def _clamp(n, lo: int = 1, hi: int = 5) -> int:
+    try:
+        v = int(n)
+    except (TypeError, ValueError):
+        return 3
+    return max(lo, min(hi, v))
+
+
+def parse_score_response(persona_name: str, narration_text: str, raw: str) -> PersonaScore:
+    """Parse the LLM's JSON score response into a PersonaScore.
+
+    Tolerates markdown fences. Clamps out-of-range integers. Falls back to
+    neutral 3s if the response isn't parseable rather than failing the batch.
+    """
+    text = (raw or "").strip()
+    fence = re.compile(r"^```(?:json)?\s*\n?(.+?)\n?```$", re.DOTALL)
+    m = fence.match(text)
+    if m:
+        text = m.group(1).strip()
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return PersonaScore(
+            persona_name=persona_name, narration_text=narration_text,
+            clarity=3, helpfulness=3, jargon_load=3,
+            confusing_terms=[], missing_context="",
+        )
+    if not isinstance(data, dict):
+        data = {}
+    confusing = data.get("confusing_terms") or []
+    if not isinstance(confusing, list):
+        confusing = []
+    confusing = [str(t).strip() for t in confusing if str(t).strip()]
+    missing = data.get("missing_context") or ""
+    if not isinstance(missing, str):
+        missing = str(missing)
+    expected = str(data.get("expected", ""))[:300]
+    received = str(data.get("received", ""))[:300]
+    return PersonaScore(
+        persona_name=persona_name,
+        narration_text=narration_text,
+        clarity=_clamp(data.get("clarity", 3)),
+        helpfulness=_clamp(data.get("helpfulness", 3)),
+        jargon_load=_clamp(data.get("jargon_load", 3)),
+        expectation_match=_clamp(data.get("expectation_match", 3)),
+        expected=expected,
+        received=received,
+        confusing_terms=confusing[:10],  # cap to keep aggregator tractable
+        missing_context=missing[:300],
+    )
+
+
+async def run_eval_batch(
+    personas: list[Persona],
+    sample,  # list[dict] OR list[NarrationWithContext]
+    provider,
+    *,
+    batch_size: int = 10,
+    max_tokens: int = 250,
+) -> list[PersonaScore]:
+    """Score every (persona × narration) pair using full session context.
+
+    ``sample`` may be a list of plain narration-log dicts OR a list of
+    NarrationWithContext objects. The latter is the preferred input —
+    NarrationWithContext carries prior narrations + last user prompt + recent
+    transcript so personas can score in context, not in isolation.
+
+    Runs LLM calls in concurrent batches of ``batch_size`` to keep latency low.
+    Provider failures degrade gracefully to neutral scores; the eval never
+    raises end-to-end.
+    """
+    from claude_code_talker.virtual_eval.context import NarrationWithContext
+    pairs = [(p, n) for p in personas for n in sample]
+    results: list[PersonaScore] = []
+
+    async def _one_call(persona: Persona, narration) -> PersonaScore:
+        if isinstance(narration, NarrationWithContext):
+            text = narration.text
+        elif isinstance(narration, dict):
+            text = narration.get("text", "")
+        else:
+            text = str(narration)
+        try:
+            raw = await provider.complete(build_score_prompt(persona, narration), max_tokens=max_tokens)
+        except Exception as e:
+            logging.debug("virtual eval call failed: %s", e)
+            return PersonaScore(
+                persona_name=persona.name, narration_text=text,
+                clarity=3, helpfulness=3, jargon_load=3,
+            )
+        return parse_score_response(persona.name, text, raw)
+
+    for i in range(0, len(pairs), batch_size):
+        chunk = pairs[i:i + batch_size]
+        chunk_results = await asyncio.gather(*[_one_call(p, n) for p, n in chunk])
+        results.extend(chunk_results)
+    return results
