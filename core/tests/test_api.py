@@ -4,11 +4,15 @@ import httpx
 from starlette.applications import Starlette
 from claude_code_talker.api import build_routes
 from claude_code_talker.server import build_server_state
+from claude_code_talker.profiles import ProfileStore
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     state = build_server_state()
+    # Override ProfileStore with a tmp_path-isolated instance so tests don't
+    # pollute or read the real ~/.claude/scripts/profiles directory.
+    state.profiles = ProfileStore(profiles_dir=tmp_path / "profiles")
     routes = build_routes(state)
     return Starlette(routes=routes), state
 
@@ -233,4 +237,84 @@ async def test_save_as_profile_400_invalid_name(app):
 async def test_save_as_profile_404_unknown_session(client):
     async with client as c:
         r = await c.post("/api/sessions/nope/save-as-profile", json={"name": "x"})
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_profiles_empty(client):
+    async with client as c:
+        r = await c.get("/api/profiles")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_profiles_returns_names(app):
+    application, state = app
+    state.profiles.save("alpha", {"x": 1})
+    state.profiles.save("zeta", {"x": 1})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/profiles")
+    body = r.json()
+    names = [p["name"] for p in body]
+    assert names == ["alpha", "zeta"]
+
+
+@pytest.mark.asyncio
+async def test_get_profile_returns_content(app):
+    application, state = app
+    state.profiles.save("verbose", {"voice": {"model": "marvin"}})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/profiles/verbose")
+    assert r.status_code == 200
+    assert r.json() == {"name": "verbose", "content": {"voice": {"model": "marvin"}}}
+
+
+@pytest.mark.asyncio
+async def test_get_profile_404(client):
+    async with client as c:
+        r = await c.get("/api/profiles/ghost")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_profile_replaces_content(app):
+    application, state = app
+    state.profiles.save("verbose", {"old": "data"})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/profiles/verbose", json={"voice": {"model": "jenny"}})
+    assert r.status_code == 200
+    assert state.profiles.get("verbose") == {"voice": {"model": "jenny"}}
+
+
+@pytest.mark.asyncio
+async def test_delete_profile_removes_and_detaches(app):
+    application, state = app
+    state.profiles.save("verbose", {"x": 1})
+    state.sessions.touch("sess-1", cwd="/proj/a")
+    state.sessions.attach_profile("sess-1", "verbose")
+    state.sessions.touch("sess-2", cwd="/proj/b")
+    state.sessions.attach_profile("sess-2", "verbose")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.delete("/api/profiles/verbose")
+    assert r.status_code == 200
+    body = r.json()
+    assert body == {"deleted": True, "detached_from_sessions": 2}
+    assert not state.profiles.exists("verbose")
+    assert state.sessions.get("sess-1").attached_profile is None
+    assert state.sessions.get("sess-2").attached_profile is None
+
+
+@pytest.mark.asyncio
+async def test_delete_profile_404(client):
+    async with client as c:
+        r = await c.delete("/api/profiles/ghost")
     assert r.status_code == 404
