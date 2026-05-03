@@ -161,3 +161,24 @@ def test_sweeper_expires_idle_sessions():
     time.sleep(0.3)  # well past max_idle
     r.stop_sweeper()
     assert r.get("ephemeral") is None
+
+
+def test_config_for_uses_resolver(tmp_path):
+    """SessionRegistry.config_for delegates to resolve_for_session."""
+    from claude_code_talker.profiles import ProfileStore
+    profiles = ProfileStore(profiles_dir=tmp_path)
+    base = {"voice": {"model": "jenny"}}
+    r = SessionRegistry(profile_store=profiles, base_cfg_provider=lambda: base)
+    r.touch("abc")
+    r.update_overlay("abc", {"voice": {"model": "marvin"}})
+    cfg = r.config_for("abc")
+    assert cfg["voice"]["model"] == "marvin"
+
+
+def test_config_for_unknown_session_returns_base(tmp_path):
+    from claude_code_talker.profiles import ProfileStore
+    profiles = ProfileStore(profiles_dir=tmp_path)
+    base = {"voice": {"model": "jenny"}}
+    r = SessionRegistry(profile_store=profiles, base_cfg_provider=lambda: base)
+    cfg = r.config_for("never-touched")
+    assert cfg == base

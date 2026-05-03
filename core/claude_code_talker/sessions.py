@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from typing import Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from claude_code_talker.profiles import ProfileStore
 
 
 @dataclass
@@ -33,12 +37,20 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
 class SessionRegistry:
     """Thread-safe registry of active sessions."""
 
-    def __init__(self, max_active: int = 50):
+    def __init__(
+        self,
+        max_active: int = 50,
+        *,
+        profile_store: "ProfileStore | None" = None,
+        base_cfg_provider: "Callable[[], dict] | None" = None,
+    ):
         self._sessions: dict[str, SessionState] = {}
         self._lock = threading.RLock()
         self._max_active = max_active
         self._sweeper_thread: threading.Thread | None = None
         self._sweeper_stop = threading.Event()
+        self._profile_store = profile_store
+        self._base_cfg_provider = base_cfg_provider
 
     def get(self, session_id: str) -> SessionState | None:
         with self._lock:
@@ -49,11 +61,12 @@ class SessionRegistry:
             return list(self._sessions.values())
 
     def touch(self, session_id: str, *, cwd: str = "", transcript_path: str = "") -> SessionState:
-        """Create-or-update a session. Updates last_hook_at; preserves overlay/profile."""
+        """Create-or-update a session. On first creation with a known cwd, auto-attach last_profile."""
         import time
         with self._lock:
             s = self._sessions.get(session_id)
-            if s is None:
+            is_new = s is None
+            if is_new:
                 self._evict_oldest_if_full_locked()
                 s = SessionState(session_id=session_id)
                 self._sessions[session_id] = s
@@ -62,6 +75,13 @@ class SessionRegistry:
             if transcript_path:
                 s.transcript_path = transcript_path
             s.last_hook_at = time.time()
+
+            # Auto-attach last_profile binding only on first creation, only if no profile yet
+            if is_new and cwd and self._profile_store is not None and s.attached_profile is None:
+                last = self._profile_store.last_profile_for_cwd(cwd)
+                if last is not None and self._profile_store.exists(last):
+                    s.attached_profile = last
+                    s.cached_cfg = None
             return s
 
     def expire_idle(self, max_idle_seconds: float = 1800.0) -> int:
@@ -123,6 +143,20 @@ class SessionRegistry:
             s = self._sessions.get(session_id)
             if s is not None:
                 s.cached_cfg = None
+
+    def config_for(self, session_id: str) -> dict:
+        """Return the resolved cfg for a session. Falls back to base_cfg if session unknown."""
+        from claude_code_talker.config import resolve_for_session
+        if self._base_cfg_provider is None:
+            raise RuntimeError("SessionRegistry constructed without base_cfg_provider")
+        base = self._base_cfg_provider()
+        with self._lock:
+            s = self._sessions.get(session_id)
+        if s is None:
+            return base
+        if self._profile_store is None:
+            raise RuntimeError("SessionRegistry constructed without profile_store")
+        return resolve_for_session(base, s, self._profile_store)
 
     def start_sweeper(self, *, interval_seconds: float = 60.0, max_idle_seconds: float = 1800.0) -> None:
         """Start a background thread that calls expire_idle on a timer."""
