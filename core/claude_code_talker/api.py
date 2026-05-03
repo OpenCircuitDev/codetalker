@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from claude_code_talker.profiles import is_valid_profile_name
 from claude_code_talker.persistent_sessions import is_valid_session_id
+from claude_code_talker.secrets_store import KNOWN_KEYS as _SECRET_KEYS, SecretsStore as _SecretsStore
 
 
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
@@ -400,6 +401,392 @@ def build_routes(state) -> list[Route]:
         state.persistent_sessions.delete(sid)
         return JSONResponse({"deleted": existed})
 
+    async def get_secrets(request: Request) -> JSONResponse:
+        """Return all known API keys, redacted (last 4 chars). Source-of-truth
+        per key (env vs file) is included so the user knows where it's coming
+        from."""
+        if state.secrets is None:
+            return JSONResponse({})
+        on_disk = state.secrets.load()
+        out: dict[str, dict] = {}
+        import os as _os
+        for env_name, file_key in [
+            ("ANTHROPIC_API_KEY", "anthropic_api_key"),
+            ("OPENAI_API_KEY", "openai_api_key"),
+            ("OPENROUTER_API_KEY", "openrouter_api_key"),
+            ("ELEVENLABS_API_KEY", "elevenlabs_api_key"),
+        ]:
+            env_val = _os.environ.get(env_name)
+            if env_val:
+                out[file_key] = {"set": True, "redacted": _SecretsStore.redact(env_val), "source": "env"}
+            elif file_key in on_disk:
+                out[file_key] = {"set": True, "redacted": _SecretsStore.redact(on_disk[file_key]), "source": "file"}
+            else:
+                out[file_key] = {"set": False, "redacted": None, "source": None}
+        return JSONResponse(out)
+
+    async def put_secrets(request: Request) -> JSONResponse:
+        """Update one or more API keys. Empty-string deletes a key. Body shape:
+        {"openai_api_key": "sk-...", "anthropic_api_key": ""}"""
+        if state.secrets is None:
+            return _bad_request("secrets store not configured")
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        partial: dict[str, str] = {}
+        for k, v in body.items():
+            if k not in _SECRET_KEYS:
+                return _bad_request(f"unknown secret key: {k!r}")
+            if not isinstance(v, str):
+                return _bad_request(f"value for {k} must be a string")
+            partial[k] = v
+        state.secrets.update(partial)
+        return JSONResponse({"saved": True, "note": "Restart daemon for changes to take effect"})
+
+    # Curated cost-effective default model lists per provider. Used for the UI
+    # dropdown when the provider doesn't expose a /models endpoint or when an
+    # offline / cached list is sufficient.
+    _CURATED_MODELS: dict[str, list[dict]] = {
+        "ollama": [
+            {"id": "llama3.2", "label": "llama3.2 (3B, default)", "tier": "local"},
+            {"id": "qwen2.5:3b", "label": "qwen2.5:3b", "tier": "local"},
+            {"id": "phi3.5", "label": "phi3.5", "tier": "local"},
+        ],
+        "anthropic": [
+            {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5 (fast/cheap)", "tier": "cheap"},
+            {"id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (balanced)", "tier": "mid"},
+            {"id": "claude-opus-4-7", "label": "Claude Opus 4.7 (premium)", "tier": "premium"},
+        ],
+        "openai": [
+            {"id": "gpt-4o-mini", "label": "GPT-4o mini (cheap default)", "tier": "cheap"},
+            {"id": "gpt-5-mini", "label": "GPT-5 mini", "tier": "cheap"},
+            {"id": "gpt-4o", "label": "GPT-4o", "tier": "mid"},
+            {"id": "gpt-5", "label": "GPT-5 (premium)", "tier": "premium"},
+        ],
+        "openrouter": [
+            {"id": "google/gemini-2.0-flash-001", "label": "Gemini 2.0 Flash (cheapest, default)", "tier": "cheap"},
+            {"id": "openai/gpt-4o-mini", "label": "GPT-4o mini via OpenRouter", "tier": "cheap"},
+            {"id": "anthropic/claude-haiku-4-5", "label": "Claude Haiku 4.5 via OpenRouter", "tier": "cheap"},
+            {"id": "meta-llama/llama-3.3-70b-instruct", "label": "Llama 3.3 70B (cheap+capable)", "tier": "cheap"},
+            {"id": "anthropic/claude-sonnet-4-6", "label": "Claude Sonnet 4.6 via OpenRouter", "tier": "mid"},
+        ],
+    }
+
+    # Cache OpenRouter's live /models response so the dropdown doesn't refetch
+    # every page load.
+    _openrouter_models_cache: dict = {"data": None, "fetched_at": 0.0}
+
+    async def list_llm_models(request: Request) -> JSONResponse:
+        """Return curated + (optionally cached) model list per provider.
+
+        Response shape: {provider: {default: <model_id>, models: [...]}}
+        """
+        out: dict[str, dict] = {}
+        # Pull configured-default model from cfg per provider so the UI shows
+        # the right "current" item.
+        cfg_providers = (state.cfg.get("providers") or {})
+        for provider, models in _CURATED_MODELS.items():
+            cfg_model = (cfg_providers.get(provider) or {}).get("model")
+            if provider == "openrouter":
+                default = cfg_model or "google/gemini-2.0-flash-001"
+                live = _openrouter_models_cache["data"]
+                merged = list(models)
+                if live:
+                    seen = {m["id"] for m in merged}
+                    for m in live:
+                        if m["id"] not in seen:
+                            merged.append(m)
+            elif provider == "openai":
+                default = cfg_model or "gpt-4o-mini"
+                merged = list(models)
+            elif provider == "anthropic":
+                default = cfg_model or "claude-haiku-4-5-20251001"
+                merged = list(models)
+            else:  # ollama
+                default = cfg_model or "llama3.2"
+                merged = list(models)
+            available = provider in (state.providers or {})
+            out[provider] = {
+                "default": default,
+                "models": merged,
+                "available": available,
+            }
+        return JSONResponse(out)
+
+    async def get_narration_log(request: Request) -> JSONResponse:
+        """Phase 11: return the last N narrated lines, optionally filtered by session."""
+        if state.narration_log is None:
+            return JSONResponse([])
+        try:
+            limit = int(request.query_params.get("limit", 100))
+        except ValueError:
+            return _bad_request("limit must be an integer")
+        limit = max(1, min(1000, limit))
+        sid = request.query_params.get("session_id")
+        if sid:
+            if not is_valid_session_id(sid):
+                return _bad_request(f"invalid session_id: {sid!r}")
+            entries = state.narration_log.find_for_session(sid, limit=limit)
+        else:
+            entries = state.narration_log.tail(n=limit)
+        return JSONResponse(entries)
+
+    async def get_usage(request: Request) -> JSONResponse:
+        """Phase 12: return token + cost rollup, optionally since a unix timestamp."""
+        if state.token_tracker is None:
+            return JSONResponse({})
+        since_str = request.query_params.get("since")
+        since = None
+        if since_str:
+            try:
+                since = float(since_str)
+            except ValueError:
+                return _bad_request("since must be a unix timestamp")
+        return JSONResponse(state.token_tracker.rollup(since=since))
+
+    async def get_tts_cache_stats(request: Request) -> JSONResponse:
+        """Phase 10: TTS cache stats (entries, bytes, hit ratio)."""
+        if state.tts_cache is None:
+            return JSONResponse({})
+        return JSONResponse(state.tts_cache.stats())
+
+    async def clear_tts_cache(request: Request) -> JSONResponse:
+        """Phase 10: clear the TTS cache (returns count of files removed)."""
+        if state.tts_cache is None:
+            return JSONResponse({"deleted": 0})
+        deleted = state.tts_cache.clear()
+        return JSONResponse({"deleted": deleted})
+
+    async def reload_config(request: Request) -> JSONResponse:
+        """Phase 12: hot-reload state.cfg from disk without restarting the daemon.
+
+        Re-runs load_full_config() and replaces state.cfg in place. Cached per-
+        session resolved configs are invalidated so the new values flow on the
+        next narration tick.
+        """
+        if not _rate_limit_check(state, "config_reload", 2.0):
+            return JSONResponse({"error": "rate limited"}, status_code=429)
+        from claude_code_talker.config import load_full_config
+        try:
+            new_cfg = load_full_config()
+        except Exception as e:
+            return JSONResponse({"error": f"reload failed: {e}"}, status_code=500)
+        # Mutate in place so all callers holding a ref to state.cfg see the new values.
+        state.cfg.clear()
+        state.cfg.update(new_cfg)
+        for s in state.sessions.list_active():
+            state.sessions.invalidate(s.session_id)
+        return JSONResponse({"reloaded": True, "key_count": len(state.cfg)})
+
+    async def bulk_session_op(request: Request) -> JSONResponse:
+        """Phase 11: bulk operations on sessions matching a filter.
+
+        Body: {"action": "disable"|"enable", "filter": {"project_slug": str}}
+        Writes to PersistentSessionStore so changes survive restart.
+        """
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        action = body.get("action")
+        if action not in ("disable", "enable"):
+            return _bad_request("action must be 'disable' or 'enable'")
+        flt = body.get("filter") or {}
+        if not isinstance(flt, dict):
+            return _bad_request("filter must be a JSON object")
+        project_slug = flt.get("project_slug")
+        if not project_slug or not isinstance(project_slug, str):
+            return _bad_request("filter.project_slug is required")
+        if state.catalog is None or state.persistent_sessions is None:
+            return _bad_request("catalog or persistent store unavailable")
+        targets = state.catalog.entries_for_project(project_slug)
+        new_enabled = (action == "enable")
+        modified = 0
+        import time as _t
+        for entry in targets:
+            sid = entry.session_id
+            current = state.persistent_sessions.get(sid) or {
+                "live_overlay": {}, "attached_profile": None, "enabled": True,
+                "display_name": None, "last_modified": 0.0,
+            }
+            if current.get("enabled") != new_enabled:
+                current["enabled"] = new_enabled
+                current["last_modified"] = _t.time()
+                state.persistent_sessions.save(sid, current)
+                # If the session is currently live, also flip the in-memory state.
+                live = state.sessions.get(sid)
+                if live is not None:
+                    live.enabled = new_enabled
+                modified += 1
+        return JSONResponse({
+            "action": action, "project_slug": project_slug,
+            "matched": len(targets), "modified": modified,
+        })
+
+    async def chat_with_session(request: Request) -> JSONResponse:
+        """Phase 9: ask the LLM a question about a session.
+
+        Body: {"question": str, "narrate": bool (optional), "max_tokens": int (optional)}
+        Picks the provider/model from cfg.modes.live (same as live narration).
+        Honors teacher_mode (global + per-session overlay).
+        """
+        sid = request.path_params["session_id"]
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session_id: {sid!r}")
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        question = (body.get("question") or "").strip()
+        if not question:
+            return _bad_request("question must be a non-empty string")
+        narrate = bool(body.get("narrate", False))
+        max_tokens = int(body.get("max_tokens", 400))
+
+        from claude_code_talker.chat_panel import gather_session_context, answer_question
+        from pathlib import Path as _P
+        s = state.sessions.get(sid)
+        # Pull resolved cfg so per-session teacher_mode wins
+        try:
+            cfg = state.sessions.config_for(sid)
+        except Exception:
+            cfg = state.cfg
+        teacher_cfg = cfg.get("teacher_mode")
+        # Pick provider — same logic as live mode
+        from claude_code_talker.server import _select_provider
+        provider = _select_provider(state, "live")
+        if provider is None:
+            return JSONResponse({"error": "no LLM provider available"}, status_code=503)
+        # Gather context
+        transcript_path = None
+        events = []
+        if s is not None and s.transcript_path:
+            transcript_path = _P(s.transcript_path)
+        elif state.catalog is not None:
+            entry = state.catalog.entry_for(sid)
+            if entry is not None:
+                transcript_path = entry.transcript_path
+        if state.event_buffer is not None:
+            events = state.event_buffer.recent(40)
+        ctx = gather_session_context(
+            transcript_path=transcript_path, events=events,
+        )
+        answer = await answer_question(
+            question=question, context=ctx, provider=provider,
+            teacher_cfg=teacher_cfg, max_tokens=max_tokens,
+        )
+        result = {"answer": answer, "session_id": sid}
+        # Optionally narrate the response
+        if narrate and answer and not answer.startswith("(provider error"):
+            from claude_code_talker.audio import AudioJob
+            voice_cfg = cfg.get("voice") or {}
+            engine_name = voice_cfg.get("engine", "piper")
+            engine = state.engines.get(engine_name)
+            voice = voice_cfg.get("model")
+            if engine is not None and voice:
+                state.audio_queue.submit(AudioJob(
+                    text=answer,
+                    voice=voice,
+                    rate=float(voice_cfg.get("rate", 1.0)),
+                    engine_name=engine_name,
+                    audio_format=getattr(engine, "audio_format", "wav"),
+                ))
+                result["narrated"] = True
+        return JSONResponse(result)
+
+    async def get_teacher(request: Request) -> JSONResponse:
+        """Return the global teacher_mode cfg block (with defaults filled in)."""
+        from claude_code_talker.teacher_mode import DEFAULT_TEACHER_CONFIG
+        current = state.cfg.get("teacher_mode") or {}
+        merged = {**DEFAULT_TEACHER_CONFIG, **current}
+        return JSONResponse(merged)
+
+    async def put_teacher(request: Request) -> JSONResponse:
+        """Update the global teacher_mode cfg block. Per-session overrides set
+        via the existing /api/sessions/<sid>/overlay endpoint with key
+        'teacher_mode'."""
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        # Validate types
+        for key, expected_type in (
+            ("enabled", bool), ("substitution", bool),
+            ("glossary", bool), ("reframe", bool),
+        ):
+            if key in body and not isinstance(body[key], bool):
+                return _bad_request(f"{key} must be a boolean")
+        if "depth_level" in body:
+            try:
+                depth = int(body["depth_level"])
+            except (TypeError, ValueError):
+                return _bad_request("depth_level must be an integer 1-5")
+            if not 1 <= depth <= 5:
+                return _bad_request("depth_level must be 1-5")
+            body["depth_level"] = depth
+        current = state.cfg.get("teacher_mode") or {}
+        current.update({k: v for k, v in body.items()
+                       if k in ("enabled", "depth_level", "substitution",
+                                "glossary", "reframe")})
+        state.cfg["teacher_mode"] = current
+        # Invalidate per-session cached cfgs so the new teacher block flows
+        for s in state.sessions.list_active():
+            state.sessions.invalidate(s.session_id)
+        return JSONResponse(current)
+
+    async def refresh_openrouter_models(request: Request) -> JSONResponse:
+        """Fetch fresh model list from OpenRouter's public /models endpoint.
+
+        Cached for the daemon's lifetime once fetched (call again to refresh).
+        Doesn't require an API key — the OpenRouter /models endpoint is public.
+        """
+        if not _rate_limit_check(state, "openrouter_refresh", 30.0):
+            return JSONResponse({"error": "rate limited (1 refresh per 30s)"}, status_code=429)
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as c:
+                r = await c.get("https://openrouter.ai/api/v1/models")
+                r.raise_for_status()
+                payload = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            return JSONResponse({"error": f"openrouter fetch failed: {e}"}, status_code=502)
+        data = payload.get("data") or []
+        models = []
+        for m in data:
+            mid = m.get("id")
+            if not isinstance(mid, str):
+                continue
+            pricing = m.get("pricing") or {}
+            try:
+                prompt_price = float(pricing.get("prompt", 0))
+                comp_price = float(pricing.get("completion", 0))
+            except (TypeError, ValueError):
+                prompt_price = comp_price = 0.0
+            # Tier classification: 'cheap' if both <= $1/M tokens, else 'mid'/'premium'.
+            per_million_in = prompt_price * 1_000_000
+            per_million_out = comp_price * 1_000_000
+            if per_million_in <= 1.0 and per_million_out <= 5.0:
+                tier = "cheap"
+            elif per_million_in <= 5.0 and per_million_out <= 15.0:
+                tier = "mid"
+            else:
+                tier = "premium"
+            models.append({
+                "id": mid,
+                "label": f"{mid} (${per_million_in:.2f}/$ {per_million_out:.2f}/M)",
+                "tier": tier,
+                "prompt_per_million": per_million_in,
+                "completion_per_million": per_million_out,
+            })
+        # Sort cheap first
+        tier_order = {"cheap": 0, "mid": 1, "premium": 2}
+        models.sort(key=lambda m: (tier_order.get(m["tier"], 3), m["prompt_per_million"]))
+        _openrouter_models_cache["data"] = models
+        import time as _t
+        _openrouter_models_cache["fetched_at"] = _t.time()
+        return JSONResponse({"refreshed": True, "model_count": len(models)})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -407,6 +794,19 @@ def build_routes(state) -> list[Route]:
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
         Route("/api/persistent-sessions/{session_id}", put_persistent_session, methods=["PUT"]),
         Route("/api/persistent-sessions/{session_id}", delete_persistent_session, methods=["DELETE"]),
+        Route("/api/secrets", get_secrets, methods=["GET"]),
+        Route("/api/secrets", put_secrets, methods=["PUT"]),
+        Route("/api/llm-models", list_llm_models, methods=["GET"]),
+        Route("/api/llm-models/openrouter/refresh", refresh_openrouter_models, methods=["POST"]),
+        Route("/api/teacher", get_teacher, methods=["GET"]),
+        Route("/api/teacher", put_teacher, methods=["PUT"]),
+        Route("/api/sessions/{session_id}/chat", chat_with_session, methods=["POST"]),
+        Route("/api/narration-log", get_narration_log, methods=["GET"]),
+        Route("/api/usage", get_usage, methods=["GET"]),
+        Route("/api/tts-cache", get_tts_cache_stats, methods=["GET"]),
+        Route("/api/tts-cache", clear_tts_cache, methods=["DELETE"]),
+        Route("/api/config/reload", reload_config, methods=["POST"]),
+        Route("/api/sessions/bulk", bulk_session_op, methods=["POST"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),

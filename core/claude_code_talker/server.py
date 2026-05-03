@@ -25,6 +25,9 @@ from claude_code_talker.catalog import SessionCatalog
 from claude_code_talker.persistent_sessions import PersistentSessionStore
 from claude_code_talker.secrets_store import SecretsStore
 from claude_code_talker.sessions import SessionRegistry
+from claude_code_talker.narration_log import NarrationLog
+from claude_code_talker.token_tracker import TokenTracker
+from claude_code_talker.tts_cache import TTSCache
 
 
 PIPER_DIR = Path.home() / ".claude" / "scripts" / "piper" / "piper"
@@ -47,6 +50,9 @@ class ServerState:
     catalog: SessionCatalog = None
     persistent_sessions: PersistentSessionStore = None
     secrets: SecretsStore = None
+    narration_log: NarrationLog = None
+    token_tracker: TokenTracker = None
+    tts_cache: TTSCache = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -182,6 +188,9 @@ def build_server_state(cwd: str | None = None) -> ServerState:
 
     state.profiles = profiles
     state.secrets = secrets
+    state.narration_log = NarrationLog()
+    state.token_tracker = TokenTracker()
+    state.tts_cache = TTSCache()
     persistent_sessions = PersistentSessionStore()
     state.persistent_sessions = persistent_sessions
     state.sessions = SessionRegistry(

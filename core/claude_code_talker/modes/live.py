@@ -8,6 +8,7 @@ from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.event_buffer import Event, EventBuffer
 from claude_code_talker.cadence.base import CadenceStrategy
 from claude_code_talker.audio import AudioJob
+from claude_code_talker.teacher_mode import merge_teacher_into_prompt
 
 
 LIVE_NARRATION_PROMPT = """\
@@ -121,4 +122,5 @@ class LiveMode(ModeStrategy):
                 elif ev.type == "POST_TOOL":
                     ok = "ok" if meta.get('success', True) else "FAILED"
                     lines.append(f"[T+{dt:.1f}s POST_TOOL {meta.get('tool_name', '?')} {ok}]")
-        return LIVE_NARRATION_PROMPT.format(events="\n".join(lines))
+        base = LIVE_NARRATION_PROMPT.format(events="\n".join(lines))
+        return merge_teacher_into_prompt(base, self.cfg.get("teacher_mode"))

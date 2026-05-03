@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.providers.base import LLMProvider
+from claude_code_talker.teacher_mode import merge_teacher_into_prompt
 
 
 BRIEF_PROMPT_TEMPLATE = """\
@@ -51,6 +52,7 @@ class BriefMode(ModeStrategy):
             actions=self._format_actions(payload["actions"]),
             todos=self._format_todos(payload["todos"]),
         )
+        prompt = merge_teacher_into_prompt(prompt, cfg.get("teacher_mode"))
         max_tokens = int((cfg.get("brief") or {}).get("max_tokens", 200))
         if self.provider is None:
             return self._fallback(payload)
