@@ -1,155 +1,84 @@
-# Phase 6 Smoke Test Checklist
+# Phase 7 Slim Extension Smoke Test
 
-Manual verification for the VS Code extension. The agentic execution
-compile-checked all TypeScript and packaged the VSIX, but it could not
-launch a VS Code window or click on UI. Walk this checklist once after
-install to confirm the extension behaves end-to-end.
+Manual verification for the slimmed-down VS Code extension. The extension is now an in-editor anchor: status bar + "Open Web UI" command. The full configurability lives in the web UI (see `core/SMOKE_TEST.md`).
 
 ---
 
-## 0. Pre-flight (one-time)
+## §0 Pre-flight
 
-- [ ] Python daemon installable: `pip install -e core/`
-- [ ] Daemon starts manually: `claude-code-talker serve` runs without error and prints `endpoint: http://127.0.0.1:17832/sse`
-- [ ] Daemon shuts down cleanly: in another terminal, `claude-code-talker stop` reports `shutdown signal sent`, and the serve process exits
-- [ ] At least one voice installed (`~/.claude/scripts/piper/voices/*.onnx` or any cloud engine env var set)
+- [ ] `pip install -e core/` succeeds (daemon installable)
+- [ ] `claude-code-talker serve &` binds to `127.0.0.1:17832`
+- [ ] `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:17832/api/health` returns `200`
 
 ---
 
-## 1. Install the extension
+## §1 Install the extension
 
 ```powershell
 cd c:\Users\brand\Dropbox\OCR\Open_Circuit\codetalker
-code --install-extension extension/claude-code-talker-vscode-0.1.0.vsix
+code --install-extension extension/claude-code-talker-vscode-0.2.0.vsix
 ```
 
-- [ ] Install completes with `Extension 'claude-code-talker-vscode-0.1.0.vsix' was successfully installed.`
-- [ ] In VS Code: `Extensions` view → "Claude Code Talker" appears as enabled
-
-If you'd rather iterate on source: open `extension/` in VS Code, press F5 to launch a dev host. The rest of the checklist applies the same way.
+- [ ] Install completes with "successfully installed"
+- [ ] Reload VS Code window (Ctrl+Shift+P → "Developer: Reload Window")
 
 ---
 
-## 2. Activation + status bar
+## §2 Activation + status bar
 
-Open any VS Code window with `autoSpawnDaemon: true` (default).
-
-- [ ] Bottom-right status bar shows one of:
-  - `🔊 TTS direct` (or `brief` / `live`) — daemon online, unmuted
-  - `🔇 TTS off` — daemon online, muted
-  - `⚠ TTS offline` — daemon unreachable (note: VS Code icon font renders the `$(...)` codicons; the actual visual is a small icon, not the literal `$(unmute)` text)
-- [ ] No error toast on activation. (One warning toast `Claude TTS daemon not running` is acceptable on the *very first* activation if auto-spawn fired but the daemon needed >1.5s to bind — refresh the window once.)
-- [ ] Hovering the status bar shows a tooltip with the full `tts_status` string (`mode=…, enabled, engines=[…], providers=[…]`)
+- [ ] Bottom-right status bar shows `🔊 TTS (N)` (where N = active session count) or `🔇 TTS off` if muted
+- [ ] If daemon isn't running: `⚠ TTS offline` with tooltip showing the URL it tried
+- [ ] Hovering shows tooltip with engine list and active session count
 
 ---
 
-## 3. Status bar interaction
+## §3 Status bar interaction
 
-- [ ] Click the status bar item once — text flips between `🔊 TTS <mode>` and `🔇 TTS off` within ~2 seconds (one poll cycle)
+- [ ] Click the status bar item — flips between `🔊 TTS (N)` and `🔇 TTS off` within ~2s
 - [ ] Click again — flips back
 
-If the status bar shows `⚠ TTS offline`, the auto-spawn didn't catch. Open a terminal and run `claude-code-talker serve` manually, then run `Claude TTS: Restart Daemon` from the palette.
+---
+
+## §4 Command Palette (only 2 commands now)
+
+- [ ] `Ctrl+Shift+P` → type "Claude TTS"
+- [ ] Exactly 2 commands appear:
+  - `Claude TTS: Toggle Mute`
+  - `Claude TTS: Open Web UI`
 
 ---
 
-## 4. Command Palette (`Ctrl+Shift+P`)
+## §5 Open Web UI command
 
-Type "Claude TTS" and confirm all 10 commands are listed:
-
-- [ ] `Claude TTS: Toggle Mute`
-- [ ] `Claude TTS: Change Mode`
-- [ ] `Claude TTS: Change Voice`
-- [ ] `Claude TTS: Change Cadence (Live Mode)`
-- [ ] `Claude TTS: Change LLM Provider`
-- [ ] `Claude TTS: Change Rate`
-- [ ] `Claude TTS: Edit Workspace Config`
-- [ ] `Claude TTS: Restart Daemon`
-- [ ] `Claude TTS: View Daemon Log`
-- [ ] `Claude TTS: Run Setup Wizard`
+- [ ] Run "Claude TTS: Open Web UI" from palette
+- [ ] Default browser opens to `http://127.0.0.1:17832/ui/`
+- [ ] Web UI loads (proceed to `core/SMOKE_TEST.md` for the rich workflow)
 
 ---
 
-## 5. Each command end-to-end
+## §6 Settings round-trip
 
-### Toggle Mute
-- [ ] Status bar text updates within 2s
-
-### Change Mode
-- [ ] Quick Pick shows `direct` / `brief` / `live` with descriptions
-- [ ] Picking `live` triggers a small toast `Claude TTS mode: live`
-- [ ] Status bar updates to `🔊 TTS live` within 2s
-- [ ] Switch back to `direct`
-
-### Change Voice
-- [ ] Quick Pick shows installed voices (Piper voice slugs, plus any cloud voices the daemon knows about)
-- [ ] Picking a voice triggers `tts_speak` — you hear the voice say "This is the ⟨name⟩ voice."
-- [ ] If no voices installed, a warning toast appears
-
-### Change Cadence (Live Mode)
-- [ ] Quick Pick shows 5 strategies (periodic / per_tool_call / per_cluster / significant_only / hybrid) with descriptions
-- [ ] Picking one shows an info toast pointing you at `Edit Workspace Config` (this command is V1; the actual write goes through the editor)
-
-### Change LLM Provider
-- [ ] Quick Pick shows the providers the daemon currently knows about (e.g., `ollama`, `anthropic`, `openrouter`)
-- [ ] Picking shows an info toast pointing at `Edit Workspace Config`
-
-### Change Rate
-- [ ] InputBox prefilled with `1.05`
-- [ ] Entering `0.4` shows the validation error "must be between 0.5 and 2.0"
-- [ ] Entering `1.2` accepts and shows an info toast
-
-### Edit Workspace Config (the big one)
-- [ ] Walks through a sequence of Quick Picks: mode → voice → rate → (prose only if direct/brief) → synopsis → (cadence only if live) → code blocks → file paths → Save?
-- [ ] Picking `yes` writes `<workspace>/.claude/tts_workspace.yaml`
-- [ ] Open that file: it contains the values you just picked, in YAML
-- [ ] After save, run `Claude TTS: Restart Daemon` — status bar reflects the new mode within ~2s
-
-### Restart Daemon
-- [ ] Status bar briefly shows `⚠ TTS offline`, then returns to `🔊 TTS <mode>` within ~3s
-- [ ] Info toast `Claude TTS daemon restarted`
-
-### View Daemon Log
-- [ ] Opens `~/.claude/scripts/codetalker.log` in a new editor tab
-- [ ] If no log exists yet, an error toast tells you the path
-
-### Run Setup Wizard
-- [ ] A new integrated terminal named "Claude TTS Setup" opens
-- [ ] `claude-code-talker-setup` runs in it, printing the wizard sections (setup → daemon → modes → LLM providers → voice cloning → hook integration)
+- [ ] Open VS Code settings (Ctrl+,) → search "Claude TTS"
+- [ ] 4 settings visible: `daemonHost`, `daemonPort`, `statusBarPollIntervalMs`, `autoSpawnDaemon`
+- [ ] Change `statusBarPollIntervalMs` to 5000 → reload window → status bar refresh feels slower
+- [ ] Reset to defaults
 
 ---
 
-## 6. Settings round-trip
+## §7 Failure-mode tests
 
-Open VS Code settings (`Ctrl+,`), search "Claude TTS":
-
-- [ ] All 4 settings appear: `daemonHost`, `daemonPort`, `statusBarPollIntervalMs`, `autoSpawnDaemon`
-- [ ] Change `statusBarPollIntervalMs` to `5000`. Reload the window. Status bar refresh feels noticeably slower (~5s)
-- [ ] Set `autoSpawnDaemon` to `false`. Stop the daemon. Reload window. Status bar shows `⚠ TTS offline` (auto-spawn no longer fires)
-- [ ] Reset settings to defaults
+- [ ] Stop daemon → status bar transitions to `⚠ TTS offline` within ~2s
+- [ ] Click status bar (toggle command) → error toast; nothing crashes
+- [ ] Restart daemon → status bar recovers within ~2s
 
 ---
 
-## 7. Failure-mode tests
+## §8 Done
 
-- [ ] Stop the daemon while VS Code is open. Status bar transitions to `⚠ TTS offline` within ~2s. Restart Daemon command brings it back
-- [ ] Run a command (e.g., Toggle Mute) while the daemon is offline. An error toast appears; nothing crashes
-- [ ] Open a folder with no `.claude/` dir. Run Edit Workspace Config and pick `yes` to save — the directory is created and the YAML is written
+If all checkboxes pass, the slim extension is verified. The Phase 6 icon-not-showing bug should be gone — the activation path no longer touches the MCP SDK.
 
----
+If the icon still doesn't show, check:
+- Help menu → Toggle Developer Tools → Console for activation errors
+- Help menu → Show Logs → Extension Host for activation errors
 
-## 8. Done
-
-If all checkboxes pass: Phase 6 is verified end-to-end. Tag is already at
-`v0.6.0-phase6`. Optionally publish to the Marketplace:
-
-```powershell
-cd extension
-vsce login OpenCircuitDev
-vsce publish
-```
-
-(Requires a publisher PAT.)
-
-If anything fails: capture the symptom + the line that failed and file
-it. The extension source is small enough (~600 LOC TS) to debug quickly
-from `extension/src/`.
+Report any failures.
