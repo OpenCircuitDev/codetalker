@@ -35,3 +35,20 @@ async def test_handle_stop_proceeds_when_session_enabled():
         "cwd": "/proj/b",
     })
     assert "per-session disabled" not in result
+
+
+@pytest.mark.asyncio
+async def test_handle_notification_skipped_when_session_disabled():
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.sessions.touch("disabled-sid")
+    state.sessions.get("disabled-sid").enabled = False
+    captured = []
+    state.audio_queue.submit = lambda job: captured.append(job)
+
+    result = await server.call_tool("tts_handle_notification", {
+        "session_id": "disabled-sid",
+        "message": "hello",
+    })
+    assert "skipped: per-session disabled" in result
+    assert len(captured) == 0

@@ -376,6 +376,9 @@ def register_tools(server, state) -> None:
         from claude_code_talker.hooks import handle_notification
         session_id = args.get("session_id") or "_unknown"
         state.sessions.touch(session_id)
+        s = state.sessions.get(session_id)
+        if s is not None and not s.enabled:
+            return "skipped: per-session disabled"
         cfg = state.sessions.config_for(session_id)
         text = handle_notification(
             payload={"message": args.get("message", "")},
