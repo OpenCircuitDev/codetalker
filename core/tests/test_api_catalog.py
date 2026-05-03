@@ -216,3 +216,30 @@ async def test_put_invalid_session_id_400(app):
             "attached_profile": None, "display_name": None, "last_modified": 1.0,
         })
     assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_persistent_session_removes_file(app):
+    application, state = app
+    state.persistent_sessions.save("to-delete", {
+        "live_overlay": {}, "enabled": True,
+        "attached_profile": None, "display_name": None, "last_modified": 1.0,
+    })
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.delete("/api/persistent-sessions/to-delete")
+    assert r.status_code == 200
+    assert r.json() == {"deleted": True}
+    assert not state.persistent_sessions.exists("to-delete")
+
+
+@pytest.mark.asyncio
+async def test_delete_persistent_session_missing_is_ok(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.delete("/api/persistent-sessions/never-saved")
+    assert r.status_code == 200
+    assert r.json() == {"deleted": False}

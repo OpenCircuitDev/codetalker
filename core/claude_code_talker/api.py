@@ -342,12 +342,21 @@ def build_routes(state) -> list[Route]:
         state.persistent_sessions.save(sid, payload)
         return JSONResponse({"saved": True, "session_id": sid})
 
+    async def delete_persistent_session(request: Request) -> JSONResponse:
+        sid = request.path_params["session_id"]
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session_id: {sid!r}")
+        existed = state.persistent_sessions.exists(sid)
+        state.persistent_sessions.delete(sid)
+        return JSONResponse({"deleted": existed})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
         Route("/api/persistent-sessions/{session_id}", put_persistent_session, methods=["PUT"]),
+        Route("/api/persistent-sessions/{session_id}", delete_persistent_session, methods=["DELETE"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),
