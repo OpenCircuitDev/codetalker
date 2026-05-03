@@ -157,3 +157,39 @@ def test_scan_does_not_cap_when_under_limit(tmp_path):
     c = SessionCatalog(projects_dir=tmp_path, max_entries=500)
     c.scan()
     assert len(c.entries()) == 3
+
+
+def test_refresh_picks_up_new_files(tmp_path):
+    d = tmp_path / "C--proj"
+    d.mkdir()
+    (d / "first.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    assert len(c.entries()) == 1
+    # Add another transcript
+    (d / "second.jsonl").write_text("")
+    c.refresh()
+    assert len(c.entries()) == 2
+
+
+def test_watcher_starts_and_stops(tmp_path):
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.start_watcher(interval_seconds=0.05)
+    assert c._watcher_thread is not None
+    assert c._watcher_thread.is_alive()
+    c.stop_watcher()
+    time.sleep(0.1)
+    assert not c._watcher_thread.is_alive()
+
+
+def test_watcher_picks_up_new_files(tmp_path):
+    d = tmp_path / "C--proj"
+    d.mkdir()
+    (d / "first.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path)
+    c.scan()
+    c.start_watcher(interval_seconds=0.05)
+    (d / "second.jsonl").write_text("")
+    time.sleep(0.2)  # allow watcher to refresh
+    c.stop_watcher()
+    assert len(c.entries()) == 2

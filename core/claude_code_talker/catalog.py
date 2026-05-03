@@ -26,6 +26,8 @@ class SessionCatalog:
         self._max_entries = max_entries
         self._entries: dict[str, CatalogEntry] = {}
         self._lock = threading.RLock()
+        self._watcher_thread: threading.Thread | None = None
+        self._watcher_stop = threading.Event()
 
     def entries(self) -> list[CatalogEntry]:
         with self._lock:
@@ -71,6 +73,35 @@ class SessionCatalog:
         with self._lock:
             self._entries = new_entries
         return len(new_entries)
+
+    def refresh(self) -> int:
+        """Alias for scan(). Used by watcher loop and the API refresh endpoint."""
+        return self.scan()
+
+    def start_watcher(self, *, interval_seconds: float = 30.0) -> None:
+        """Start a background thread that re-scans on a timer."""
+        if self._watcher_thread is not None and self._watcher_thread.is_alive():
+            return
+        self._watcher_stop.clear()
+
+        def _run():
+            while not self._watcher_stop.wait(interval_seconds):
+                try:
+                    self.refresh()
+                except Exception:
+                    import logging
+                    logging.warning("catalog watcher iteration failed", exc_info=True)
+
+        self._watcher_thread = threading.Thread(
+            target=_run, daemon=True, name="codetalker-catalog-watcher"
+        )
+        self._watcher_thread.start()
+
+    def stop_watcher(self) -> None:
+        self._watcher_stop.set()
+        t = self._watcher_thread
+        if t is not None:
+            t.join(timeout=2.0)
 
     def _slug_from_folder(self, folder_name: str) -> str:
         """Derive a project display slug from the encoded folder name.
