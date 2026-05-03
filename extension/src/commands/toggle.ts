@@ -8,7 +8,7 @@ export function registerToggle(context: vscode.ExtensionContext, refresh: () => 
       const port = cfg.get<number>("daemonPort", 17832);
       const baseUrl = `http://${host}:${port}`;
       try {
-        const status = await (await fetch(baseUrl + "/api/status")).json();
+        const status = (await (await fetch(baseUrl + "/api/status")).json()) as { enabled: boolean };
         const next = status.enabled ? "/api/mute" : "/api/unmute";
         await fetch(baseUrl + next, { method: "POST" });
         await refresh();
