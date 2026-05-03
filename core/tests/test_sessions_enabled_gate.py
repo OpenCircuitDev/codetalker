@@ -52,3 +52,21 @@ async def test_handle_notification_skipped_when_session_disabled():
     })
     assert "skipped: per-session disabled" in result
     assert len(captured) == 0
+
+
+@pytest.mark.asyncio
+async def test_handle_pretool_skipped_and_no_event_buffer_push_when_disabled():
+    state = build_server_state()
+    server = build_mcp_server(state)
+    state.sessions.touch("disabled-sid", cwd="/proj/c")
+    state.sessions.get("disabled-sid").enabled = False
+    initial_buffer_size = len(state.event_buffer.recent(1000))
+
+    result = await server.call_tool("tts_handle_pretool", {
+        "session_id": "disabled-sid",
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "x.py"},
+        "cwd": "/proj/c",
+    })
+    assert "skipped: per-session disabled" in result
+    assert len(state.event_buffer.recent(1000)) == initial_buffer_size
