@@ -1,11 +1,24 @@
 import * as vscode from "vscode";
-import { CodeTalkerClient } from "./mcpClient";
+
+interface StatusResponse {
+  enabled: boolean;
+  session_count: number;
+  active_modes: Record<string, string>;
+  engines: string[];
+  providers: string[];
+}
 
 export class StatusBar {
   private item: vscode.StatusBarItem;
   private interval?: NodeJS.Timeout;
+  private baseUrl: string;
 
-  constructor(private client: CodeTalkerClient) {
+  constructor() {
+    const cfg = vscode.workspace.getConfiguration("claudeTts");
+    const host = cfg.get<string>("daemonHost", "127.0.0.1");
+    const port = cfg.get<number>("daemonPort", 17832);
+    this.baseUrl = `http://${host}:${port}`;
+
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.item.command = "claude-tts.toggle";
     this.item.show();
@@ -22,26 +35,21 @@ export class StatusBar {
   }
 
   async refresh() {
-    if (!this.client.isConnected()) {
-      this.item.text = "$(warning) TTS offline";
-      this.item.tooltip = "Daemon not reachable. Click to attempt connection.";
-      return;
-    }
     try {
-      const status = await this.client.callTool("tts_status");
-      // Parse: "mode=monitor, enabled, engines=[...], providers=[...]"
-      const isMuted = status.includes("muted");
-      const modeMatch = status.match(/mode=(\w+)/);
-      const mode = modeMatch ? modeMatch[1] : "?";
-      if (isMuted) {
+      const res = await fetch(this.baseUrl + "/api/status");
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const status = (await res.json()) as StatusResponse;
+      if (!status.enabled) {
         this.item.text = "$(mute) TTS off";
+        this.item.tooltip = `${status.session_count} session(s); muted`;
       } else {
-        this.item.text = `$(unmute) TTS ${mode}`;
+        const sessionCount = status.session_count;
+        this.item.text = `$(unmute) TTS (${sessionCount})`;
+        this.item.tooltip = `${sessionCount} active session(s); engines: ${status.engines.join(", ")}`;
       }
-      this.item.tooltip = status;
     } catch (e) {
-      this.item.text = "$(warning) TTS error";
-      this.item.tooltip = `Error: ${e}`;
+      this.item.text = "$(warning) TTS offline";
+      this.item.tooltip = `Daemon not reachable at ${this.baseUrl}`;
     }
   }
 }
