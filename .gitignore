@@ -12,3 +12,4 @@ venv/
 core/claude_code_talker/_version.py
 .coverage
 htmlcov/
+.superpowers/

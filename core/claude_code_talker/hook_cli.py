@@ -88,6 +88,16 @@ async def dispatch_hook(payload: dict) -> None:
 
 def main():
     raw = sys.stdin.read()
+    # Debug: every invocation appended to ~/.claude/scripts/codetalker_hook_invocations.log
+    try:
+        from pathlib import Path
+        import time
+        log = Path.home() / ".claude" / "scripts" / "codetalker_hook_invocations.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as f:
+            f.write(f"{time.time():.3f} stdin_bytes={len(raw)} preview={raw[:200]!r}\n")
+    except Exception:
+        pass
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:

@@ -158,15 +158,13 @@
       const li = document.createElement("li");
       li.className = "profile-item";
       const name = document.createElement("span");
+      name.className = "profile-name";
       name.textContent = p.name;
+      name.title = p.name;
       const del = document.createElement("button");
+      del.className = "profile-delete";
       del.textContent = "✕";
       del.title = "Delete profile";
-      del.style.marginLeft = "auto";
-      del.style.background = "none";
-      del.style.border = "none";
-      del.style.color = "var(--text-muted)";
-      del.style.cursor = "pointer";
       del.onclick = async (e) => {
         e.stopPropagation();
         if (!confirm("Delete profile '" + p.name + "'? Sessions using it will be detached.")) return;
@@ -178,8 +176,6 @@
           toast("Delete failed: " + err.message, "error");
         }
       };
-      li.style.display = "flex";
-      li.style.alignItems = "center";
       li.appendChild(name);
       li.appendChild(del);
       list.appendChild(li);
