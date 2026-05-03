@@ -429,6 +429,9 @@ def register_tools(server, state) -> None:
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
         state.sessions.touch(session_id, cwd=cwd)
+        s = state.sessions.get(session_id)
+        if s is not None and not s.enabled:
+            return "skipped: per-session disabled"
         cfg = state.sessions.config_for(session_id)
         keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         response = args.get("tool_response", {}) or {}
