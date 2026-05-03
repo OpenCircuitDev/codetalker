@@ -5,7 +5,35 @@ from unittest.mock import AsyncMock, MagicMock
 from claude_code_talker.virtual_eval.aggregator import AggregateReport
 from claude_code_talker.virtual_eval.auto_tuner import (
     propose_tuning, TUNABLE_FIELDS, MAX_FIELDS_PER_PASS, parse_tuning_response,
+    TUNING_PROMPT_TEMPLATE,
 )
+
+
+def test_tuning_prompt_template_includes_signal_to_knob_rubric():
+    # The template should explicitly help the LLM map signal types to knobs
+    assert "Signal" in TUNING_PROMPT_TEMPLATE or "rubric" in TUNING_PROMPT_TEMPLATE.lower()
+    # Specifically: the missing-context-about-filenames signal should NOT default
+    # to verbosity. Make sure the rubric calls this out.
+    assert "prompt_directive_extras" in TUNING_PROMPT_TEMPLATE
+    assert "verbosity" in TUNING_PROMPT_TEMPLATE
+
+
+def test_tuning_prompt_template_warns_against_verbosity_for_content_gaps():
+    """The template must explicitly tell the LLM not to pick verbosity when
+    the signal is missing-content (filenames, commands, outcomes)."""
+    template = TUNING_PROMPT_TEMPLATE.lower()
+    # Some phrasing along the lines of: missing concrete details → directive
+    assert ("missing context" in template or "missing-context" in template)
+    # And explicitly: don't pick verbosity for content gaps
+    assert "content" in template or "concrete" in template
+
+
+def test_tuning_prompt_template_maps_jargon_to_glossary_or_extras():
+    """Personas flagging specific terms → glossary OR prompt_directive_extras
+    (definition snippet), not verbosity/depth."""
+    template = TUNING_PROMPT_TEMPLATE.lower()
+    # Should mention glossary / substitution / definition for jargon
+    assert ("glossary" in template and ("jargon" in template or "term" in template))
 
 
 def test_tunable_fields_locked():

@@ -46,9 +46,38 @@ VIRTUAL USER EVAL REPORT:
 - Expectation gaps (where personas got something different than they expected):
 {expectation_gaps}
 
-Your job: propose AT MOST {max_fields} field changes to the teacher_mode
-config that would address the systemic issues. Do NOT propose changes that
-won't measurably help. If everything looks fine, propose ZERO changes.
+SIGNAL -> KNOB RUBRIC (use this to pick the RIGHT lever for what's broken):
+
+- Missing-context complaints about WHICH FILE / WHICH COMMAND / WHAT OUTCOME ->
+  the gap is content, not length. Use prompt_directive_extras with a clear
+  instruction to name the specific file, command, or outcome. Do NOT use
+  verbosity here — making narrations longer without adding the missing concrete
+  detail doesn't help.
+
+- Specific terms flagged as confusing by 3+ personas -> glossary: true (so the
+  narrator defines them inline) OR prompt_directive_extras with a one-liner
+  explaining what the term refers to in context. Don't pick verbosity for
+  jargon issues.
+
+- Personas asking for plainer language / saying jargon load is high (>3.0) ->
+  depth_level += 1 (beginner-friendlier audience framing) AND/OR substitution:
+  true. Verbosity controls length, not accessibility.
+
+- Personas asking for MORE detail per narration / saying narrations feel
+  truncated -> verbosity: expanded.
+
+- Personas asking for LESS detail / saying narrations feel verbose -> verbosity:
+  concise.
+
+- Personas confused by combined-file narrations ("I couldn't tell which file
+  the change went into") -> granularity: per-file.
+
+- Personas confused by missing teaching framing ("I don't know why this
+  matters") -> reframe: true.
+
+If none of these apply (overall scores look healthy across all dimensions),
+propose ZERO changes. The strongest signal is what to focus on FIRST — propose
+no more than {max_fields} changes per pass.
 
 Allowed field names + value constraints:
 - depth_level: integer 1-5 (1=expert audience, 5=full beginner)
