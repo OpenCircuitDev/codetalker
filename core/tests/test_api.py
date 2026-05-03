@@ -419,13 +419,14 @@ async def test_install_hooks_creates_settings_when_absent(app, tmp_path, monkeyp
     assert r.status_code == 200
     body = r.json()
     assert body["installed"] is True
-    assert body["hooks_added"] == 4
+    assert body["hooks_added"] == 5
     data = json.loads(settings_path.read_text(encoding="utf-8"))
     assert "hooks" in data
     assert "Stop" in data["hooks"]
     assert "Notification" in data["hooks"]
     assert "PreToolUse" in data["hooks"]
     assert "PostToolUse" in data["hooks"]
+    assert "UserPromptSubmit" in data["hooks"]
 
 
 @pytest.mark.asyncio

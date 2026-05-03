@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.providers.base import LLMProvider
-from claude_code_talker.teacher_mode import merge_teacher_into_prompt
+from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 
 
 BRIEF_PROMPT_TEMPLATE = """\
@@ -53,7 +53,10 @@ class BriefMode(ModeStrategy):
             todos=self._format_todos(payload["todos"]),
         )
         prompt = merge_teacher_into_prompt(prompt, cfg.get("teacher_mode"))
-        max_tokens = int((cfg.get("brief") or {}).get("max_tokens", 200))
+        # Teacher.verbosity overrides the brief.max_tokens default when on.
+        # Brief mode default is 200; teacher.expanded bumps to 320.
+        teacher_cfg = cfg.get("teacher_mode")
+        max_tokens = max_tokens_for(teacher_cfg, default=int((cfg.get("brief") or {}).get("max_tokens", 200)))
         if self.provider is None:
             return self._fallback(payload)
         try:

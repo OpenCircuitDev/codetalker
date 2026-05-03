@@ -221,6 +221,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         audio_queue=state.audio_queue,
         cfg=cfg,
         narration_log=state.narration_log,
+        sessions=state.sessions,
     )
     return state
 
@@ -421,6 +422,69 @@ def register_tools(server, state) -> None:
         ))
         return f"queued: {len(text)} chars"
 
+    async def tts_handle_user_prompt_submit(args):
+        import time as _t
+        from claude_code_talker.hooks import handle_user_prompt_submit
+        session_id = args.get("session_id") or args.get("cwd") or "_unknown"
+        cwd = args.get("cwd", "")
+        state.sessions.touch(session_id, cwd=cwd)
+        s = state.sessions.get(session_id)
+        if s is not None and not s.enabled:
+            return "skipped: per-session disabled"
+        cfg = state.sessions.config_for(session_id)
+        # Push USER_PROMPT into the live buffer so subsequent tool events have
+        # the user's intent as context for WHY-focused narration.
+        prompt_text = args.get("prompt", "") or ""
+        if prompt_text:
+            state.event_buffer.push(Event(
+                timestamp=_t.time(),
+                type="USER_PROMPT",
+                metadata={"text": prompt_text[:500], "session_id": session_id},
+                significance=0.9,
+            ))
+        provider = _select_provider(state, "brief")  # cheap+fast for one-sentence brief
+        text = await handle_user_prompt_submit(
+            payload={"prompt": args.get("prompt", "")},
+            cfg=cfg, provider=provider,
+        )
+        if not text:
+            return "skipped: no text"
+        # Tag LiveMode for audit log routing
+        live = state.modes.get("live")
+        if live is not None:
+            live._current_session_id = session_id
+        engine_name = (cfg.get("voice") or {}).get("engine", "piper")
+        engine = state.engines.get(engine_name)
+        voice = (cfg.get("voice") or {}).get("model")
+        rate = float((cfg.get("voice") or {}).get("rate", 1.0))
+        if not voice:
+            voices = engine.list_voices() if engine else []
+            if not voices:
+                return "skipped: no voices"
+            voice = voices[0]
+        from claude_code_talker.audio import AudioJob
+        state.audio_queue.submit(AudioJob(
+            text=text, voice=voice, rate=rate, engine_name=engine_name,
+            audio_format=getattr(engine, "audio_format", "wav"),
+            priority="normal",
+        ))
+        # Also log to narration audit
+        if state.narration_log is not None:
+            try:
+                from claude_code_talker.narration_log import NarrationEntry
+                state.narration_log.append(NarrationEntry(
+                    timestamp=__import__("time").time(),
+                    session_id=session_id,
+                    text=text,
+                    voice=voice or "",
+                    engine=engine_name or "",
+                    mode="prompt-brief",
+                    priority="normal",
+                ))
+            except Exception:
+                pass
+        return f"queued: {len(text)} chars"
+
     async def tts_handle_notification(args):
         from claude_code_talker.hooks import handle_notification
         session_id = args.get("session_id") or "_unknown"
@@ -513,6 +577,11 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
     server.register(MCPTool("tts_handle_stop", "Handle a Stop hook event.", tts_handle_stop))
     server.register(MCPTool("tts_handle_notification", "Handle a Notification hook event.", tts_handle_notification))
+    server.register(MCPTool(
+        "tts_handle_user_prompt_submit",
+        "Handle a UserPromptSubmit hook event: narrate one-sentence brief of what the user just asked.",
+        tts_handle_user_prompt_submit,
+    ))
     server.register(MCPTool("tts_handle_pretool",
                             "Record a PreToolUse event into the rolling buffer.",
                             tts_handle_pretool))

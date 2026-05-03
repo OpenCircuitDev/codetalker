@@ -136,6 +136,17 @@
         </label>
         <label>Depth level (1=expert, 5=full beginner): <span id="teacher-depth-display">3</span></label>
         <input type="range" id="teacher-depth" min="1" max="5" step="1" value="3">
+        <label>Verbosity</label>
+        <select id="teacher-verbosity">
+          <option value="concise">Concise (≤30 words / ~1 sentence)</option>
+          <option value="standard">Standard (≤70 words / 2-3 sentences)</option>
+          <option value="expanded">Expanded (≤150 words / short paragraph)</option>
+        </select>
+        <label>Granularity (how teacher mode handles multi-file edits)</label>
+        <select id="teacher-granularity">
+          <option value="combined">Combined (group related edits into one explanation)</option>
+          <option value="per-file">Per-file (one clause/sentence per file edit)</option>
+        </select>
         <label class="checkbox-row">
           <input type="checkbox" id="teacher-substitution"> Substitute jargon for plain English
         </label>

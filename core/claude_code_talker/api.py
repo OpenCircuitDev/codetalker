@@ -33,7 +33,7 @@ def _rate_limit_check(state, key: str, min_interval: float) -> bool:
     _REFRESH_LAST_AT[bucket_key] = now
     return True
 
-_HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse"]
+_HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse", "UserPromptSubmit"]
 _HOOK_ENTRY = {
     "hooks": [
         {"type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": True}
@@ -705,16 +705,16 @@ def build_routes(state) -> list[Route]:
     async def put_teacher(request: Request) -> JSONResponse:
         """Update the global teacher_mode cfg block. Per-session overrides set
         via the existing /api/sessions/<sid>/overlay endpoint with key
-        'teacher_mode'."""
+        'teacher_mode'.
+
+        Accepts: enabled, depth_level (1-5), substitution, glossary, reframe,
+        verbosity (concise|standard|expanded), granularity (combined|per-file).
+        """
         try:
             body = await _read_json(request)
         except ValueError as e:
             return _bad_request(str(e))
-        # Validate types
-        for key, expected_type in (
-            ("enabled", bool), ("substitution", bool),
-            ("glossary", bool), ("reframe", bool),
-        ):
+        for key in ("enabled", "substitution", "glossary", "reframe"):
             if key in body and not isinstance(body[key], bool):
                 return _bad_request(f"{key} must be a boolean")
         if "depth_level" in body:
@@ -725,12 +725,34 @@ def build_routes(state) -> list[Route]:
             if not 1 <= depth <= 5:
                 return _bad_request("depth_level must be 1-5")
             body["depth_level"] = depth
+        if "verbosity" in body and body["verbosity"] not in ("concise", "standard", "expanded"):
+            return _bad_request("verbosity must be concise/standard/expanded")
+        if "granularity" in body and body["granularity"] not in ("combined", "per-file"):
+            return _bad_request("granularity must be combined/per-file")
         current = state.cfg.get("teacher_mode") or {}
         current.update({k: v for k, v in body.items()
                        if k in ("enabled", "depth_level", "substitution",
-                                "glossary", "reframe")})
+                                "glossary", "reframe", "verbosity", "granularity")})
         state.cfg["teacher_mode"] = current
-        # Invalidate per-session cached cfgs so the new teacher block flows
+        # Persist to overlay so it survives daemon restart.
+        try:
+            import yaml as _yaml
+            from pathlib import Path as _P
+            p = _P.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            existing = {}
+            if p.exists():
+                try:
+                    existing = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                except Exception:
+                    existing = {}
+            if not isinstance(existing, dict):
+                existing = {}
+            existing["teacher_mode"] = current
+            p.write_text(_yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
+        except Exception:
+            pass
+        # Invalidate per-session cached cfgs so the new teacher block flows.
         for s in state.sessions.list_active():
             state.sessions.invalidate(s.session_id)
         return JSONResponse(current)

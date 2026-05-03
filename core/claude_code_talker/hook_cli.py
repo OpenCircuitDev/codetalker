@@ -57,6 +57,9 @@ async def dispatch_hook(payload: dict) -> None:
     elif event == "Notification":
         tool_args = {**common, "message": payload.get("message", "")}
         tool_name = "tts_handle_notification"
+    elif event == "UserPromptSubmit":
+        tool_args = {**common, "prompt": payload.get("prompt", "")}
+        tool_name = "tts_handle_user_prompt_submit"
     elif event == "PreToolUse":
         tool_args = {
             **common,

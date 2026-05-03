@@ -367,11 +367,26 @@
 
   TAB_RENDERERS.teacher = function(pane, s, cfg) {
     const t = (cfg.teacher_mode || {});
+    const enabled = t.enabled !== false;  // default true
+    const depth = t.depth_level || 3;
+    const verbosity = t.verbosity || 'concise';
+    const granularity = t.granularity || 'combined';
     pane.innerHTML = `
       <p class="muted">Reshape narration for the listener. Per-session overrides the global setting.</p>
-      <label class="checkbox-row"><input type="checkbox" id="t-enabled" ${t.enabled ? 'checked' : ''}> Enable teacher mode</label>
-      <label>Depth (1=expert ↔ 5=full beginner): <span id="t-depth-display">${t.depth_level || 3}</span></label>
-      <input type="range" id="t-depth" min="1" max="5" step="1" value="${t.depth_level || 3}">
+      <label class="checkbox-row"><input type="checkbox" id="t-enabled" ${enabled ? 'checked' : ''}> Enable teacher mode</label>
+      <label>Depth (1=expert ↔ 5=full beginner): <span id="t-depth-display">${depth}</span></label>
+      <input type="range" id="t-depth" min="1" max="5" step="1" value="${depth}">
+      <label>Verbosity</label>
+      <select id="t-verbosity">
+        <option value="concise" ${verbosity === 'concise' ? 'selected' : ''}>Concise (~30 words)</option>
+        <option value="standard" ${verbosity === 'standard' ? 'selected' : ''}>Standard (~70 words)</option>
+        <option value="expanded" ${verbosity === 'expanded' ? 'selected' : ''}>Expanded (~150 words)</option>
+      </select>
+      <label>Granularity (multi-file edits)</label>
+      <select id="t-granularity">
+        <option value="combined" ${granularity === 'combined' ? 'selected' : ''}>Combined</option>
+        <option value="per-file" ${granularity === 'per-file' ? 'selected' : ''}>Per-file</option>
+      </select>
       <label class="checkbox-row"><input type="checkbox" id="t-substitution" ${t.substitution ? 'checked' : ''}> Substitute jargon</label>
       <label class="checkbox-row"><input type="checkbox" id="t-glossary" ${t.glossary ? 'checked' : ''}> Inline glossary</label>
       <label class="checkbox-row"><input type="checkbox" id="t-reframe" ${t.reframe ? 'checked' : ''}> Reframe as teaching moments</label>
@@ -381,6 +396,8 @@
         teacher_mode: {
           enabled: document.getElementById('t-enabled').checked,
           depth_level: parseInt(document.getElementById('t-depth').value, 10),
+          verbosity: document.getElementById('t-verbosity').value,
+          granularity: document.getElementById('t-granularity').value,
           substitution: document.getElementById('t-substitution').checked,
           glossary: document.getElementById('t-glossary').checked,
           reframe: document.getElementById('t-reframe').checked,
@@ -399,7 +416,7 @@
         await poll();
       } catch (e) { toast("Save failed: " + e.message, "error"); }
     };
-    pane.querySelectorAll('input').forEach(el => {
+    pane.querySelectorAll('input, select').forEach(el => {
       el.onchange = persistTeacher;
       if (el.id === 't-depth') {
         el.oninput = () => { document.getElementById('t-depth-display').textContent = el.value; };
@@ -673,9 +690,11 @@
   async function loadTeacherPane() {
     try {
       const t = await api("/teacher");
-      document.getElementById('teacher-enabled').checked = !!t.enabled;
+      document.getElementById('teacher-enabled').checked = t.enabled !== false;
       document.getElementById('teacher-depth').value = t.depth_level || 3;
       document.getElementById('teacher-depth-display').textContent = t.depth_level || 3;
+      document.getElementById('teacher-verbosity').value = t.verbosity || 'concise';
+      document.getElementById('teacher-granularity').value = t.granularity || 'combined';
       document.getElementById('teacher-substitution').checked = !!t.substitution;
       document.getElementById('teacher-glossary').checked = !!t.glossary;
       document.getElementById('teacher-reframe').checked = !!t.reframe;
@@ -686,6 +705,8 @@
         const body = {
           enabled: document.getElementById('teacher-enabled').checked,
           depth_level: parseInt(document.getElementById('teacher-depth').value, 10),
+          verbosity: document.getElementById('teacher-verbosity').value,
+          granularity: document.getElementById('teacher-granularity').value,
           substitution: document.getElementById('teacher-substitution').checked,
           glossary: document.getElementById('teacher-glossary').checked,
           reframe: document.getElementById('teacher-reframe').checked,
