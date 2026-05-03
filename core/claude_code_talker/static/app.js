@@ -56,6 +56,16 @@
       state.sessions = sessions;
       state.profiles = profiles;
       state.enabled = status.enabled;
+      // Lazy-load voices for engines we haven't seen
+      for (const eng of status.engines || []) {
+        if (!state.voicesByEngine[eng]) {
+          try {
+            state.voicesByEngine[eng] = await api("/voices?engine=" + encodeURIComponent(eng));
+          } catch (e) {
+            state.voicesByEngine[eng] = [];
+          }
+        }
+      }
       if (state.offline) {
         state.offline = false;
         toast("Daemon reconnected", "success");
@@ -177,7 +187,84 @@
     document.querySelector(`.tab[data-tab="${state.activeTab}"]`).classList.add("active");
     const pane = document.querySelector(`.tab-pane[data-pane="${state.activeTab}"]`);
     pane.classList.add("active");
-    // Pane content rendering lands in tasks 26-29; this just shows the pane.
+    pane.innerHTML = "";
+    const renderer = TAB_RENDERERS[state.activeTab];
+    if (renderer) renderer(pane, s, cfg);
+  }
+
+  // Pane renderers — populated as each tab task lands.
+  const TAB_RENDERERS = {};
+
+  TAB_RENDERERS.quick = function(pane, s, cfg) {
+    const voiceCfg = cfg.voice || {};
+    pane.appendChild(makeFieldSelect("Mode", "active_mode",
+      ["direct", "brief", "live"], cfg.active_mode || "direct", s.session_id));
+    pane.appendChild(makeFieldSelect("Voice", "voice.model",
+      voicesForEngine(voiceCfg.engine || "piper"),
+      voiceCfg.model || "(none)", s.session_id));
+    const playRow = makeFieldRow("Sample");
+    const btn = document.createElement("button");
+    btn.textContent = "▶ Play sample";
+    btn.onclick = () => playSample(s.session_id);
+    playRow.querySelector(".field-control").appendChild(btn);
+    pane.appendChild(playRow);
+  };
+
+  function voicesForEngine(engine) {
+    return state.voicesByEngine[engine] || ["(loading…)"];
+  }
+
+  function makeFieldRow(label) {
+    const row = document.createElement("div");
+    row.className = "field";
+    const lab = document.createElement("label");
+    lab.textContent = label;
+    const ctrl = document.createElement("div");
+    ctrl.className = "field-control";
+    row.appendChild(lab);
+    row.appendChild(ctrl);
+    return row;
+  }
+
+  function makeFieldSelect(label, keypath, options, current, sessionId) {
+    const row = makeFieldRow(label);
+    const sel = document.createElement("select");
+    for (const o of options) {
+      const opt = document.createElement("option");
+      opt.value = o;
+      opt.textContent = o;
+      if (o === current) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.onchange = () => updateOverlayKeypath(sessionId, keypath, sel.value);
+    row.querySelector(".field-control").appendChild(sel);
+    return row;
+  }
+
+  async function updateOverlayKeypath(sessionId, keypath, value) {
+    const partial = setNested({}, keypath, value);
+    try {
+      await api("/sessions/" + sessionId + "/overlay",
+                { method: "PUT", body: partial });
+      await poll();
+    } catch (e) {
+      toast("Update failed: " + e.message, "error");
+    }
+  }
+
+  function setNested(obj, keypath, value) {
+    const parts = keypath.split(".");
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      cur[parts[i]] = cur[parts[i]] || {};
+      cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = value;
+    return obj;
+  }
+
+  async function playSample(sessionId) {
+    toast("Sample playback wires up in next task (uses a forthcoming /api/sessions/<id>/speak-sample endpoint)", "info");
   }
 
   async function detachProfile(sessionId) {
