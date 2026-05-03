@@ -73,3 +73,10 @@ def test_select_returns_empty_when_log_empty(tmp_path):
     log = NarrationLog(log_path=tmp_path / "narration.jsonl")
     req = EvalRequest()
     assert select_narration_sample(log, req) == []
+
+
+def test_select_cap_zero_returns_empty(populated_log):
+    """max_narrations=0 yields an empty sample (defensive boundary)."""
+    req = EvalRequest(max_narrations=0, deployed_at=0.0)
+    sample = select_narration_sample(populated_log, req)
+    assert sample == []
