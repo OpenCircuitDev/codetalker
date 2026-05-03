@@ -131,3 +131,56 @@ def load_full_config(global_path: Path | None = None, cwd: str | None = None) ->
         except (OSError, yaml.YAMLError):
             pass
     return cfg
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped resolver (imports at bottom to avoid circular imports)
+# ---------------------------------------------------------------------------
+
+import copy  # noqa: E402
+import logging  # noqa: E402
+
+from claude_code_talker.sessions import SessionState  # noqa: E402
+from claude_code_talker.profiles import ProfileStore  # noqa: E402
+
+
+def resolve_for_session(
+    base_cfg: dict,
+    session: SessionState,
+    profile_store: ProfileStore,
+) -> dict:
+    """Merge base_cfg → profile (if attached) → session.live_overlay.
+
+    base_cfg is the existing preset → global → workspace merge.
+    Caches the resolved dict on session.cached_cfg; returns the cache on
+    subsequent calls. Caller must invalidate via SessionRegistry.invalidate
+    when overlay or attached_profile changes.
+    """
+    if session.cached_cfg is not None:
+        return session.cached_cfg
+
+    resolved = copy.deepcopy(base_cfg)
+
+    if session.attached_profile:
+        try:
+            profile_content = profile_store.get(session.attached_profile)
+            _deep_merge_inplace(resolved, profile_content)
+        except FileNotFoundError:
+            logging.warning(
+                "session %s references missing profile %s; falling through",
+                session.session_id, session.attached_profile,
+            )
+
+    if session.live_overlay:
+        _deep_merge_inplace(resolved, session.live_overlay)
+
+    session.cached_cfg = resolved
+    return resolved
+
+
+def _deep_merge_inplace(base: dict, overlay: dict) -> None:
+    for k, v in overlay.items():
+        if k in base and isinstance(base[k], dict) and isinstance(v, dict):
+            _deep_merge_inplace(base[k], v)
+        else:
+            base[k] = v
