@@ -21,3 +21,57 @@ def test_registry_starts_empty():
 def test_registry_get_missing_returns_none():
     r = SessionRegistry()
     assert r.get("nope") is None
+
+
+def test_touch_creates_session():
+    r = SessionRegistry()
+    r.touch("abc", cwd="/proj/a", transcript_path="/t/abc.jsonl")
+    s = r.get("abc")
+    assert s is not None
+    assert s.cwd == "/proj/a"
+    assert s.transcript_path == "/t/abc.jsonl"
+    assert s.last_hook_at > 0
+
+
+def test_touch_updates_last_hook_at():
+    r = SessionRegistry()
+    r.touch("abc")
+    first = r.get("abc").last_hook_at
+    time.sleep(0.01)
+    r.touch("abc")
+    second = r.get("abc").last_hook_at
+    assert second > first
+
+
+def test_touch_preserves_overlay_and_profile():
+    r = SessionRegistry()
+    r.touch("abc", cwd="/p")
+    s = r.get("abc")
+    s.live_overlay = {"voice": {"model": "marvin"}}
+    s.attached_profile = "verbose-marvin"
+    r.touch("abc", cwd="/p")  # second touch — must NOT reset overlay/profile
+    s2 = r.get("abc")
+    assert s2.live_overlay == {"voice": {"model": "marvin"}}
+    assert s2.attached_profile == "verbose-marvin"
+
+
+def test_expire_idle_drops_old_sessions():
+    r = SessionRegistry()
+    r.touch("old")
+    r.get("old").last_hook_at = time.time() - 10_000  # very old
+    r.touch("fresh")
+    r.expire_idle(max_idle_seconds=60)
+    assert r.get("old") is None
+    assert r.get("fresh") is not None
+
+
+def test_eviction_caps_at_max_active():
+    r = SessionRegistry(max_active=3)
+    for i, sid in enumerate(["a", "b", "c", "d"]):
+        r.touch(sid)
+        time.sleep(0.005)  # ensure ordering by last_hook_at
+    # "a" is oldest; should be evicted on insert of "d"
+    assert r.get("a") is None
+    assert r.get("b") is not None
+    assert r.get("c") is not None
+    assert r.get("d") is not None

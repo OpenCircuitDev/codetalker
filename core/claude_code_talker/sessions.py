@@ -35,3 +35,36 @@ class SessionRegistry:
     def list_active(self) -> list[SessionState]:
         with self._lock:
             return list(self._sessions.values())
+
+    def touch(self, session_id: str, *, cwd: str = "", transcript_path: str = "") -> SessionState:
+        """Create-or-update a session. Updates last_hook_at; preserves overlay/profile."""
+        import time
+        with self._lock:
+            s = self._sessions.get(session_id)
+            if s is None:
+                self._evict_oldest_if_full_locked()
+                s = SessionState(session_id=session_id)
+                self._sessions[session_id] = s
+            if cwd:
+                s.cwd = cwd
+            if transcript_path:
+                s.transcript_path = transcript_path
+            s.last_hook_at = time.time()
+            return s
+
+    def expire_idle(self, max_idle_seconds: float = 1800.0) -> int:
+        """Remove sessions idle longer than max_idle_seconds. Returns count removed."""
+        import time
+        cutoff = time.time() - max_idle_seconds
+        with self._lock:
+            stale = [sid for sid, s in self._sessions.items() if s.last_hook_at < cutoff]
+            for sid in stale:
+                del self._sessions[sid]
+            return len(stale)
+
+    def _evict_oldest_if_full_locked(self) -> None:
+        """Caller holds self._lock. Drops the oldest-idle session if at capacity."""
+        if len(self._sessions) < self._max_active:
+            return
+        oldest_sid = min(self._sessions.items(), key=lambda kv: kv[1].last_hook_at)[0]
+        del self._sessions[oldest_sid]
