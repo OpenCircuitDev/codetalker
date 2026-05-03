@@ -19,7 +19,9 @@ from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.modes.direct import DirectMode
 from claude_code_talker.modes.brief import BriefMode
 from claude_code_talker.modes.live import LiveMode
+from claude_code_talker.profiles import ProfileStore
 from claude_code_talker.providers import OllamaProvider
+from claude_code_talker.sessions import SessionRegistry
 
 
 PIPER_DIR = Path.home() / ".claude" / "scripts" / "piper" / "piper"
@@ -37,6 +39,8 @@ class ServerState:
     shutting_down: bool = False
     uvicorn_server: object = None  # set in serve_foreground so tts_shutdown can signal it
     event_buffer: EventBuffer = None  # NEW: rolling event buffer for Mode C live narration
+    sessions: SessionRegistry = None
+    profiles: ProfileStore = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -136,6 +140,8 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     cadence_name = live_cfg.get("cadence", "periodic")
     cadence = make_cadence(cadence_name, live_cfg)
 
+    profiles = ProfileStore()
+
     state = ServerState(
         cfg=cfg,
         engines=engines,
@@ -146,6 +152,13 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         },
         active_mode=cfg.get("active_mode", "direct"),
     )
+
+    state.profiles = profiles
+    state.sessions = SessionRegistry(
+        profile_store=profiles,
+        base_cfg_provider=lambda: state.cfg,
+    )
+    state.sessions.start_sweeper(interval_seconds=60.0, max_idle_seconds=1800.0)
 
     state.event_buffer = EventBuffer(max_size=int(live_cfg.get("buffer_size", 30)))
     state.audio_queue = AudioQueue(
@@ -313,54 +326,70 @@ def register_tools(server, state) -> None:
 
     async def tts_handle_stop(args):
         from claude_code_talker.hooks import handle_stop
-        if not state.cfg.get("enabled", True):
+        session_id = args.get("session_id") or args.get("cwd") or "_unknown"
+        cwd = args.get("cwd", "")
+        transcript_path = args.get("transcript_path", "")
+        state.sessions.touch(session_id, cwd=cwd, transcript_path=transcript_path)
+        cfg = state.sessions.config_for(session_id)
+        if not cfg.get("enabled", True):
             return "skipped: muted"
         text = await handle_stop(
-            payload={"transcript_path": args.get("transcript_path", ""), "cwd": args.get("cwd", "")},
-            cfg=state.cfg,
+            payload={"transcript_path": transcript_path, "cwd": cwd},
+            cfg=cfg,
             mode_a=state.modes.get("direct"),
             mode_b=state.modes.get("brief"),
             active_mode=state.active_mode,
         )
         if not text:
             return "skipped: no text"
-        engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
+        engine_name = (cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
-        voice = (state.cfg.get("voice") or {}).get("model")
-        rate = float((state.cfg.get("voice") or {}).get("rate", 1.0))
+        voice = (cfg.get("voice") or {}).get("model")
+        rate = float((cfg.get("voice") or {}).get("rate", 1.0))
         if not voice:
             voices = engine.list_voices()
             if not voices:
                 return "skipped: no voices"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
-                                          audio_format=getattr(engine, "audio_format", "wav")))
+        state.audio_queue.submit(AudioJob(
+            text=text, voice=voice, rate=rate, engine_name=engine_name,
+            audio_format=getattr(engine, "audio_format", "wav"),
+        ))
         return f"queued: {len(text)} chars"
 
     async def tts_handle_notification(args):
         from claude_code_talker.hooks import handle_notification
+        session_id = args.get("session_id") or "_unknown"
+        state.sessions.touch(session_id)
+        cfg = state.sessions.config_for(session_id)
         text = handle_notification(
             payload={"message": args.get("message", "")},
-            cfg=state.cfg,
+            cfg=cfg,
         )
         if not text:
             return "skipped: no text"
-        engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
+        engine_name = (cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
-        voice = (state.cfg.get("voice") or {}).get("model")
-        rate = float((state.cfg.get("voice") or {}).get("rate", 1.0))
+        voice = (cfg.get("voice") or {}).get("model")
+        rate = float((cfg.get("voice") or {}).get("rate", 1.0))
         if not voice:
             voices = engine.list_voices()
             if not voices:
                 return "skipped: no voices"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
-                                          audio_format=getattr(engine, "audio_format", "wav")))
+        state.audio_queue.submit(AudioJob(
+            text=text, voice=voice, rate=rate, engine_name=engine_name,
+            audio_format=getattr(engine, "audio_format", "wav"),
+        ))
         return f"queued: {len(text)} chars"
 
     async def tts_handle_pretool(args):
         import time
-        keywords = ((state.cfg.get("content_filter") or {}).get("speak_keywords") or [])
+        session_id = args.get("session_id") or args.get("cwd") or "_unknown"
+        cwd = args.get("cwd", "")
+        state.sessions.touch(session_id, cwd=cwd)
+        cfg = state.sessions.config_for(session_id)
+        keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         ev = Event(
             timestamp=time.time(),
             type="PRE_TOOL",
@@ -376,7 +405,11 @@ def register_tools(server, state) -> None:
 
     async def tts_handle_posttool(args):
         import time
-        keywords = ((state.cfg.get("content_filter") or {}).get("speak_keywords") or [])
+        session_id = args.get("session_id") or args.get("cwd") or "_unknown"
+        cwd = args.get("cwd", "")
+        state.sessions.touch(session_id, cwd=cwd)
+        cfg = state.sessions.config_for(session_id)
+        keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         response = args.get("tool_response", {}) or {}
         ev = Event(
             timestamp=time.time(),
