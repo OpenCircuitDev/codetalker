@@ -301,9 +301,18 @@ def build_routes(state) -> list[Route]:
         ]
         return JSONResponse(out)
 
+    async def refresh_catalog(request: Request) -> JSONResponse:
+        if not _rate_limit_check(state, "catalog_refresh", 5.0):
+            return JSONResponse({"error": "rate limited (1 refresh per 5s)"}, status_code=429)
+        if state.catalog is None:
+            return JSONResponse({"scanned": 0})
+        scanned = state.catalog.refresh()
+        return JSONResponse({"scanned": scanned})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
+        Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),

@@ -92,3 +92,27 @@ async def test_catalog_invalid_project_400(app):
     ) as c:
         r = await c.get("/api/catalog?project=../etc/passwd")
     assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_refresh_triggers_scan(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/catalog/refresh")
+    assert r.status_code == 200
+    body = r.json()
+    assert "scanned" in body
+
+
+@pytest.mark.asyncio
+async def test_refresh_rate_limited_within_5s(app):
+    application, state = app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r1 = await c.post("/api/catalog/refresh")
+        r2 = await c.post("/api/catalog/refresh")
+    assert r1.status_code == 200
+    assert r2.status_code == 429
