@@ -7,6 +7,15 @@ import { maybeOfferMigration } from "./migrationPrompt";
 import { registerOpenWebUI } from "./commands/openWebUI";
 import { registerToggle } from "./commands/toggle";
 import { registerSetSecret } from "./commands/setSecret";
+import { registerChangeMode } from "./commands/changeMode";
+import { registerChangeVoice } from "./commands/changeVoice";
+import { registerChangeCadence } from "./commands/changeCadence";
+import { registerChangeProvider } from "./commands/changeProvider";
+import { registerChangeRate } from "./commands/changeRate";
+import { registerEditWorkspaceConfig } from "./commands/editWorkspaceConfig";
+import { registerRestartDaemon } from "./commands/restartDaemon";
+import { registerViewLog } from "./commands/viewLog";
+import { registerRunSetup } from "./commands/runSetup";
 
 let statusBar: StatusBar | undefined;
 
@@ -27,9 +36,8 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  // Hook auto-install — silent on first activation per spec Q3 = A
-  ensureHooksInstalled(host, port).catch(() => { /* best-effort */ });
-  maybeOfferMigration(context).catch(() => { /* best-effort */ });
+  ensureHooksInstalled(host, port).catch(() => {});
+  maybeOfferMigration(context).catch(() => {});
 
   statusBar = new StatusBar();
   statusBar.start(cfg.get<number>("statusBarPollIntervalMs", 2000));
@@ -38,6 +46,15 @@ export async function activate(context: vscode.ExtensionContext) {
   registerOpenWebUI(context);
   registerToggle(context, () => statusBar!.refresh());
   registerSetSecret(context);
+  registerChangeMode(context, host, port);
+  registerChangeVoice(context, host, port);
+  registerChangeCadence(context, host, port);
+  registerChangeProvider(context, host, port);
+  registerChangeRate(context, host, port);
+  registerEditWorkspaceConfig(context);
+  registerRestartDaemon(context);
+  registerViewLog(context);
+  registerRunSetup(context);
 }
 
 export function deactivate() {

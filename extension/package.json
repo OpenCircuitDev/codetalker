@@ -11,9 +11,18 @@
   "type": "commonjs",
   "contributes": {
     "commands": [
-      { "command": "claude-tts.toggle",      "title": "Claude TTS: Toggle Mute" },
-      { "command": "claude-tts.openWebUI",   "title": "Claude TTS: Open Web UI" },
-      { "command": "claude-tts.setSecret",   "title": "Claude TTS: Set API Key" }
+      { "command": "claude-tts.toggle",               "title": "Claude TTS: Toggle Mute" },
+      { "command": "claude-tts.openWebUI",            "title": "Claude TTS: Open Web UI" },
+      { "command": "claude-tts.setSecret",            "title": "Claude TTS: Set API Key" },
+      { "command": "claude-tts.changeMode",           "title": "Claude TTS: Change Mode" },
+      { "command": "claude-tts.changeVoice",          "title": "Claude TTS: Change Voice" },
+      { "command": "claude-tts.changeCadence",        "title": "Claude TTS: Change Cadence" },
+      { "command": "claude-tts.changeProvider",       "title": "Claude TTS: Change Provider" },
+      { "command": "claude-tts.changeRate",           "title": "Claude TTS: Change Rate" },
+      { "command": "claude-tts.editWorkspaceConfig",  "title": "Claude TTS: Edit Workspace Config" },
+      { "command": "claude-tts.restartDaemon",        "title": "Claude TTS: Restart Daemon" },
+      { "command": "claude-tts.viewLog",              "title": "Claude TTS: View Daemon Log" },
+      { "command": "claude-tts.runSetup",             "title": "Claude TTS: Run Setup" }
     ],
     "configuration": {
       "title": "Claude Code Talker",

@@ -33,3 +33,18 @@ export function defaultSessionFetcher(host: string, port: number): SessionFetche
     return data.sessions ?? [];
   };
 }
+
+export async function postSessionOverlay(
+  host: string,
+  port: number,
+  sessionId: string,
+  partial: Record<string, unknown>,
+): Promise<boolean> {
+  const url = `http://${host}:${port}/api/sessions/${encodeURIComponent(sessionId)}/overlay`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(partial),
+  });
+  return r.ok;
+}
