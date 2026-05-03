@@ -191,6 +191,21 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     return state
 
 
+async def autostart_live_if_configured(state: ServerState) -> None:
+    """Start LiveMode's cadence loop so per-session active_mode=live narrates.
+
+    Called from a Starlette startup hook (after the asyncio event loop is up).
+    We start the loop but DO NOT change ``state.active_mode`` — the global
+    default still falls back to whatever cfg said. Per-session active_mode
+    overrides (via profile or live_overlay) decide whether a session's events
+    actually feed the cadence narration. Cheap when no session is in live
+    mode; disabled sessions are gated upstream at the hook handler.
+    """
+    live = state.modes.get("live")
+    if isinstance(live, LiveMode):
+        live.start()
+
+
 def main():
     """Entry point for the `claude-code-talker` CLI command.
 
@@ -570,4 +585,11 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     routes.append(Mount("/ui", app=StaticFiles(directory=str(static_dir), html=True)))
     routes.append(Mount("/", app=fmcp_app))  # FastMCP handles /sse and /messages at root
 
-    return Starlette(routes=routes)
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _lifespan(app):
+        await autostart_live_if_configured(state)
+        yield
+
+    return Starlette(routes=routes, lifespan=_lifespan)
