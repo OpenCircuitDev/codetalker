@@ -98,11 +98,22 @@ def teacher_directives(teacher_cfg: dict | None) -> str:
     }
     lines.append(granularity_directive[granularity])
 
-    # Anchor to the user's prompt as the WHY (always when teacher is on).
+    # Anchor to the SESSION FOCUS block (Phase 13.5 Task B) AND the user's
+    # most recent prompt as the WHY behind every action.
     lines.append(
-        "- ANCHOR TO PROMPT: tie what's happening back to the user's most recent "
-        "USER_PROMPT entry in the events. The user's prompt is the WHY behind "
-        "every subsequent tool action."
+        "- ANCHOR TO CONTEXT: when a SESSION FOCUS block appears above, ground "
+        "your narration in it. Tie actions to the 'Current task' line and the "
+        "user's most recent request. Reference 'Files in play' to maintain "
+        "continuity (e.g. 'still in auth.py' rather than treating each event "
+        "as fresh)."
+    )
+    lines.append(
+        "- NAME THE SPECIFIC ARG: the event lines now include concrete details "
+        "(file paths after PRE_TOOL Edit/Read/Write, command strings after "
+        "PRE_TOOL Bash, pattern strings after PRE_TOOL Grep, stdout snippets "
+        "after POST_TOOL Bash). Use those concrete details — say 'editing "
+        "auth.py' not 'editing a file', 'ran the test suite' with the actual "
+        "outcome not just 'ran a command'."
     )
 
     if cfg.get("substitution"):

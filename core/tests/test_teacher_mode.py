@@ -136,3 +136,25 @@ def test_max_tokens_for_returns_default_when_disabled():
     from claude_code_talker.teacher_mode import max_tokens_for
     assert max_tokens_for({"enabled": False}, default=999) == 999
     assert max_tokens_for(None, default=999) == 999
+
+
+def test_teacher_directives_includes_anchor_to_context():
+    block = teacher_directives({"enabled": True})
+    assert "ANCHOR TO CONTEXT" in block or "SESSION FOCUS" in block.upper()
+
+
+def test_teacher_directives_includes_name_specific_arg():
+    block = teacher_directives({"enabled": True})
+    assert "NAME THE SPECIFIC ARG" in block or "concrete details" in block.lower()
+
+
+def test_teacher_directives_disabled_includes_neither():
+    # When enabled=False, NO directive block at all
+    block = teacher_directives({"enabled": False})
+    assert block == ""
+
+
+def test_teacher_directives_anchor_mentions_files_in_play():
+    block = teacher_directives({"enabled": True})
+    # The directive should explicitly call out using 'Files in play' for continuity
+    assert "Files in play" in block or "files in play" in block.lower()
