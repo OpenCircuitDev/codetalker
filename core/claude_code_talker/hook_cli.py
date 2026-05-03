@@ -45,22 +45,28 @@ def _ensure_daemon() -> None:
 
 async def dispatch_hook(payload: dict) -> None:
     event = payload.get("hook_event_name", "")
+    # session_id + cwd flow into every MCP tool call so per-session config works.
+    common = {
+        "session_id": payload.get("session_id", ""),
+        "cwd": payload.get("cwd", ""),
+    }
 
     if event == "Stop":
-        tool_args = {"transcript_path": payload.get("transcript_path", ""),
-                     "cwd": payload.get("cwd", "")}
+        tool_args = {**common, "transcript_path": payload.get("transcript_path", "")}
         tool_name = "tts_handle_stop"
     elif event == "Notification":
-        tool_args = {"message": payload.get("message", "")}
+        tool_args = {**common, "message": payload.get("message", "")}
         tool_name = "tts_handle_notification"
     elif event == "PreToolUse":
         tool_args = {
+            **common,
             "tool_name": payload.get("tool_name", ""),
             "tool_input": payload.get("tool_input", {}),
         }
         tool_name = "tts_handle_pretool"
     elif event == "PostToolUse":
         tool_args = {
+            **common,
             "tool_name": payload.get("tool_name", ""),
             "tool_input": payload.get("tool_input", {}),
             "tool_response": payload.get("tool_response", {}),

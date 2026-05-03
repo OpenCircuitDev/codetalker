@@ -86,3 +86,31 @@ async def test_dispatch_hook_posttool_calls_mcp_tool():
     with patch("claude_code_talker.hook_cli._call_mcp_tool", new=fake_call):
         await dispatch_hook(payload)
     assert fake_call.call_args[0][0] == "tts_handle_posttool"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_forwards_session_id_and_cwd_for_all_events(tmp_path):
+    """Regression: hook_cli must forward session_id + cwd to every event handler.
+
+    Pre-fix, the CLI only forwarded a per-event subset; session_id was always
+    dropped, collapsing every Claude window into "_unknown" in the daemon.
+    """
+    captured = []
+
+    async def capture(name, args):
+        captured.append((name, args))
+        return ""
+
+    with patch("claude_code_talker.hook_cli._call_mcp_tool", new=capture):
+        for event_payload in [
+            {"hook_event_name": "Stop",          "session_id": "sX", "cwd": "/proj/a", "transcript_path": "/t/sX.jsonl"},
+            {"hook_event_name": "Notification",  "session_id": "sX", "cwd": "/proj/a", "message": "hi"},
+            {"hook_event_name": "PreToolUse",    "session_id": "sX", "cwd": "/proj/a", "tool_name": "Edit", "tool_input": {}},
+            {"hook_event_name": "PostToolUse",   "session_id": "sX", "cwd": "/proj/a", "tool_name": "Edit", "tool_input": {}, "tool_response": {"success": True}},
+        ]:
+            await dispatch_hook(event_payload)
+
+    assert len(captured) == 4
+    for name, args in captured:
+        assert args["session_id"] == "sX", f"{name} dropped session_id"
+        assert args["cwd"] == "/proj/a", f"{name} dropped cwd"
