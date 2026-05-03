@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { StatusBar } from "./statusBar";
-import { isDaemonRunning, spawnDaemon } from "./daemonProcess";
+import { isDaemonAlive, spawnDaemonWithEnv } from "./daemonProcess";
 import { registerOpenWebUI } from "./commands/openWebUI";
 import { registerToggle } from "./commands/toggle";
 
@@ -10,9 +10,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const cfg = vscode.workspace.getConfiguration("claudeTts");
 
   if (cfg.get<boolean>("autoSpawnDaemon", true)) {
-    if (!isDaemonRunning()) {
+    if (!isDaemonAlive(context)) {
       try {
-        spawnDaemon();
+        spawnDaemonWithEnv(context, {});
         await new Promise((r) => setTimeout(r, 1500));
       } catch {
         vscode.window.showWarningMessage("Could not auto-spawn Claude TTS daemon");
