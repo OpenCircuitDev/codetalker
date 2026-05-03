@@ -121,6 +121,14 @@
       </div>
       <div class="settings-pane" data-spane="provider">
         <p class="muted">Default LLM provider for narration + chat. Sessions can override per-session.</p>
+        <label>Apply to</label>
+        <select id="provider-mode-scope">
+          <option value="">All modes (default)</option>
+          <option value="live">Live narration</option>
+          <option value="brief">Brief on Stop</option>
+          <option value="chat">Chat panel</option>
+          <option value="prompt-brief">Prompt brief</option>
+        </select>
         <label>Provider</label>
         <select id="provider-select"></select>
         <label>Model</label>

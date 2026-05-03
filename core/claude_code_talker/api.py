@@ -762,11 +762,14 @@ def build_routes(state) -> list[Route]:
 
         Body: {"provider": "openrouter", "model": "google/gemini-2.0-flash-001"}
 
-        Updates four things:
+        Optional field: "mode" — if provided, only update that specific mode's
+        provider+model (one of "live", "brief", "chat", "prompt-brief").
+        If omitted, updates ALL of live/brief (existing behavior).
+
+        Updates:
           - state.cfg.providers.<provider>.model — model chosen for that provider
-          - state.cfg.modes.live.provider, state.cfg.modes.brief.provider —
-            so live/brief narration AND chat use this provider
-          - the live provider instance's model attribute (immediate effect)
+          - state.cfg.modes.<mode>.{provider, model} — per-mode overrides
+          - the live provider instance's model attribute (immediate effect, all-modes only)
           - per-session resolved cfg caches are invalidated
 
         Daemon restart reverts to whatever's in cfg on disk; for permanent
@@ -779,25 +782,38 @@ def build_routes(state) -> list[Route]:
             return _bad_request(str(e))
         provider = body.get("provider")
         model = body.get("model")
+        mode_scope = body.get("mode")  # optional — None = all modes
         if not provider or not isinstance(provider, str):
             return _bad_request("provider is required")
         if not model or not isinstance(model, str):
             return _bad_request("model is required")
         if provider not in (state.providers or {}):
             return _bad_request(f"provider '{provider}' not registered (check API key, then restart daemon)")
+        if mode_scope is not None and not isinstance(mode_scope, str):
+            return _bad_request("mode must be a string or omitted")
         cfg_providers = state.cfg.setdefault("providers", {})
         cfg_providers.setdefault(provider, {})["model"] = model
-        # CRITICAL: also flip which provider live/brief modes use, otherwise
-        # _select_provider keeps falling back to ollama and live narration
-        # silently 404s when the user expected OpenRouter / OpenAI / Anthropic.
         cfg_modes = state.cfg.setdefault("modes", {})
-        cfg_modes.setdefault("live", {})["provider"] = provider
-        cfg_modes.setdefault("brief", {})["provider"] = provider
-        # Update live provider instance's model attribute so the change takes
-        # effect immediately for in-flight calls.
-        prov_obj = (state.providers or {}).get(provider)
-        if prov_obj is not None and hasattr(prov_obj, "model"):
-            prov_obj.model = model
+
+        if mode_scope:
+            # Per-mode: only update that mode's provider and model
+            cfg_modes.setdefault(mode_scope, {})["provider"] = provider
+            cfg_modes.setdefault(mode_scope, {})["model"] = model
+            updated_modes = [mode_scope]
+        else:
+            # All-modes (existing behavior): update live + brief
+            # CRITICAL: also flip which provider live/brief modes use, otherwise
+            # _select_provider keeps falling back to ollama and live narration
+            # silently 404s when the user expected OpenRouter / OpenAI / Anthropic.
+            cfg_modes.setdefault("live", {})["provider"] = provider
+            cfg_modes.setdefault("brief", {})["provider"] = provider
+            updated_modes = ["live", "brief"]
+            # Update live provider instance's model attribute so the change takes
+            # effect immediately for in-flight calls.
+            prov_obj = (state.providers or {}).get(provider)
+            if prov_obj is not None and hasattr(prov_obj, "model"):
+                prov_obj.model = model
+
         # Re-bind LiveMode + BriefMode to the new provider instance so future
         # narrations use it (don't keep using the old ollama instance).
         if hasattr(state, "modes") and state.modes:
@@ -811,14 +827,17 @@ def build_routes(state) -> list[Route]:
         # Invalidate per-session caches so resolved cfg picks up the new values.
         for s in state.sessions.list_active():
             state.sessions.invalidate(s.session_id)
-        # Persist to disk so the change survives daemon restart. Writes a tiny
-        # overlay file the daemon merges on top of the base cfg at startup.
-        _persist_default_provider(provider, model)
-        return JSONResponse({
+        # Persist to disk so the change survives daemon restart.
+        _persist_default_provider(provider, model, mode=mode_scope)
+        result: dict = {
             "saved": True, "provider": provider, "model": model,
-            "live_uses": provider, "brief_uses": provider,
+            "updated_modes": updated_modes,
             "persisted": True,
-        })
+        }
+        if not mode_scope:
+            result["live_uses"] = provider
+            result["brief_uses"] = provider
+        return JSONResponse(result)
 
     async def refresh_openrouter_models(request: Request) -> JSONResponse:
         """Fetch fresh model list from OpenRouter's public /models endpoint.
@@ -912,12 +931,18 @@ def build_routes(state) -> list[Route]:
     ]
 
 
-def _persist_default_provider(provider: str, model: str) -> None:
+def _persist_default_provider(provider: str, model: str, *, mode: str | None = None) -> None:
     """Write the user's chosen LLM default to a small overlay YAML at
     ~/.claude/scripts/codetalker/cfg-overlay.yaml so it survives restarts.
 
     The daemon's config loader merges this overlay on top of the base cfg.
     Best-effort: any I/O failure is silenced (the in-memory PUT still works).
+
+    Args:
+        provider: Provider name (e.g. "openrouter").
+        model: Model ID (e.g. "google/gemini-2.0-flash-001").
+        mode: If provided, only update that mode's {provider, model} entry.
+              If None (default), update live + brief (existing all-modes behavior).
     """
     try:
         import yaml as _yaml
@@ -933,8 +958,14 @@ def _persist_default_provider(provider: str, model: str) -> None:
         if not isinstance(existing, dict):
             existing = {}
         existing.setdefault("providers", {}).setdefault(provider, {})["model"] = model
-        existing.setdefault("modes", {}).setdefault("live", {})["provider"] = provider
-        existing.setdefault("modes", {}).setdefault("brief", {})["provider"] = provider
+        if mode:
+            # Per-mode: write provider + model into that specific mode block
+            existing.setdefault("modes", {}).setdefault(mode, {})["provider"] = provider
+            existing.setdefault("modes", {}).setdefault(mode, {})["model"] = model
+        else:
+            # All-modes: update live + brief (existing behavior)
+            existing.setdefault("modes", {}).setdefault("live", {})["provider"] = provider
+            existing.setdefault("modes", {}).setdefault("brief", {})["provider"] = provider
         p.write_text(_yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
     except Exception:
         pass

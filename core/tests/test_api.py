@@ -468,3 +468,70 @@ async def test_install_hooks_preserves_unrelated_hooks(app, tmp_path, monkeypatc
     assert any(any(h.get("command") == "claude-code-talker-hook" for h in e.get("hooks", []))
                for e in stop_entries)
     assert data["other_setting"] == "preserved"
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/llm-models/default — per-mode model selection (Sub-task 2.2)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_put_llm_default_with_mode_field(app, monkeypatch, tmp_path):
+    """PUT with mode='live' only updates cfg.modes.live.{provider, model}."""
+    application, state = app
+    # Inject a mock openrouter provider so the endpoint accepts it
+    from unittest.mock import MagicMock
+    mock_prov = MagicMock()
+    mock_prov.model = "google/gemini-2.0-flash-001"
+    mock_prov.api_key = "fake-key"
+    mock_prov.__class__ = mock_prov.__class__  # keep as MagicMock
+    state.providers["openrouter"] = mock_prov
+    # Suppress disk write
+    monkeypatch.setattr("claude_code_talker.api._persist_default_provider", lambda *a, **kw: None)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/llm-models/default", json={
+            "provider": "openrouter",
+            "model": "anthropic/claude-haiku-4-5",
+            "mode": "live",
+        })
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["saved"] is True
+    assert body["updated_modes"] == ["live"]
+    # Only cfg.modes.live is updated — brief should not be touched
+    assert state.cfg["modes"]["live"]["provider"] == "openrouter"
+    assert state.cfg["modes"]["live"]["model"] == "anthropic/claude-haiku-4-5"
+    # brief should NOT have been set by this call
+    assert "model" not in state.cfg.get("modes", {}).get("brief", {})
+
+
+@pytest.mark.asyncio
+async def test_put_llm_default_without_mode_updates_all(app, monkeypatch, tmp_path):
+    """PUT without mode updates both live and brief (existing behavior preserved)."""
+    application, state = app
+    from unittest.mock import MagicMock
+    mock_prov = MagicMock()
+    mock_prov.model = "google/gemini-2.0-flash-001"
+    mock_prov.api_key = "fake-key"
+    state.providers["openrouter"] = mock_prov
+    monkeypatch.setattr("claude_code_talker.api._persist_default_provider", lambda *a, **kw: None)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put("/api/llm-models/default", json={
+            "provider": "openrouter",
+            "model": "google/gemini-2.0-flash-lite-001",
+        })
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["live_uses"] == "openrouter"
+    assert body["brief_uses"] == "openrouter"
+    assert "live" in body["updated_modes"]
+    assert "brief" in body["updated_modes"]
+    assert state.cfg["modes"]["live"]["provider"] == "openrouter"
+    assert state.cfg["modes"]["brief"]["provider"] == "openrouter"

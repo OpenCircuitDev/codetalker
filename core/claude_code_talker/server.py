@@ -58,15 +58,39 @@ class ServerState:
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
     """Pick the LLM provider for a mode based on cfg.modes.<name>.provider.
 
+    If cfg.modes.<mode_name>.model is also set AND differs from the registered
+    provider's current model, a cloned provider instance is returned with the
+    override model.  The registered instance in state.providers is never mutated.
+
     Falls back to ollama if the preference isn't registered, or to any
     available provider if ollama is also missing.
     """
-    pref = ((state.cfg.get("modes") or {}).get(mode_name) or {}).get("provider", "ollama")
+    mode_cfg = ((state.cfg.get("modes") or {}).get(mode_name) or {})
+    pref = mode_cfg.get("provider", "ollama")
+    mode_model = mode_cfg.get("model")  # may be None
+
+    # Resolve registered provider
     if pref in state.providers:
-        return state.providers[pref]
-    if "ollama" in state.providers:
-        return state.providers["ollama"]
-    return next(iter(state.providers.values())) if state.providers else None
+        prov_obj = state.providers[pref]
+    elif "ollama" in state.providers:
+        prov_obj = state.providers["ollama"]
+    else:
+        prov_obj = next(iter(state.providers.values())) if state.providers else None
+
+    if prov_obj is None:
+        return None
+
+    # If a per-mode model override is set and it differs, clone the provider.
+    if mode_model and mode_model != getattr(prov_obj, "model", None):
+        api_key = getattr(prov_obj, "api_key", None)
+        if api_key is not None:
+            try:
+                cloned = prov_obj.__class__(api_key=api_key, model=mode_model)
+                return cloned
+            except Exception:
+                pass  # fall through to returning the original
+
+    return prov_obj
 
 
 def build_server_state(cwd: str | None = None) -> ServerState:

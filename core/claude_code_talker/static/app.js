@@ -667,13 +667,17 @@
       document.getElementById('save-llm-default-btn').onclick = async () => {
         const provider = provSel.value;
         const model = document.getElementById('model-select').value;
+        const modeScope = document.getElementById('provider-mode-scope').value;
         if (!provider || !model) {
           toast("Pick a provider and model first", "error");
           return;
         }
         try {
-          await api("/llm-models/default", { method: "PUT", body: { provider, model } });
-          toast(`Default set: ${provider} → ${model}`, "success");
+          const body = { provider, model };
+          if (modeScope) body.mode = modeScope;
+          await api("/llm-models/default", { method: "PUT", body });
+          const scopeLabel = modeScope || "all modes";
+          toast(`Default set for ${scopeLabel}: ${provider} → ${model}`, "success");
           await loadProviderPane();
         } catch (e) { toast("Save failed: " + e.message, "error"); }
       };
