@@ -124,3 +124,18 @@ If anything fails, capture the symptom + the line that failed and report. The fr
 - [ ] Disabled session is STILL disabled (loaded from disk on first hook touch)
 - [ ] Trigger a hook from the disabled session → daemon log shows "skipped: per-session disabled"; no audio plays
 - [ ] Click "🔇 Enable" → next hook produces audio normally
+
+---
+
+## §12 Phase 13 — Virtual User Evaluation
+
+- [ ] Open `http://127.0.0.1:17832/ui/`
+- [ ] Click ⚙ Settings → Eval tab
+- [ ] Click "Run virtual user eval"
+- [ ] Within ~30s, report shows: 5 personas / N narrations / per-persona scores / systemic jargon (if any) / proposal
+- [ ] If proposal has ≤3 fields → banner says "Auto-tuning applied"
+- [ ] If proposal has >3 fields → banner says "approval needed"; check Tuning history list
+- [ ] Tuning history list shows the entry with "Revert" button (if applied)
+- [ ] Click "Revert" → confirm → entry's field reverts in `~/.claude/scripts/codetalker/cfg-overlay.yaml`
+- [ ] Restart daemon → reload UI → reverted state holds
+- [ ] Run eval again → verify history grows (now has 2+ entries)
