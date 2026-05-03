@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Talker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="offline-banner" class="offline-banner hidden">
+    Daemon offline — <button id="reconnect-btn">retry</button>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <h1>codetalker</h1>
+        <button id="mute-toggle" class="mute-toggle">🔊</button>
+      </header>
+
+      <section class="sidebar-section">
+        <div class="section-label">Active sessions <span id="session-count">(0)</span></div>
+        <ul id="session-list" class="session-list">
+          <li class="empty-state" id="sessions-empty">
+            No sessions yet. Start a Claude Code conversation to see it here.
+          </li>
+        </ul>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="section-label">Profiles</div>
+        <ul id="profile-list" class="profile-list"></ul>
+      </section>
+    </aside>
+
+    <main class="detail-pane">
+      <div id="detail-empty" class="detail-empty">
+        <p class="muted">Select a session from the sidebar.</p>
+      </div>
+
+      <div id="detail-content" class="detail-content hidden">
+        <header class="detail-header">
+          <div>
+            <h2 id="detail-title">Session</h2>
+            <p class="muted" id="detail-subtitle"></p>
+          </div>
+          <div class="detail-header-actions">
+            <span id="profile-attached" class="profile-pill hidden"></span>
+            <select id="profile-attach-select" class="profile-select">
+              <option value="">Attach profile…</option>
+            </select>
+            <button id="save-as-profile-btn">Save as profile</button>
+          </div>
+        </header>
+
+        <nav class="tabs" id="tabs">
+          <button class="tab active" data-tab="quick">Quick</button>
+          <button class="tab" data-tab="audio">Audio</button>
+          <button class="tab" data-tab="behavior">Behavior</button>
+          <button class="tab" data-tab="advanced">Advanced</button>
+        </nav>
+
+        <div class="tab-pane active" data-pane="quick"></div>
+        <div class="tab-pane" data-pane="audio"></div>
+        <div class="tab-pane" data-pane="behavior"></div>
+        <div class="tab-pane" data-pane="advanced"></div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="save-profile-dialog">
+    <form method="dialog">
+      <h3>Save as profile</h3>
+      <p class="muted">Saves the current session's overlay to a named profile.</p>
+      <label for="save-profile-name">Profile name</label>
+      <input id="save-profile-name" type="text" pattern="[a-zA-Z0-9_-]{1,64}"
+             title="Letters, numbers, hyphen, underscore. 1–64 chars." required>
+      <div class="dialog-actions">
+        <button value="cancel">Cancel</button>
+        <button value="save" id="save-profile-confirm">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
