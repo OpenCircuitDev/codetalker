@@ -139,7 +139,55 @@
     }
     empty.classList.add("hidden");
     content.classList.remove("hidden");
-    // Tab content rendering lands in later tasks (26-29).
+
+    const s = state.selectedSessionDetail.state;
+    const cfg = state.selectedSessionDetail.resolved_cfg;
+    document.getElementById("detail-title").textContent = shortName(s.cwd) || s.session_id;
+    document.getElementById("detail-subtitle").textContent =
+      "session " + s.session_id.slice(0, 12) +
+      " · cwd " + (s.cwd || "(none)") +
+      " · last hook " + idleAgo(s.last_hook_at);
+
+    const pill = document.getElementById("profile-attached");
+    if (s.attached_profile) {
+      pill.textContent = "▼ " + s.attached_profile;
+      pill.classList.remove("hidden");
+      pill.onclick = () => detachProfile(s.session_id);
+      pill.title = "Click to detach";
+    } else {
+      pill.classList.add("hidden");
+    }
+
+    const select = document.getElementById("profile-attach-select");
+    select.innerHTML = '<option value="">Attach profile…</option>';
+    for (const p of state.profiles) {
+      if (p.name === s.attached_profile) continue;
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      select.appendChild(opt);
+    }
+
+    renderActiveTab(s, cfg);
+  }
+
+  function renderActiveTab(s, cfg) {
+    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelector(`.tab[data-tab="${state.activeTab}"]`).classList.add("active");
+    const pane = document.querySelector(`.tab-pane[data-pane="${state.activeTab}"]`);
+    pane.classList.add("active");
+    // Pane content rendering lands in tasks 26-29; this just shows the pane.
+  }
+
+  async function detachProfile(sessionId) {
+    try {
+      await api("/sessions/" + sessionId + "/profile", { method: "DELETE" });
+      toast("Profile detached", "success");
+      await poll();
+    } catch (e) {
+      toast("Detach failed: " + e.message, "error");
+    }
   }
 
   // ---- Helpers ----
@@ -180,6 +228,24 @@
       }
     };
     document.getElementById("reconnect-btn").onclick = () => poll();
+    document.querySelectorAll(".tab").forEach(t => {
+      t.onclick = () => {
+        state.activeTab = t.dataset.tab;
+        render();
+      };
+    });
+    document.getElementById("profile-attach-select").onchange = async (e) => {
+      const name = e.target.value;
+      if (!name || !state.selectedSessionId) return;
+      try {
+        await api("/sessions/" + state.selectedSessionId + "/attach-profile",
+                  { method: "POST", body: { name } });
+        toast("Profile attached: " + name, "success");
+        await poll();
+      } catch (err) {
+        toast("Attach failed: " + err.message, "error");
+      }
+    };
     poll();
   }
 
