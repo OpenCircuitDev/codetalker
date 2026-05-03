@@ -187,3 +187,18 @@ async def test_run_eval_batch_handles_provider_failure_gracefully():
     assert len(scores) == 1
     # Failed call → neutral fallback score
     assert scores[0].clarity == 3
+
+
+@pytest.mark.asyncio
+async def test_run_eval_batch_handles_plain_string_narration():
+    """The _one_call helper has a fallback for str() narrations; cover it."""
+    p = Persona(name="A", role="r", primary_lens="l",
+                comfort_with_jargon=3, what_they_care_about="w")
+    sample = ["plain string narration"]  # neither dict nor NarrationWithContext
+    provider = MagicMock()
+    provider.complete = AsyncMock(
+        return_value='{"clarity":4,"helpfulness":4,"jargon_load":2,"expectation_match":4,"expected":"x","received":"y","confusing_terms":[],"missing_context":""}'
+    )
+    scores = await run_eval_batch([p], sample, provider, batch_size=1)
+    assert len(scores) == 1
+    assert scores[0].narration_text == "plain string narration"

@@ -189,7 +189,12 @@ def parse_score_response(persona_name: str, narration_text: str, raw: str) -> Pe
         text = m.group(1).strip()
     try:
         data = json.loads(text)
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as e:
+        logging.warning(
+            "virtual_eval parse_score_response: invalid JSON from LLM "
+            "(persona=%s, raw=%r): %s",
+            persona_name, text[:200], e,
+        )
         return PersonaScore(
             persona_name=persona_name, narration_text=narration_text,
             clarity=3, helpfulness=3, jargon_load=3,
