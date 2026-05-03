@@ -28,6 +28,10 @@
           <button class="chip" data-filter="live">Live</button>
           <button class="chip" data-filter="enabled">Enabled</button>
         </div>
+        <div class="bulk-actions">
+          <button id="bulk-enable-visible" class="bulk-btn" title="Enable narration on all currently-visible sessions">🔊 All</button>
+          <button id="bulk-mute-visible" class="bulk-btn" title="Mute narration on all currently-visible sessions">🔇 All</button>
+        </div>
         <ul id="session-list" class="session-list">
           <li class="empty-state" id="sessions-empty">
             No sessions yet. Start a Claude Code conversation to see it here.
@@ -81,7 +85,7 @@
   </div>
 
   <dialog id="settings-dialog" class="settings-dialog">
-    <form method="dialog">
+    <div class="settings-content">
       <h3>Settings</h3>
       <nav class="settings-tabs">
         <button type="button" class="settings-tab active" data-stab="keys">API Keys</button>
@@ -158,9 +162,9 @@
         <ul id="audit-list" class="audit-list"></ul>
       </div>
       <div class="dialog-actions">
-        <button value="close">Close</button>
+        <button type="button" id="settings-close-btn" class="secondary-btn">Close</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
   <dialog id="save-profile-dialog">

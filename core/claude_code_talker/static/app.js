@@ -140,6 +140,11 @@
       if (s.is_live) li.classList.add("live");
       if (s.enabled === false) li.classList.add("disabled");
       if (s.session_id === state.selectedSessionId) li.classList.add("selected");
+      // Activity indicator: pulse if last_modified was within the last 30s
+      // AND the session is live — means hooks are firing right now.
+      if (s.is_live && (Date.now() / 1000 - (s.last_modified || 0) < 30)) {
+        li.classList.add("active-now");
+      }
       const titleRow = document.createElement("div");
       titleRow.className = "session-item-row";
       const title = document.createElement("div");
@@ -558,6 +563,11 @@
         loadSettingsPane(tab.dataset.stab);
       };
     });
+    const closeBtn = document.getElementById("settings-close-btn");
+    if (closeBtn) closeBtn.onclick = () => dlg.close();
+    // Click-outside-to-close: only close if the click was on the backdrop
+    // (the dialog element itself, not any child).
+    dlg.onclick = (e) => { if (e.target === dlg) dlg.close(); };
     await loadSettingsPane('keys');
     dlg.showModal();
   }
@@ -958,6 +968,40 @@
         render();
       };
     });
+
+    const bulkAction = async (newEnabled) => {
+      // Apply to currently-visible (filtered) sessions only — matches the
+      // user's mental model: "what I see is what I'm acting on".
+      const filtered = state.sessions.filter(s => {
+        if (state.filter === 'all') return true;
+        if (state.filter === 'live') return s.is_live === true;
+        if (state.filter === 'enabled') return s.enabled !== false;
+        return true;
+      });
+      const toFlip = filtered.filter(s => (s.enabled !== false) !== newEnabled);
+      if (toFlip.length === 0) {
+        toast(`Nothing to ${newEnabled ? 'enable' : 'mute'} (already in that state)`, "info");
+        return;
+      }
+      if (!confirm(`${newEnabled ? 'Enable' : 'Mute'} ${toFlip.length} session${toFlip.length === 1 ? '' : 's'}?`)) return;
+      let ok = 0;
+      for (const s of toFlip) {
+        try {
+          let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+          if (!payload) {
+            payload = { live_overlay: {}, attached_profile: s.attached_profile,
+                        enabled: true, display_name: null, last_modified: 0.0 };
+          }
+          payload.enabled = newEnabled;
+          await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
+          ok++;
+        } catch (e) { /* count silently */ }
+      }
+      toast(`${newEnabled ? 'Enabled' : 'Muted'} ${ok}/${toFlip.length}`, "success");
+      await poll();
+    };
+    document.getElementById('bulk-enable-visible').onclick = () => bulkAction(true);
+    document.getElementById('bulk-mute-visible').onclick = () => bulkAction(false);
     const saveBtn = document.getElementById("save-as-profile-btn");
     const dialog = document.getElementById("save-profile-dialog");
     const nameInput = document.getElementById("save-profile-name");
