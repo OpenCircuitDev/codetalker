@@ -62,6 +62,12 @@ class SessionCatalog:
                     transcript_path=transcript,
                     last_modified=stat.st_mtime,
                 )
+        # Apply max_entries cap by keeping the most-recent-mtime entries.
+        if len(new_entries) > self._max_entries:
+            sorted_entries = sorted(
+                new_entries.values(), key=lambda e: e.last_modified, reverse=True
+            )
+            new_entries = {e.session_id: e for e in sorted_entries[: self._max_entries]}
         with self._lock:
             self._entries = new_entries
         return len(new_entries)

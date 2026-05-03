@@ -127,3 +127,33 @@ def test_entries_for_project_unknown_returns_empty(tmp_path):
     c = SessionCatalog(projects_dir=tmp_path)
     c.scan()
     assert c.entries_for_project("never-existed") == []
+
+
+import os
+import time
+
+
+def test_scan_caps_at_max_entries(tmp_path):
+    """When more transcripts exist than max_entries, keep only most-recent-mtime."""
+    d = tmp_path / "C--proj"
+    d.mkdir()
+    # Create 10 transcripts with increasing mtimes
+    for i in range(10):
+        f = d / f"sess{i:02d}.jsonl"
+        f.write_text("")
+        os.utime(f, (i, i))  # mtime = i
+    c = SessionCatalog(projects_dir=tmp_path, max_entries=5)
+    c.scan()
+    # Only the 5 most-recent (sess05..sess09) should survive
+    ids = {e.session_id for e in c.entries()}
+    assert ids == {"sess05", "sess06", "sess07", "sess08", "sess09"}
+
+
+def test_scan_does_not_cap_when_under_limit(tmp_path):
+    d = tmp_path / "C--proj"
+    d.mkdir()
+    for i in range(3):
+        (d / f"s{i}.jsonl").write_text("")
+    c = SessionCatalog(projects_dir=tmp_path, max_entries=500)
+    c.scan()
+    assert len(c.entries()) == 3
