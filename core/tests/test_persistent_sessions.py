@@ -77,3 +77,36 @@ def test_get_corrupted_yaml_returns_none(store, tmp_path):
     """Corrupted YAML on disk → log warn, return None."""
     (tmp_path / "bad.yaml").write_text("{not valid yaml: [unclosed")
     assert store.get("bad") is None
+
+
+# --- Task 10: session_id validation ---
+
+from claude_code_talker.persistent_sessions import is_valid_session_id, SessionIdError
+
+
+def test_valid_session_ids():
+    for sid in ["abc", "abc-123", "ae140158-bc1d-4289-a60a-a9be18359937", "a" * 128]:
+        assert is_valid_session_id(sid)
+
+
+def test_invalid_session_ids():
+    for sid in ["", "  ", "../etc/passwd", "name/with/slash", "a" * 129,
+                "name.with.dot", "café", "💀"]:
+        assert not is_valid_session_id(sid)
+
+
+def test_save_rejects_invalid_session_id(store):
+    with pytest.raises(SessionIdError):
+        store.save("../etc/passwd", {"live_overlay": {}, "enabled": True,
+                                      "attached_profile": None, "display_name": None,
+                                      "last_modified": 1.0})
+
+
+def test_get_rejects_invalid_session_id(store):
+    with pytest.raises(SessionIdError):
+        store.get("../etc/passwd")
+
+
+def test_delete_rejects_invalid_session_id(store):
+    with pytest.raises(SessionIdError):
+        store.delete("../etc/passwd")
