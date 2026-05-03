@@ -103,3 +103,11 @@ def test_known_keys_complete():
     assert "openai_api_key" in KNOWN_KEYS
     assert "openrouter_api_key" in KNOWN_KEYS
     assert "elevenlabs_api_key" in KNOWN_KEYS
+
+
+def test_gemini_env_var_takes_precedence(monkeypatch, tmp_path):
+    secrets_path = tmp_path / "secrets.yaml"
+    secrets_path.write_text("gemini_api_key: file_value\n", encoding="utf-8")
+    store = SecretsStore(secrets_path=secrets_path)
+    monkeypatch.setenv("GEMINI_API_KEY", "env_value")
+    assert store.get("gemini_api_key") == "env_value"

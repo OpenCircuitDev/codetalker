@@ -29,6 +29,7 @@ ENV_OVERRIDES: dict[str, str] = {
     "OPENAI_API_KEY": "openai_api_key",
     "OPENROUTER_API_KEY": "openrouter_api_key",
     "ELEVENLABS_API_KEY": "elevenlabs_api_key",
+    "GEMINI_API_KEY": "gemini_api_key",
 }
 
 KNOWN_KEYS = list(ENV_OVERRIDES.values())

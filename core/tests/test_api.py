@@ -535,3 +535,37 @@ async def test_put_llm_default_without_mode_updates_all(app, monkeypatch, tmp_pa
     assert "brief" in body["updated_modes"]
     assert state.cfg["modes"]["live"]["provider"] == "openrouter"
     assert state.cfg["modes"]["brief"]["provider"] == "openrouter"
+
+
+@pytest.mark.asyncio
+async def test_hooks_status_returns_installed_false_when_settings_missing(app, monkeypatch, tmp_path):
+    application, state = app
+    monkeypatch.setattr("claude_code_talker.api.CLAUDE_SETTINGS_PATH",
+                        tmp_path / "settings.json")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.get("/api/hooks-status")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["installed"] is False
+    assert body["settings_path"].endswith("settings.json")
+    assert "missing_events" in body
+    assert set(body["missing_events"]) == {"Stop", "Notification", "PreToolUse", "PostToolUse", "UserPromptSubmit"}
+
+
+@pytest.mark.asyncio
+async def test_hooks_status_returns_installed_true_after_install(app, monkeypatch, tmp_path):
+    application, state = app
+    monkeypatch.setattr("claude_code_talker.api.CLAUDE_SETTINGS_PATH",
+                        tmp_path / "settings.json")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        # First install
+        await c.post("/api/install-hooks")
+        # Then check status
+        r = await c.get("/api/hooks-status")
+    body = r.json()
+    assert body["installed"] is True
+    assert body["missing_events"] == []

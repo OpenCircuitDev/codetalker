@@ -226,6 +226,27 @@ def build_routes(state) -> list[Route]:
         path = state.profiles.save(name, dict(s.live_overlay))
         return JSONResponse({"name": name, "path": str(path)})
 
+    async def hooks_status(request: Request) -> JSONResponse:
+        path = CLAUDE_SETTINGS_PATH
+        missing = list(_HOOK_EVENT_NAMES)
+        if path.exists():
+            try:
+                data = _json_lib.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+            if isinstance(data, dict):
+                hooks = data.get("hooks") or {}
+                if isinstance(hooks, dict):
+                    missing = [
+                        ev for ev in _HOOK_EVENT_NAMES
+                        if not _has_codetalker_hook(hooks.get(ev) or [])
+                    ]
+        return JSONResponse({
+            "installed": len(missing) == 0,
+            "settings_path": str(path),
+            "missing_events": missing,
+        })
+
     async def install_hooks(request: Request) -> JSONResponse:
         path = CLAUDE_SETTINGS_PATH
         if path.exists():
@@ -981,6 +1002,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/status", status, methods=["GET"]),
         Route("/api/mute", mute, methods=["POST"]),
         Route("/api/unmute", unmute, methods=["POST"]),
+        Route("/api/hooks-status", hooks_status, methods=["GET"]),
         Route("/api/install-hooks", install_hooks, methods=["POST"]),
         Route("/api/virtual-eval/run", virtual_eval_run, methods=["POST"]),
         Route("/api/virtual-eval/latest", virtual_eval_latest, methods=["GET"]),
