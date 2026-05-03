@@ -105,3 +105,22 @@ git tag -a v0.7.0-phase7 -m "Phase 7 complete: web UI + multi-session control pa
 ```
 
 If anything fails, capture the symptom + the line that failed and report. The frontend source is small (~600 LOC across 3 files in `static/`); the daemon side is well-tested in pytest.
+
+
+---
+
+## §11 Phase 8 — Catalog + Persistent Settings
+
+- [ ] Open `http://127.0.0.1:17832/ui/`
+- [ ] Sidebar shows MORE than just live sessions — historical sessions from `~/.claude/projects/` also visible (count should match `find ~/.claude/projects -name "*.jsonl" | wc -l`, capped at 500)
+- [ ] Live sessions have a green `●` prefix; inactive sessions don't
+- [ ] Filter chips work: "All" shows everything; "Live" shows only `●` sessions; "Enabled" hides sessions you've muted
+- [ ] Click an inactive session (no `●`) → detail pane shows the resolved config
+- [ ] Change Mode to "live" on the inactive session
+- [ ] Refresh the browser → the Mode change persists (loaded from `/api/persistent-sessions/<sid>`)
+- [ ] Click "🔊 Disable" in the detail header → session gets `🔇` prefix in sidebar; "Disable" button flips to "🔇 Enable"
+- [ ] Refresh the browser → disabled state persists
+- [ ] Stop daemon, restart it (`claude-code-talker stop && claude-code-talker serve &`), open UI again
+- [ ] Disabled session is STILL disabled (loaded from disk on first hook touch)
+- [ ] Trigger a hook from the disabled session → daemon log shows "skipped: per-session disabled"; no audio plays
+- [ ] Click "🔇 Enable" → next hook produces audio normally
