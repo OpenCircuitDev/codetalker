@@ -28,10 +28,14 @@ _SYSTEM_USER_PREFIXES = (
     "<command-stdout>",
     "<command-stderr>",
     "<system-reminder>",
+    "<system>",
     "<bash-input>",
     "<bash-stdout>",
     "<bash-stderr>",
     "<task-notification>",
+    "<user-prompt-submit-hook>",
+    "Base directory for this skill:",  # skill-loader injects SKILL.md preface
+    "Caveat: The messages below were generated",  # /resume caveat
 )
 
 
