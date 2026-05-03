@@ -19,7 +19,12 @@
       </header>
 
       <section class="sidebar-section">
-        <div class="section-label">Active sessions <span id="session-count">(0)</span></div>
+        <div class="section-label">Sessions <span id="session-count">(0)</span></div>
+        <div class="filter-chips" id="filter-chips">
+          <button class="chip active" data-filter="all">All</button>
+          <button class="chip" data-filter="live">Live</button>
+          <button class="chip" data-filter="enabled">Enabled</button>
+        </div>
         <ul id="session-list" class="session-list">
           <li class="empty-state" id="sessions-empty">
             No sessions yet. Start a Claude Code conversation to see it here.

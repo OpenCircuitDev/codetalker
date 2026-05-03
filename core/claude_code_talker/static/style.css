@@ -357,3 +357,42 @@ dialog input { display: block; width: 100%; margin: 8px 0 16px 0; }
   justify-content: flex-end;
   gap: 8px;
 }
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.chip:hover {
+  background: var(--surface-2);
+}
+
+.chip.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.session-item.live .session-item-title::before {
+  content: '● ';
+  color: var(--success);
+  font-size: 14px;
+}
+
+.session-item.disabled .session-item-title::before {
+  content: '🔇 ';
+  font-size: 12px;
+}
