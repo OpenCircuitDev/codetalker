@@ -30,6 +30,7 @@ from claude_code_talker.token_tracker import TokenTracker
 from claude_code_talker.tts_cache import TTSCache
 from claude_code_talker.virtual_eval.history import TuningHistory
 from claude_code_talker.session_focus import SessionFocusRegistry
+from claude_code_talker.transcript_watcher import TranscriptWatcher
 
 
 PIPER_DIR = Path.home() / ".claude" / "scripts" / "piper" / "piper"
@@ -61,6 +62,8 @@ class ServerState:
     # Phase 14 v0.4.0 — voice install task tracking + preview audio tokens
     voice_install_tasks: dict = None   # str → InstallTaskState
     voice_preview_audio: dict = None   # token str → Path
+    # Phase 13.9c Task 7 — continuous transcript watcher (pre-populates prose cache)
+    transcript_watcher: TranscriptWatcher = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -227,6 +230,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.tts_cache = TTSCache()
     state.tuning_history = TuningHistory()
     state.session_focus = SessionFocusRegistry()
+    state.transcript_watcher = TranscriptWatcher()
     # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
     state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()
@@ -279,6 +283,9 @@ async def autostart_live_if_configured(state: ServerState) -> None:
     live = state.modes.get("live")
     if isinstance(live, LiveMode):
         live.start()
+    # Phase 13.9c Task 7 — start continuous transcript watcher (needs asyncio loop).
+    if state.transcript_watcher is not None:
+        state.transcript_watcher.start()
 
 
 def main():
@@ -432,6 +439,10 @@ def register_tools(server, state) -> None:
         cwd = args.get("cwd", "")
         transcript_path = args.get("transcript_path", "")
         state.sessions.touch(session_id, cwd=cwd, transcript_path=transcript_path)
+        # Phase 13.9c Task 7 — register session with transcript watcher on first touch.
+        if transcript_path and state.transcript_watcher is not None:
+            from pathlib import Path as _Path
+            state.transcript_watcher.watch(session_id, _Path(transcript_path))
         s = state.sessions.get(session_id)
         if s is not None and not s.enabled:
             return "skipped: per-session disabled"
@@ -468,6 +479,16 @@ def register_tools(server, state) -> None:
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
         state.sessions.touch(session_id, cwd=cwd)
+        # Phase 13.9c Task 7 — register with transcript watcher via catalog lookup.
+        if state.transcript_watcher is not None and state.catalog is not None:
+            try:
+                entry = state.catalog.entry_for(session_id)
+                tp = getattr(entry, "transcript_path", None) if entry else None
+                if tp:
+                    from pathlib import Path as _Path
+                    state.transcript_watcher.watch(session_id, _Path(tp))
+            except Exception:
+                pass  # best-effort; Stop handler will register when transcript_path is in args
         s = state.sessions.get(session_id)
         if s is not None and not s.enabled:
             return "skipped: per-session disabled"
