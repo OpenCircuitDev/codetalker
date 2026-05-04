@@ -104,6 +104,11 @@
     renderDetail();
   }
 
+  // Track last-rendered session-list signature so we skip pointless re-renders
+  // that destroy focus/hover state every poll cycle. Phase 13.7b — fixes the
+  // long-standing "buttons and dropdowns lose focus every 2s" UI bug.
+  let _lastCatalogSig = "";
+
   function renderCatalog() {
     const list = document.getElementById("session-list");
     const count = document.getElementById("session-count");
@@ -115,6 +120,23 @@
     });
     count.textContent = "(" + filtered.length +
       (state.sessions.length !== filtered.length ? " of " + state.sessions.length : "") + ")";
+
+    // GUARD 1: skip if user is currently interacting with the list — prevents
+    // the destructive re-render from yanking focus mid-click.
+    if (list.contains(document.activeElement) ||
+        list.matches(":hover") || list.querySelector(":hover")) {
+      return;
+    }
+
+    // GUARD 2: skip if nothing changed — saves CPU and avoids gratuitous DOM
+    // churn that confuses screen readers and breaks user-driven scroll position.
+    const sig = JSON.stringify(filtered.map(s => [
+      s.session_id, s.enabled, s.is_live, s.attached_profile,
+      s.display_name, s.last_modified, state.selectedSessionId, state.filter,
+    ]));
+    if (sig === _lastCatalogSig) return;
+    _lastCatalogSig = sig;
+
     list.innerHTML = "";
     if (filtered.length === 0) {
       const li = document.createElement("li");
