@@ -244,3 +244,47 @@ def test_recent_assistant_prose_strips_urls(tmp_path):
     assert len(out) == 1
     assert "https" not in out[0]
     assert "[link]" in out[0]
+
+
+# ---------------------------------------------------------------------------
+# Phase 14b: extended URL-stripping for markdown links + file paths
+# ---------------------------------------------------------------------------
+
+def test_strip_markdown_link_keeps_label_drops_url():
+    from claude_code_talker.transcript import strip_urls
+    assert strip_urls("see [the docs](https://example.com/x) for details") \
+        == "see the docs for details"
+
+
+def test_strip_markdown_link_with_local_path():
+    from claude_code_talker.transcript import strip_urls
+    assert strip_urls("Edit [live.py](modes/live.py) to fix the bug") \
+        == "Edit live.py to fix the bug"
+
+
+def test_strip_bare_posix_path_to_basename():
+    from claude_code_talker.transcript import strip_urls
+    assert strip_urls("editing src/auth/login.py now") \
+        == "editing login.py now"
+
+
+def test_strip_bare_windows_path_to_basename():
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls(r"see C:/Users/brand/file.ts for the change")
+    assert "C:" not in out
+    assert "file.ts" in out
+
+
+def test_strip_does_not_touch_plain_words():
+    from claude_code_talker.transcript import strip_urls
+    assert strip_urls("version 1.2.3 of the library") == "version 1.2.3 of the library"
+    assert strip_urls("plain words only") == "plain words only"
+
+
+def test_strip_handles_combined_markdown_and_bare_url():
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("Filed [issue](https://github.com/foo/bar/issues/1) plus see https://other.com")
+    assert "github.com" not in out
+    assert "other.com" not in out
+    assert "[link]" in out
+    assert "issue" in out

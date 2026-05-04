@@ -16,17 +16,46 @@ _URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Markdown-link form: [display text](url-or-path) — collapses to just the
+# display text. The narrator gets the human-readable label without the
+# parenthesized path being recited.
+_MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+
+# Bare file-path tokens with directory separators — Windows-style and POSIX.
+# Collapses to the basename so the narrator says "live.py" instead of
+# spelling out "C:/Users/.../modes/live.py" character by character.
+# Conservative: only matches paths containing at least one separator
+# (avoids matching plain words). Skips tokens that are part of a URL match.
+_FILE_PATH = re.compile(
+    r"(?:[A-Za-z]:[\\/])?(?:[\w\-.]+[\\/])+[\w\-.]+",
+)
+
 
 def strip_urls(text: str) -> str:
-    """Return *text* with every URL replaced by the literal string '[link]'.
+    """Return *text* with URL-like tokens replaced for TTS-friendly reading.
 
-    Used to keep TTS from reading aloud arbitrary URLs in assistant prose,
-    user prompts, or tool output snippets.  Handles None / empty / non-str
-    gracefully.
+    - Markdown links `[label](url)` → `label` (just the human label).
+    - Bare URLs `https://...` / `www.foo.com` → `[link]`.
+    - Bare file paths with separators (`src/foo.py`, `C:/x/y.ts`) → basename only.
+
+    Handles None / empty / non-str gracefully.
     """
     if not text:
         return text
-    return _URL_PATTERN.sub("[link]", text)
+    # Order matters: collapse markdown links first (so their inner URL
+    # isn't matched separately by the URL pattern), then bare URLs, then
+    # bare paths (so URL-internal path segments aren't double-processed).
+    text = _MARKDOWN_LINK.sub(r"\1", text)
+    text = _URL_PATTERN.sub("[link]", text)
+    def _path_to_basename(m: re.Match) -> str:
+        token = m.group(0)
+        # Don't touch already-replaced [link]s or natural sentences with no
+        # separator (the regex requires a separator already, so this is mostly
+        # a guard against unusual matches).
+        # Keep only the basename — last segment after / or \
+        return re.split(r"[\\/]", token)[-1]
+    text = _FILE_PATH.sub(_path_to_basename, text)
+    return text
 
 
 # IDE / Claude Code system-injected wrappers that shouldn't count as prose.
