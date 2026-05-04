@@ -7,6 +7,7 @@ cadence loop fires independently per session.
 from __future__ import annotations
 
 import asyncio
+import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -248,3 +249,32 @@ async def test_narrate_skips_disabled_session():
 
     # Provider should have been called ONCE — only for the enabled session
     assert provider.complete.await_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 7: _build_prompt includes RECENT ASSISTANT REASONING when catalog set
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_build_prompt_includes_assistant_reasoning_when_catalog_set(tmp_path):
+    """When LiveMode has a catalog, _build_prompt injects RECENT ASSISTANT REASONING."""
+    transcript = tmp_path / "sess.jsonl"
+    transcript.write_text(json.dumps({"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Categorizing 81 stubs into 30/17/10 buckets."},
+    ]}}) + "\n", encoding="utf-8")
+
+    class FakeEntry:
+        transcript_path = transcript
+
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+
+    provider = _non_streaming_provider()
+    mode = _make_mode(provider)
+    mode.catalog = FakeCatalog()  # bypass constructor for test simplicity
+
+    events = [_make_event(ts=1.0, session_id="sess-A")]
+    prompt = mode._build_prompt(events, session_id="sess-A")
+    assert "RECENT ASSISTANT REASONING" in prompt
+    assert "Categorizing 81 stubs" in prompt

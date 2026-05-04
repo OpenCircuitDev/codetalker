@@ -1,6 +1,7 @@
 """Tests for transcript parsing."""
+import json
 from pathlib import Path
-from claude_code_talker.transcript import collect_turn, is_real_user_message
+from claude_code_talker.transcript import collect_turn, is_real_user_message, recent_assistant_prose
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -55,3 +56,131 @@ def test_collect_turn_missing_file_returns_empty():
     assert prose == []
     assert tool_uses == []
     assert todos is None
+
+
+# ---------------------------------------------------------------------------
+# Tests for recent_assistant_prose
+# ---------------------------------------------------------------------------
+
+def _write_transcript(p: Path, entries: list) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("\n".join(json.dumps(e) for e in entries), encoding="utf-8")
+
+
+def test_returns_empty_when_session_id_empty():
+    assert recent_assistant_prose("", catalog=None) == []
+
+
+def test_returns_empty_when_catalog_none():
+    assert recent_assistant_prose("sess-A", catalog=None) == []
+
+
+def test_returns_empty_when_catalog_has_no_entry():
+    class FakeCatalog:
+        def get(self, sid):
+            return None
+    assert recent_assistant_prose("sess-A", catalog=FakeCatalog()) == []
+
+
+def test_returns_assistant_prose_in_order(tmp_path):
+    transcript = tmp_path / "sess.jsonl"
+    _write_transcript(transcript, [
+        {"type": "user", "message": {"content": "do the thing"}},
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "Starting on the menu refactor."},
+        ]}},
+        {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Edit"},
+            {"type": "text", "text": "Edited Menu.tsx to add multi-select."},
+        ]}},
+    ])
+    class FakeEntry:
+        transcript_path = transcript
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+    out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=5)
+    assert len(out) == 2
+    assert "menu refactor" in out[0]
+    assert "multi-select" in out[1]
+
+
+def test_caps_to_max_messages(tmp_path):
+    transcript = tmp_path / "sess.jsonl"
+    entries = [
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": f"Message {i}"},
+        ]}}
+        for i in range(10)
+    ]
+    _write_transcript(transcript, entries)
+    class FakeEntry:
+        transcript_path = transcript
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+    out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=3)
+    assert len(out) == 3
+    # Last 3, oldest-first within the window
+    assert out == ["Message 7", "Message 8", "Message 9"]
+
+
+def test_truncates_per_message(tmp_path):
+    transcript = tmp_path / "sess.jsonl"
+    long_text = "x" * 5000
+    _write_transcript(transcript, [
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": long_text},
+        ]}},
+    ])
+    class FakeEntry:
+        transcript_path = transcript
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+    out = recent_assistant_prose("any", catalog=FakeCatalog(),
+                                 max_messages=1, max_chars_per_message=200)
+    assert len(out[0]) <= 200
+
+
+def test_skips_ide_injected_wrapper_prefixes(tmp_path):
+    """If a transcript line starts with a known IDE-injected wrapper prefix
+    (e.g. system reminders bleeding through), it should be skipped."""
+    transcript = tmp_path / "sess.jsonl"
+    _write_transcript(transcript, [
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "<system-reminder>internal goo</system-reminder>"},
+        ]}},
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "Real reasoning here."},
+        ]}},
+    ])
+    class FakeEntry:
+        transcript_path = transcript
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+    out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=5)
+    # The system-reminder line should be filtered; only the real reasoning remains.
+    assert len(out) == 1
+    assert "Real reasoning" in out[0]
+
+
+def test_handles_corrupted_transcript_lines(tmp_path):
+    transcript = tmp_path / "sess.jsonl"
+    transcript.write_text(
+        "not json\n" +
+        json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "good message"},
+        ]}}) + "\n" +
+        "{invalid\n",
+        encoding="utf-8",
+    )
+    class FakeEntry:
+        transcript_path = transcript
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+    out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=5)
+    assert len(out) == 1
+    assert "good message" in out[0]

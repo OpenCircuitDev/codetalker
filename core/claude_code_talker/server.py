@@ -256,6 +256,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         narration_log=state.narration_log,
         sessions=state.sessions,
         session_focus=state.session_focus,
+        catalog=state.catalog,
     )
     return state
 

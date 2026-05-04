@@ -2,7 +2,18 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
+
+# IDE / Claude Code system-injected wrappers that shouldn't count as prose.
+_SKIP_PROSE_PREFIXES = (
+    "<ide_opened_file>", "<ide_selection>", "<local-command-caveat>",
+    "<local-command-stdout>", "<local-command-stderr>", "<system-reminder>",
+    "<system>", "<task-notification>", "<bash-input>", "<bash-stdout>",
+    "<bash-stderr>", "<command-name>", "<command-args>", "<command-stdout>",
+    "<command-stderr>", "<user-prompt-submit-hook>",
+    "Base directory for this skill:", "Caveat: The messages below were generated",
+)
 
 
 def is_real_user_message(entry: dict) -> bool:
@@ -78,3 +89,91 @@ def collect_turn(transcript_path: str) -> tuple[list[str], list[dict], list | No
                     todos = c.get("input", {}).get("todos", [])
 
     return prose_entries, tool_uses, todos
+
+
+def recent_assistant_prose(
+    session_id: str,
+    catalog,  # SessionCatalog | None — or any object with entry_for/get returning path
+    *,
+    max_messages: int = 3,
+    max_chars_per_message: int = 1500,
+) -> list[str]:
+    """Read the last N assistant prose messages from the session's transcript.
+
+    Returns plain strings (no role prefix). Empty list when:
+    - session_id is empty
+    - catalog is None
+    - catalog has no entry for this session
+    - transcript file doesn't exist or is unreadable
+    - no assistant messages in the recent window
+
+    Each message is truncated to max_chars_per_message to bound prompt growth.
+    """
+    if not session_id or catalog is None:
+        return []
+
+    # Support both SessionCatalog (entry_for) and test fakes (get).
+    entry = None
+    try:
+        lookup = getattr(catalog, "entry_for", None) or getattr(catalog, "get", None)
+        if lookup is not None:
+            entry = lookup(session_id)
+    except Exception as exc:
+        logging.debug("recent_assistant_prose: catalog lookup failed: %s", exc)
+        return []
+
+    if entry is None:
+        return []
+
+    transcript_path = getattr(entry, "transcript_path", None)
+    if not transcript_path:
+        return []
+
+    path = Path(transcript_path)
+    if not path.exists():
+        return []
+
+    try:
+        raw_lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        logging.debug("recent_assistant_prose: cannot read transcript: %s", exc)
+        return []
+
+    collected: list[str] = []
+    for raw in raw_lines:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            d = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if not isinstance(d, dict) or d.get("type") != "assistant":
+            continue
+        content = d.get("message", {}).get("content", [])
+        if not isinstance(content, list):
+            continue
+        # Concatenate all text blocks; skip tool_use blocks.
+        parts: list[str] = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text":
+                text = block.get("text") or ""
+                if text:
+                    parts.append(text)
+        if not parts:
+            continue
+        prose = "\n".join(parts).strip()
+        if not prose:
+            continue
+        # Skip IDE-injected wrapper content.
+        if any(prose.startswith(p) for p in _SKIP_PROSE_PREFIXES):
+            continue
+        # Truncate to bound prompt growth.
+        if len(prose) > max_chars_per_message:
+            prose = prose[:max_chars_per_message]
+        collected.append(prose)
+
+    # Return the LAST max_messages, oldest-first (most recent at end).
+    return collected[-max_messages:]

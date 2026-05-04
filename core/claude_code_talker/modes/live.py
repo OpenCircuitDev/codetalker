@@ -11,6 +11,7 @@ from claude_code_talker.audio import AudioJob
 from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
+from claude_code_talker.transcript import recent_assistant_prose
 
 
 # The system portion is kept constant so that Google Gemini's implicit prefix
@@ -68,7 +69,7 @@ def events_for_session(events: list[Event], session_id: str) -> list[Event]:
 class LiveMode(ModeStrategy):
     name = "live"
 
-    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict, narration_log=None, sessions=None, session_focus=None):
+    def __init__(self, provider, cadence: CadenceStrategy, event_buffer: EventBuffer, audio_queue, cfg: dict, narration_log=None, sessions=None, session_focus=None, *, catalog=None):
         self.provider = provider
         self.cadence = cadence
         self.event_buffer = event_buffer
@@ -77,6 +78,7 @@ class LiveMode(ModeStrategy):
         self.narration_log = narration_log  # Phase 11: optional NarrationLog
         self.sessions = sessions  # Phase 8.6: SessionRegistry for per-session voice
         self.session_focus = session_focus  # Phase 13.5B: per-session WHY/CONTEXT block
+        self.catalog = catalog  # Phase 13.7: SessionCatalog for assistant prose injection
         self._task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         # Per-session last-narration timestamps for the cadence loop.
@@ -442,9 +444,19 @@ class LiveMode(ModeStrategy):
         if self.session_focus is not None and session_id:
             focus_block = self.session_focus.get_or_create(session_id).render_block()
 
+        # Phase 13.7: inject RECENT ASSISTANT REASONING from transcript
+        prose_block = ""
+        if self.catalog is not None and session_id:
+            prose_lines = recent_assistant_prose(session_id, self.catalog,
+                                                 max_messages=3, max_chars_per_message=1500)
+            if prose_lines:
+                prose_block = "\nRECENT ASSISTANT REASONING (most recent last):\n" + \
+                              "\n".join(f'- "{p}"' for p in prose_lines)
+
         return (
             static_section
             + (("\n" + focus_block) if focus_block else "")
+            + (prose_block if prose_block else "")
             + "\n\n"
             + _EVENTS_HEADER
             + "\n".join(lines)
