@@ -12,7 +12,9 @@ from claude_code_talker.audio import AudioJob
 from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
-from claude_code_talker.transcript import recent_assistant_prose
+from claude_code_talker.transcript import recent_assistant_prose, strip_urls
+from claude_code_talker.triggers.parser import parse_blocks
+from claude_code_talker.triggers.tags import TagLibrary
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +262,45 @@ class LiveMode(ModeStrategy):
             ))
         except Exception as _e:
             logging.debug("narration log append failed: %s", _e)
+
+    # ------------------------------------------------------------------
+    # Phase 14.5: trigger-mode handler — parse Audible * blocks, speak verbatim
+    # ------------------------------------------------------------------
+
+    def _trigger_handler(self, session_id: str, prose: str) -> None:
+        """Parse Audible * blocks from incoming prose and queue them to TTS verbatim.
+
+        Returns early when live.mode == 'llm' (legacy LLM-narration-only path).
+        In 'trigger' or 'both' modes, each enabled Audible block found in *prose*
+        is stripped of URLs and submitted as an AudioJob at normal priority.
+        """
+        mode = (self.cfg.get("live") or {}).get("mode", "llm")
+        if mode == "llm":
+            return
+        tags_section = (self.cfg.get("triggers") or {}).get("tags") or {}
+        lib = TagLibrary.from_cfg(tags_section)
+        enabled = lib.enabled_ids()
+        if not enabled:
+            return
+        blocks = parse_blocks(prose, enabled)
+        if not blocks:
+            return
+        voice, rate, engine_name = self._resolve_voice_cfg(session_id)
+        if not voice:
+            return
+        for b in blocks:
+            clean = strip_urls(b.content)
+            if not clean:
+                continue
+            self.audio_queue.submit(AudioJob(
+                text=clean,
+                voice=voice,
+                rate=rate,
+                engine_name=engine_name,
+                priority="normal",
+            ))
+            self._append_narration_log(clean, voice, engine_name, "normal",
+                                       session_id=session_id, mode="trigger")
 
     # ------------------------------------------------------------------
     # Streaming narration path (Sub-task 1.1)

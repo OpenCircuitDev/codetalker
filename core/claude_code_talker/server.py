@@ -230,12 +230,18 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.tts_cache = TTSCache()
     state.tuning_history = TuningHistory()
     state.session_focus = SessionFocusRegistry()
-    state.transcript_watcher = TranscriptWatcher(
-        on_new_prose=lambda sid, prose: (
+    def _on_new_prose(sid: str, prose: str) -> None:
+        if state.session_focus is not None:
             state.session_focus.record_assistant_prose(sid, prose)
-            if state.session_focus is not None else None
-        ),
-    )
+        live = state.modes.get("live")
+        if isinstance(live, LiveMode):
+            try:
+                live._trigger_handler(sid, prose)
+            except Exception as e:
+                import logging
+                logging.warning("trigger handler failed: %s", e)
+
+    state.transcript_watcher = TranscriptWatcher(on_new_prose=_on_new_prose)
     # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
     state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()
