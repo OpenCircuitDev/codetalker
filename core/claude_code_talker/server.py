@@ -58,6 +58,9 @@ class ServerState:
     tuning_history: TuningHistory = None
     virtual_eval_latest: object = None
     session_focus: SessionFocusRegistry = None
+    # Phase 14 v0.4.0 — voice install task tracking + preview audio tokens
+    voice_install_tasks: dict = None   # str → InstallTaskState
+    voice_preview_audio: dict = None   # token str → Path
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -218,6 +221,8 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.profiles = profiles
     state.secrets = secrets
     state.narration_log = NarrationLog()
+    state.voice_install_tasks = {}
+    state.voice_preview_audio = {}
     state.token_tracker = TokenTracker()
     state.tts_cache = TTSCache()
     state.tuning_history = TuningHistory()

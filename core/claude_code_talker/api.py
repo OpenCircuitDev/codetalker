@@ -5,13 +5,17 @@ import json
 import json as _json_lib
 import re
 import time as _rate_time
+import uuid
 from pathlib import Path
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 from claude_code_talker.profiles import is_valid_profile_name
 from claude_code_talker.persistent_sessions import is_valid_session_id
 from claude_code_talker.secrets_store import KNOWN_KEYS as _SECRET_KEYS, SecretsStore as _SecretsStore
+
+# Voices references directory (same default as xtts engine, overridable via cfg)
+_VOICES_REFS_DEFAULT = Path.home() / ".claude" / "scripts" / "voice-cloner" / "references"
 
 
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
@@ -992,6 +996,404 @@ def build_routes(state) -> list[Route]:
             state.sessions.invalidate(s.session_id)
         return JSONResponse({"reverted": True})
 
+    # -----------------------------------------------------------------
+    # Phase 14 v0.4.0 — Voice clone / CRUD endpoints
+    # -----------------------------------------------------------------
+
+    def _voices_refs_dir() -> Path:
+        """Return the references dir, from cfg if set, else default."""
+        xtts_cfg = (state.cfg.get("engines") or {}).get("xtts") or {}
+        configured = xtts_cfg.get("references_dir") or None
+        return Path(configured) if configured else _VOICES_REFS_DEFAULT
+
+    def _voice_info(name: str, refs_dir: Path) -> dict:
+        """Build the per-voice dict for GET /api/voices responses."""
+        from claude_code_talker.voices.metadata import read_metadata
+        import dataclasses
+        wav = refs_dir / f"{name}.wav"
+        face_frame = refs_dir / f"{name}-frame.jpg"
+        avatar_glb = refs_dir / f"{name}.glb"
+        duration_s: float | None = None
+        try:
+            import wave
+            with wave.open(str(wav), "rb") as wf:
+                duration_s = wf.getnframes() / max(wf.getframerate(), 1)
+        except Exception:
+            pass
+        meta = read_metadata(refs_dir, name)
+        return {
+            "name": name,
+            "duration_s": duration_s,
+            "has_face_frame": face_frame.exists(),
+            "has_avatar": avatar_glb.exists(),
+            "metadata": dataclasses.asdict(meta) if meta else None,
+        }
+
+    async def voices_list(request: Request) -> JSONResponse:
+        """GET /api/voices/list — list all cloned XTTS voices with metadata."""
+        refs_dir = _voices_refs_dir()
+        if not refs_dir.exists():
+            return JSONResponse({"voices": []})
+        voices = []
+        for wav in sorted(refs_dir.glob("*.wav")):
+            voices.append(_voice_info(wav.stem, refs_dir))
+        return JSONResponse({"voices": voices})
+
+    async def voices_dependency_status(request: Request) -> JSONResponse:
+        """GET /api/voices/dependency-status."""
+        from claude_code_talker.voices.dependency_check import check_deps
+        deps = check_deps()
+        # yt_dlp is informational only in v0.4.0 — don't count it against all_present
+        result = {
+            "yt_dlp": deps.get("yt_dlp", False),
+            "ffmpeg": deps.get("ffmpeg", False),
+            "whisper": deps.get("whisper", False),
+            "all_present": deps.get("ffmpeg", False) and deps.get("whisper", False),
+            "install_hint": deps.get("install_hint", ""),
+        }
+        return JSONResponse(result)
+
+    async def voices_install_dependencies(request: Request) -> JSONResponse:
+        """POST /api/voices/install-dependencies — kick off background install."""
+        from claude_code_talker.voices.auto_install import InstallTaskState, install_deps_async
+        task_id = str(uuid.uuid4())
+        task_state = InstallTaskState()
+        state.voice_install_tasks[task_id] = task_state
+
+        import asyncio
+        asyncio.get_event_loop().create_task(install_deps_async(task_state))
+        return JSONResponse({"task_id": task_id})
+
+    async def voices_install_status(request: Request) -> JSONResponse:
+        """GET /api/voices/install-status/<task_id>."""
+        task_id = request.path_params["task_id"]
+        task_state = state.voice_install_tasks.get(task_id)
+        if task_state is None:
+            return _not_found(f"task not found: {task_id}")
+        import dataclasses
+        return JSONResponse(dataclasses.asdict(task_state))
+
+    async def voices_clone_from_file(request: Request) -> JSONResponse:
+        """POST /api/voices/clone-from-file — multipart upload, audio or video."""
+        from claude_code_talker.voices.clone import clone_from_local_file, extract_face_frame, _is_video
+        from claude_code_talker.voices.metadata import new_metadata, write_metadata
+        import dataclasses, tempfile
+
+        form = await request.form()
+        audio_field = form.get("audio")
+        if audio_field is None:
+            return _bad_request("multipart field 'audio' is required")
+
+        name = (form.get("name") or "").strip()
+        if not name:
+            return _bad_request("form field 'name' is required")
+
+        start_raw = form.get("start") or ""
+        end_raw = form.get("end") or ""
+        try:
+            start = float(start_raw) if start_raw else None
+            end = float(end_raw) if end_raw else None
+        except ValueError:
+            return _bad_request("'start' and 'end' must be numeric seconds")
+
+        refs_dir = _voices_refs_dir()
+
+        # Write uploaded file to a temp location
+        suffix = Path(getattr(audio_field, "filename", "") or "upload.wav").suffix or ".wav"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_f:
+            tmp_path = Path(tmp_f.name)
+            content = await audio_field.read()
+            tmp_f.write(content)
+
+        try:
+            voice_path = await clone_from_local_file(
+                tmp_path,
+                name=name,
+                references_dir=refs_dir,
+                start=start,
+                end=end,
+            )
+        except (RuntimeError, ValueError) as exc:
+            tmp_path.unlink(missing_ok=True)
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        except Exception as exc:
+            tmp_path.unlink(missing_ok=True)
+            return JSONResponse({"error": f"clone failed: {exc}"}, status_code=500)
+
+        # Extract face frame for video sources
+        safe_name = voice_path.stem
+        face_frame_path: Path | None = None
+        is_vid = _is_video(tmp_path)
+        if is_vid:
+            frame_out = refs_dir / f"{safe_name}-frame.jpg"
+            midpoint = ((start or 0.0) + (end or 0.0)) / 2 if (start or end) else 0.0
+            face_frame_path = await extract_face_frame(tmp_path, frame_out, at_seconds=midpoint)
+
+        tmp_path.unlink(missing_ok=True)
+
+        # Write metadata sidecar
+        meta = new_metadata(
+            safe_name,
+            source_path=getattr(audio_field, "filename", "") or "",
+            source_type="video" if is_vid else "audio",
+            clip_start=start or 0.0,
+            clip_end=end or 0.0,
+        )
+        write_metadata(refs_dir, meta)
+
+        return JSONResponse({
+            "name": safe_name,
+            "voice_path": str(voice_path),
+            "face_frame_path": str(face_frame_path) if face_frame_path else None,
+            "metadata": dataclasses.asdict(meta),
+        })
+
+    async def voices_preview_extract(request: Request) -> JSONResponse:
+        """POST /api/voices/preview-extract — transcribe a local file for the preview wizard."""
+        from claude_code_talker.voices.transcribe import transcribe_audio
+        import dataclasses, shutil, tempfile
+
+        try:
+            body = await _read_json(request)
+        except ValueError as exc:
+            return _bad_request(str(exc))
+        source_path_str = body.get("source_path") or ""
+        if not source_path_str:
+            return _bad_request("'source_path' is required")
+
+        source_path = Path(source_path_str)
+        if not source_path.exists():
+            return _not_found(f"file not found: {source_path_str}")
+
+        # Copy audio to a tmp WAV for whisper (ffmpeg extracts audio)
+        token = str(uuid.uuid4())
+        tmp_wav = Path(tempfile.gettempdir()) / f"preview-{token}.wav"
+        try:
+            # Use ffmpeg to extract/convert to wav so whisper can process
+            import asyncio, sys
+            ffmpeg_exe = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+            proc = await asyncio.create_subprocess_exec(
+                ffmpeg_exe, "-y", "-i", str(source_path),
+                "-ac", "1", "-ar", "16000", str(tmp_wav),
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            await proc.communicate()
+        except Exception as exc:
+            return JSONResponse({"error": f"audio extraction failed: {exc}"}, status_code=500)
+
+        try:
+            segments = await transcribe_audio(tmp_wav)
+        except Exception as exc:
+            tmp_wav.unlink(missing_ok=True)
+            return JSONResponse({"error": f"transcription failed: {exc}"}, status_code=500)
+
+        # Store the tmp wav keyed by token so preview-audio can serve it
+        state.voice_preview_audio[token] = tmp_wav
+
+        return JSONResponse({
+            "token": token,
+            "audio_url": f"/api/voices/preview-audio/{token}",
+            "segments": [dataclasses.asdict(s) for s in segments],
+        })
+
+    async def voices_preview_audio(request: Request) -> Response:
+        """GET /api/voices/preview-audio/<token> — serve the extracted preview WAV."""
+        token = request.path_params["token"]
+        wav_path = state.voice_preview_audio.get(token)
+        if wav_path is None or not wav_path.exists():
+            return _not_found(f"preview token not found: {token}")
+        # NOTE: TTL/cleanup of tmp files is deferred to v1; files live until daemon restarts.
+        return Response(
+            content=wav_path.read_bytes(),
+            media_type="audio/wav",
+        )
+
+    async def voices_clone_from_preview(request: Request) -> JSONResponse:
+        """POST /api/voices/clone-from-preview — clip an already-extracted preview WAV."""
+        from claude_code_talker.voices.clone import clone_from_local_file
+        from claude_code_talker.voices.metadata import new_metadata, write_metadata
+        import dataclasses
+
+        try:
+            body = await _read_json(request)
+        except ValueError as exc:
+            return _bad_request(str(exc))
+
+        token = body.get("token") or ""
+        name = (body.get("name") or "").strip()
+        if not token:
+            return _bad_request("'token' is required")
+        if not name:
+            return _bad_request("'name' is required")
+
+        wav_path = state.voice_preview_audio.get(token)
+        if wav_path is None or not wav_path.exists():
+            return _not_found(f"preview token not found: {token}")
+
+        start_raw = body.get("start")
+        end_raw = body.get("end")
+        start = float(start_raw) if start_raw is not None else None
+        end = float(end_raw) if end_raw is not None else None
+
+        refs_dir = _voices_refs_dir()
+        try:
+            voice_path = await clone_from_local_file(
+                wav_path, name=name, references_dir=refs_dir, start=start, end=end
+            )
+        except (RuntimeError, ValueError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+        except Exception as exc:
+            return JSONResponse({"error": f"clone failed: {exc}"}, status_code=500)
+
+        safe_name = voice_path.stem
+        meta = new_metadata(safe_name, source_type="audio", clip_start=start or 0.0, clip_end=end or 0.0)
+        write_metadata(refs_dir, meta)
+
+        return JSONResponse({
+            "name": safe_name,
+            "voice_path": str(voice_path),
+            "metadata": dataclasses.asdict(meta),
+        })
+
+    async def voices_preview_voice(request: Request) -> Response:
+        """POST /api/voices/preview/<name> — synthesise a short XTTS preview."""
+        name = request.path_params["name"]
+        engine = state.engines.get("xtts")
+        if engine is None:
+            return JSONResponse({"error": "xtts engine unavailable"}, status_code=503)
+        try:
+            audio_bytes = await engine.synthesise(
+                f"Hello, this is a preview of {name}.", voice=name
+            )
+        except Exception as exc:
+            return JSONResponse({"error": f"synthesis failed: {exc}"}, status_code=500)
+        return Response(content=audio_bytes, media_type="audio/wav")
+
+    async def voices_rename(request: Request) -> JSONResponse:
+        """PATCH /api/voices/<name> — rename a voice (WAV + metadata sidecar)."""
+        from claude_code_talker.voices.metadata import read_metadata, write_metadata
+        import dataclasses, shutil
+
+        old_name = request.path_params["name"]
+        try:
+            body = await _read_json(request)
+        except ValueError as exc:
+            return _bad_request(str(exc))
+        new_name = (body.get("new_name") or "").strip()
+        if not new_name:
+            return _bad_request("'new_name' is required")
+
+        refs_dir = _voices_refs_dir()
+        old_wav = refs_dir / f"{old_name}.wav"
+        if not old_wav.exists():
+            return _not_found(f"voice not found: {old_name}")
+
+        new_wav = refs_dir / f"{new_name}.wav"
+        if new_wav.exists():
+            return JSONResponse({"error": f"voice already exists: {new_name}"}, status_code=409)
+
+        old_wav.rename(new_wav)
+
+        # Move sidecar + face frame if present
+        old_json = refs_dir / f"{old_name}.json"
+        if old_json.exists():
+            new_json = refs_dir / f"{new_name}.json"
+            old_json.rename(new_json)
+            # Update the name field inside the sidecar
+            meta = read_metadata(refs_dir, new_name)
+            if meta:
+                meta.name = new_name
+                write_metadata(refs_dir, meta)
+
+        old_frame = refs_dir / f"{old_name}-frame.jpg"
+        if old_frame.exists():
+            old_frame.rename(refs_dir / f"{new_name}-frame.jpg")
+
+        old_glb = refs_dir / f"{old_name}.glb"
+        if old_glb.exists():
+            old_glb.rename(refs_dir / f"{new_name}.glb")
+
+        return JSONResponse({"old_name": old_name, "new_name": new_name})
+
+    async def voices_replace_source(request: Request) -> JSONResponse:
+        """POST /api/voices/<name>/replace-source — re-clone an existing voice slot."""
+        from claude_code_talker.voices.clone import clone_from_local_file, _is_video, extract_face_frame
+        from claude_code_talker.voices.metadata import update_metadata
+        import dataclasses, tempfile
+
+        name = request.path_params["name"]
+        refs_dir = _voices_refs_dir()
+        old_wav = refs_dir / f"{name}.wav"
+        if not old_wav.exists():
+            return _not_found(f"voice not found: {name}")
+
+        form = await request.form()
+        audio_field = form.get("audio")
+        if audio_field is None:
+            return _bad_request("multipart field 'audio' is required")
+
+        start_raw = form.get("start") or ""
+        end_raw = form.get("end") or ""
+        try:
+            start = float(start_raw) if start_raw else None
+            end = float(end_raw) if end_raw else None
+        except ValueError:
+            return _bad_request("'start' and 'end' must be numeric seconds")
+
+        suffix = Path(getattr(audio_field, "filename", "") or "upload.wav").suffix or ".wav"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_f:
+            tmp_path = Path(tmp_f.name)
+            content = await audio_field.read()
+            tmp_f.write(content)
+
+        # Delete the existing WAV so clone_from_local_file doesn't collision-resolve the name
+        old_wav.unlink(missing_ok=True)
+
+        try:
+            voice_path = await clone_from_local_file(
+                tmp_path, name=name, references_dir=refs_dir, start=start, end=end
+            )
+        except Exception as exc:
+            tmp_path.unlink(missing_ok=True)
+            return JSONResponse({"error": f"replace failed: {exc}"}, status_code=500)
+
+        is_vid = _is_video(tmp_path)
+        if is_vid:
+            frame_out = refs_dir / f"{name}-frame.jpg"
+            midpoint = ((start or 0.0) + (end or 0.0)) / 2 if (start or end) else 0.0
+            await extract_face_frame(tmp_path, frame_out, at_seconds=midpoint)
+
+        tmp_path.unlink(missing_ok=True)
+
+        meta = update_metadata(
+            refs_dir, name,
+            source_path=getattr(audio_field, "filename", "") or "",
+            source_type="video" if is_vid else "audio",
+            clip_start=start or 0.0,
+            clip_end=end or 0.0,
+        )
+
+        return JSONResponse({
+            "name": name,
+            "voice_path": str(voice_path),
+            "metadata": dataclasses.asdict(meta),
+        })
+
+    async def voices_delete(request: Request) -> JSONResponse:
+        """DELETE /api/voices/<name> — remove all files for a voice."""
+        name = request.path_params["name"]
+        refs_dir = _voices_refs_dir()
+        old_wav = refs_dir / f"{name}.wav"
+        if not old_wav.exists():
+            return _not_found(f"voice not found: {name}")
+
+        old_wav.unlink(missing_ok=True)
+        (refs_dir / f"{name}.json").unlink(missing_ok=True)
+        (refs_dir / f"{name}-frame.jpg").unlink(missing_ok=True)
+        (refs_dir / f"{name}.glb").unlink(missing_ok=True)
+
+        return JSONResponse({"deleted": True})
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -1025,6 +1427,19 @@ def build_routes(state) -> list[Route]:
         Route("/api/profiles/{name}", put_profile, methods=["PUT"]),
         Route("/api/profiles/{name}", delete_profile, methods=["DELETE"]),
         Route("/api/voices", list_voices, methods=["GET"]),
+        # Phase 14 v0.4.0 — voice clone CRUD (order matters: specific before wildcard)
+        Route("/api/voices/list", voices_list, methods=["GET"]),
+        Route("/api/voices/dependency-status", voices_dependency_status, methods=["GET"]),
+        Route("/api/voices/install-dependencies", voices_install_dependencies, methods=["POST"]),
+        Route("/api/voices/install-status/{task_id}", voices_install_status, methods=["GET"]),
+        Route("/api/voices/clone-from-file", voices_clone_from_file, methods=["POST"]),
+        Route("/api/voices/preview-extract", voices_preview_extract, methods=["POST"]),
+        Route("/api/voices/preview-audio/{token}", voices_preview_audio, methods=["GET"]),
+        Route("/api/voices/clone-from-preview", voices_clone_from_preview, methods=["POST"]),
+        Route("/api/voices/preview/{name}", voices_preview_voice, methods=["POST"]),
+        Route("/api/voices/{name}", voices_rename, methods=["PATCH"]),
+        Route("/api/voices/{name}/replace-source", voices_replace_source, methods=["POST"]),
+        Route("/api/voices/{name}", voices_delete, methods=["DELETE"]),
         Route("/api/status", status, methods=["GET"]),
         Route("/api/mute", mute, methods=["POST"]),
         Route("/api/unmute", unmute, methods=["POST"]),
