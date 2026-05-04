@@ -19,7 +19,7 @@ class Event:
 class EventBuffer:
     """Thread-safe rolling buffer with subscriber notification."""
 
-    def __init__(self, max_size: int = 30):
+    def __init__(self, max_size: int = 60):
         self._events: deque[Event] = deque(maxlen=max_size)
         self._lock = threading.RLock()
         self._subscribers: list[Callable[[Event], None]] = []

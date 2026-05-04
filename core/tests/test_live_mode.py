@@ -333,16 +333,16 @@ def test_live_narration_system_has_doubled_word_limit():
     assert "30 words" not in LIVE_NARRATION_SYSTEM
 
 
-def test_build_prompt_uses_6_recent_messages(tmp_path):
-    """_build_prompt should call recent_assistant_prose with max_messages=6."""
+def test_build_prompt_uses_10_recent_messages(tmp_path):
+    """_build_prompt should call recent_assistant_prose with max_messages=10."""
     import json as _json
     transcript = tmp_path / "sess.jsonl"
-    # Write 8 messages so we can verify truncation to 6
+    # Write 12 messages so we can verify truncation to 10
     entries = [
         {"type": "assistant", "message": {"content": [
             {"type": "text", "text": f"Message {i}"},
         ]}}
-        for i in range(8)
+        for i in range(12)
     ]
     transcript.write_text("\n".join(_json.dumps(e) for e in entries), encoding="utf-8")
 
@@ -359,8 +359,10 @@ def test_build_prompt_uses_6_recent_messages(tmp_path):
 
     events = [_make_event(ts=1.0, session_id="sess-A")]
     prompt = mode._build_prompt(events, session_id="sess-A")
-    # With max_messages=6 we should see messages 2–7 (last 6 of 8), not 0 or 1
-    assert "Message 7" in prompt
-    assert "Message 2" in prompt
-    assert "Message 0" not in prompt
-    assert "Message 1" not in prompt
+    # With max_messages=10 we should see messages 2–11 (last 10 of 12), not 0 or 1
+    # Messages appear as `- "Message N"` in the prose block
+    assert '- "Message 11"' in prompt
+    assert '- "Message 2"' in prompt
+    # Use exact line prefix to avoid "Message 1" substring collision with "Message 11"
+    assert '- "Message 0"' not in prompt
+    assert '- "Message 1"' not in prompt

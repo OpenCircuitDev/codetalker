@@ -455,7 +455,7 @@ class LiveMode(ModeStrategy):
             lines.append("(no events)")
         else:
             t0 = scoped_events[0].timestamp
-            for ev in scoped_events[-15:]:
+            for ev in scoped_events[-30:]:
                 dt = ev.timestamp - t0
                 meta = ev.metadata
                 if ev.type == "USER_PROMPT":
@@ -488,7 +488,7 @@ class LiveMode(ModeStrategy):
         prose_block = ""
         if self.catalog is not None and session_id:
             prose_lines = recent_assistant_prose(session_id, self.catalog,
-                                                 max_messages=6, max_chars_per_message=1500)
+                                                 max_messages=10, max_chars_per_message=1500)
             if prose_lines:
                 prose_block = "\nRECENT ASSISTANT REASONING (most recent last):\n" + \
                               "\n".join(f'- "{p}"' for p in prose_lines)
