@@ -78,6 +78,24 @@ def summarize_tool_input(tool_name: str, raw_input: str) -> str:
     return strip_urls(str(d))[:80]
 
 
+_BASH_STDOUT_CAP = 200
+
+# Pattern sets for Bash output signal detection (matched case-insensitively).
+_PASS_PATTERNS = ("passed", "tests passed", "built successfully", "compilation finished", "ok")
+_FAIL_PATTERNS = ("failed", "error:", "traceback", "exception:")
+
+
+def _bash_signal_prefix(text_lower: str) -> str:
+    """Return '✓ ', '✗ ', or '' based on signal patterns in lowercased stdout."""
+    for pat in _PASS_PATTERNS:
+        if pat in text_lower:
+            return "✓ "
+    for pat in _FAIL_PATTERNS:
+        if pat in text_lower:
+            return "✗ "
+    return ""
+
+
 def summarize_tool_response(tool_name: str, raw_response: str, success: bool) -> str:
     """Compact one-line summary of a tool's response metadata.
 
@@ -91,13 +109,22 @@ def summarize_tool_response(tool_name: str, raw_response: str, success: bool) ->
     """
     d = _safe_parse_dict(raw_response) if raw_response else None
     if not success:
+        if tool_name == "Bash" and d:
+            exit_code = d.get("exit_code")
+            stdout = strip_urls(str(d.get("stdout") or d.get("output") or ""))[:_BASH_STDOUT_CAP]
+            if exit_code is not None:
+                text = stdout if stdout else str(d.get("error") or d.get("message") or "")[:80]
+                return f"(exit {exit_code}) {text}" if text else f"(exit {exit_code})"
+            err = str(d.get("error") or d.get("message") or "")[:80]
+            return f"FAILED: {err}" if err else "FAILED"
         if d:
             err = str(d.get("error") or d.get("message") or "")[:80]
             return f"FAILED: {err}" if err else "FAILED"
         return f"FAILED: {(raw_response or '')[:80]}" if raw_response else "FAILED"
     if tool_name == "Bash" and d:
-        out = strip_urls(str(d.get("stdout") or d.get("output") or ""))[:80]
+        out = strip_urls(str(d.get("stdout") or d.get("output") or ""))[:_BASH_STDOUT_CAP]
         if out:
-            return out
+            prefix = _bash_signal_prefix(out.lower())
+            return f"{prefix}{out}"
     # Edit / Write / Read / etc. — bare "ok" is fine
     return "ok"

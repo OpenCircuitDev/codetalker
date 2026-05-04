@@ -75,9 +75,10 @@ def test_summarize_response_bash_includes_stdout_when_short():
 
 
 def test_summarize_response_bash_truncates_long_stdout():
+    # Cap was raised from 80 → 200 in Phase 13.9a Task 2
     raw = str({"stdout": "x" * 1000, "exit_code": 0})
     out = summarize_tool_response("Bash", raw, success=True)
-    assert len(out) <= 100
+    assert len(out) <= 200
 
 
 def test_summarize_response_failure_surfaces_error():
@@ -130,3 +131,43 @@ def test_summarize_tool_input_bash_no_url_unchanged():
     out = summarize_tool_input("Bash", raw)
     assert "pytest" in out
     assert "[link]" not in out
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.9a Task 2 — Bash response enrichment
+# ---------------------------------------------------------------------------
+
+def test_summarize_response_bash_truncates_at_200():
+    """Long stdout must be capped at ≤200 chars (raised from 80)."""
+    long_stdout = "x" * 500
+    raw = str({"stdout": long_stdout, "exit_code": 0})
+    out = summarize_tool_response("Bash", raw, success=True)
+    assert len(out) <= 200
+
+
+def test_summarize_response_bash_detects_passed():
+    """stdout containing 'tests passed' should prepend ✓."""
+    raw = str({"stdout": "5 tests passed", "exit_code": 0})
+    out = summarize_tool_response("Bash", raw, success=True)
+    assert out.startswith("✓")
+
+
+def test_summarize_response_bash_detects_failed():
+    """stdout containing 'FAILED:' should prepend ✗."""
+    raw = str({"stdout": "FAILED: test_foo", "exit_code": 1})
+    out = summarize_tool_response("Bash", raw, success=True)
+    assert out.startswith("✗")
+
+
+def test_summarize_response_bash_includes_exit_code_on_failure():
+    """success=False + exit_code in response dict → text starts with '(exit N)'."""
+    raw = str({"stdout": "something went wrong", "exit_code": 1})
+    out = summarize_tool_response("Bash", raw, success=False)
+    assert out.startswith("(exit 1)")
+
+
+def test_summarize_response_bash_built_successfully_detected():
+    """'Built successfully' in stdout should prepend ✓ (case-insensitive)."""
+    raw = str({"stdout": "Built successfully in 3.2s", "exit_code": 0})
+    out = summarize_tool_response("Bash", raw, success=True)
+    assert out.startswith("✓")
