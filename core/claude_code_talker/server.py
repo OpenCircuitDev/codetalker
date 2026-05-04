@@ -104,9 +104,51 @@ def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
     return prov_obj
 
 
+def _bootstrap_starter_tags_if_needed(cfg: dict) -> None:
+    """On first run: if triggers.tags is absent, write the 5 starter tags to cfg-overlay.
+
+    Idempotent — if tags already exist this is a no-op. Modifies *cfg* in place
+    so the rest of build_server_state sees the bootstrapped values.
+    """
+    if cfg.get("triggers", {}).get("tags"):
+        return  # already populated — nothing to do
+
+    from claude_code_talker.triggers.tags import TagLibrary, STARTER_TAGS  # noqa: F401
+    import os as _os
+    import yaml as _yaml
+    from pathlib import Path as _P
+
+    lib = TagLibrary()
+    lib.bootstrap_starters()
+
+    overlay_path = _P.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+    overlay_path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict = {}
+    if overlay_path.exists():
+        try:
+            existing = _yaml.safe_load(overlay_path.read_text(encoding="utf-8")) or {}
+            if not isinstance(existing, dict):
+                existing = {}
+        except Exception:
+            existing = {}
+
+    existing.setdefault("triggers", {})["tags"] = lib.to_cfg()
+
+    tmp = overlay_path.with_suffix(overlay_path.suffix + ".tmp")
+    tmp.write_text(_yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
+    _os.replace(tmp, overlay_path)
+
+    # Reflect the bootstrapped tags into the live cfg dict so the daemon
+    # doesn't need a second load cycle to see them.
+    cfg.setdefault("triggers", {})["tags"] = lib.to_cfg()
+
+
 def build_server_state(cwd: str | None = None) -> ServerState:
     """Construct the server state with all engines, providers, and modes registered."""
     cfg = load_full_config(cwd=cwd)
+
+    # Phase 14.5 — Bootstrap starter tags on first run (idempotent).
+    _bootstrap_starter_tags_if_needed(cfg)
 
     # Read API keys from ~/.claude/scripts/codetalker/secrets.yaml (env vars
     # always win, so a developer with .env-based setup is unaffected). Loaded

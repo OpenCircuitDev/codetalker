@@ -17,6 +17,9 @@ from claude_code_talker.secrets_store import KNOWN_KEYS as _SECRET_KEYS, Secrets
 # Voices references directory (same default as xtts engine, overridable via cfg)
 _VOICES_REFS_DEFAULT = Path.home() / ".claude" / "scripts" / "voice-cloner" / "references"
 
+# Phase 14.5 — cfg-overlay path for trigger config persistence (monkeypatchable in tests)
+_TRIGGERS_OVERLAY_PATH = Path.home() / ".claude" / "scripts" / "codetalker" / "cfg-overlay.yaml"
+
 
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
@@ -1394,6 +1397,164 @@ def build_routes(state) -> list[Route]:
 
         return JSONResponse({"deleted": True})
 
+    # -----------------------------------------------------------------
+    # Phase 14.5 — Trigger-mode configuration + tag CRUD endpoints
+    # -----------------------------------------------------------------
+
+    async def triggers_get_config(request: Request) -> JSONResponse:
+        """GET /api/triggers/config — current trigger mode settings."""
+        from claude_code_talker.triggers.skill import is_skill_installed
+        trig = state.cfg.get("triggers") or {}
+        return JSONResponse({
+            "mode": trig.get("mode", state.cfg.get("live", {}).get("mode", "llm")),
+            "teacher_level": trig.get("teacher_level", "standard"),
+            "persona": trig.get("persona", "methodical"),
+            "skill_installed": is_skill_installed(),
+        })
+
+    async def triggers_put_config(request: Request) -> JSONResponse:
+        """PUT /api/triggers/config — update mode/teacher_level/persona."""
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        overlay = _read_overlay()
+        trig_block = overlay.setdefault("triggers", {})
+        for key in ("mode", "teacher_level", "persona"):
+            if key in body:
+                trig_block[key] = body[key]
+        # Mirror mode into live.mode so the trigger handler reads it immediately
+        if "mode" in body:
+            overlay.setdefault("live", {})["mode"] = body["mode"]
+            # Also update in-memory cfg so it takes effect without restart
+            state.cfg.setdefault("live", {})["mode"] = body["mode"]
+            state.cfg.setdefault("triggers", {})["mode"] = body["mode"]
+        for key in ("teacher_level", "persona"):
+            if key in body:
+                state.cfg.setdefault("triggers", {})[key] = body[key]
+        _write_overlay(overlay)
+        # Invalidate per-session cfg caches
+        for s in state.sessions.list_active():
+            state.sessions.invalidate(s.session_id)
+        return JSONResponse({"ok": True})
+
+    def _get_tag_library():
+        """Build a TagLibrary from current cfg state."""
+        from claude_code_talker.triggers.tags import TagLibrary
+        tags_cfg = (state.cfg.get("triggers") or {}).get("tags") or {}
+        return TagLibrary.from_cfg(tags_cfg)
+
+    def _save_tag_library(lib) -> None:
+        """Persist the library's tags back to cfg-overlay and state.cfg."""
+        overlay = _read_overlay()
+        overlay.setdefault("triggers", {})["tags"] = lib.to_cfg()
+        _write_overlay(overlay)
+        # Reflect in live cfg so GET immediately returns updated state
+        state.cfg.setdefault("triggers", {})["tags"] = lib.to_cfg()
+
+    async def triggers_list_tags(request: Request) -> JSONResponse:
+        """GET /api/triggers/tags — list all tags (id included as field)."""
+        from dataclasses import asdict
+        lib = _get_tag_library()
+        tags = [{**asdict(t)} for t in lib.list()]
+        return JSONResponse({"tags": tags})
+
+    async def triggers_create_tag(request: Request) -> JSONResponse:
+        """POST /api/triggers/tags — create a new tag."""
+        from claude_code_talker.triggers.tags import Tag, TagLibrary
+        from claude_code_talker.triggers.parser import normalize_tag_id
+        from dataclasses import asdict
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        display_name = (body.get("display_name") or "").strip()
+        if not display_name:
+            return _bad_request("display_name is required and must be non-empty")
+        tag_id = normalize_tag_id(display_name)
+        lib = _get_tag_library()
+        tag = Tag(
+            id=tag_id,
+            display_name=display_name,
+            enabled=bool(body.get("enabled", False)),
+            editor_mode=str(body.get("editor_mode", "structured")),
+            when_to_trigger=str(body.get("when_to_trigger", "")),
+            format_template=str(body.get("format_template", "")),
+            example=str(body.get("example", "")),
+            freeform_text=str(body.get("freeform_text", "")),
+        )
+        lib.add(tag)
+        _save_tag_library(lib)
+        return JSONResponse(asdict(tag))
+
+    async def triggers_get_tag(request: Request) -> JSONResponse:
+        """GET /api/triggers/tags/<id> — single tag."""
+        from dataclasses import asdict
+        tag_id = request.path_params["tag_id"]
+        lib = _get_tag_library()
+        tag = lib.get(tag_id)
+        if tag is None:
+            return _not_found(f"tag not found: {tag_id}")
+        return JSONResponse(asdict(tag))
+
+    async def triggers_put_tag(request: Request) -> JSONResponse:
+        """PUT /api/triggers/tags/<id> — partial update."""
+        from dataclasses import asdict
+        tag_id = request.path_params["tag_id"]
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        lib = _get_tag_library()
+        if lib.get(tag_id) is None:
+            return _not_found(f"tag not found: {tag_id}")
+        allowed = {"enabled", "editor_mode", "when_to_trigger", "format_template",
+                   "example", "freeform_text", "display_name"}
+        changes = {k: v for k, v in body.items() if k in allowed}
+        updated = lib.update(tag_id, **changes)
+        _save_tag_library(lib)
+        return JSONResponse(asdict(updated))
+
+    async def triggers_delete_tag(request: Request) -> JSONResponse:
+        """DELETE /api/triggers/tags/<id> — remove tag."""
+        tag_id = request.path_params["tag_id"]
+        lib = _get_tag_library()
+        deleted = lib.delete(tag_id)
+        if not deleted:
+            return _not_found(f"tag not found: {tag_id}")
+        _save_tag_library(lib)
+        return JSONResponse({"deleted": True})
+
+    async def triggers_skill_install(request: Request) -> JSONResponse:
+        """POST /api/triggers/skill-install — compose + write SKILL.md."""
+        from claude_code_talker.triggers.tags import TagLibrary, compose_skill_content
+        from claude_code_talker.triggers.skill import install_skill
+        trig = state.cfg.get("triggers") or {}
+        lib = TagLibrary.from_cfg(trig.get("tags") or {})
+        content = compose_skill_content(
+            lib,
+            teacher_level=trig.get("teacher_level", "standard"),
+            persona=trig.get("persona", "methodical"),
+        )
+        installed_path = install_skill(content)
+        enabled_count = len(lib.enabled_ids())
+        return JSONResponse({
+            "installed_at": str(installed_path),
+            "enabled_count": enabled_count,
+        })
+
+    async def triggers_skill_preview(request: Request) -> Response:
+        """GET /api/triggers/skill-preview — composed SKILL.md text, no write."""
+        from claude_code_talker.triggers.tags import TagLibrary, compose_skill_content
+        trig = state.cfg.get("triggers") or {}
+        lib = TagLibrary.from_cfg(trig.get("tags") or {})
+        content = compose_skill_content(
+            lib,
+            teacher_level=trig.get("teacher_level", "standard"),
+            persona=trig.get("persona", "methodical"),
+        )
+        return Response(content=content, media_type="text/plain")
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -1449,6 +1610,16 @@ def build_routes(state) -> list[Route]:
         Route("/api/virtual-eval/latest", virtual_eval_latest, methods=["GET"]),
         Route("/api/virtual-eval/history", virtual_eval_history, methods=["GET"]),
         Route("/api/virtual-eval/revert/{entry_id}", virtual_eval_revert, methods=["POST"]),
+        # Phase 14.5 — trigger-mode config + tag CRUD (specific routes before wildcard)
+        Route("/api/triggers/config", triggers_get_config, methods=["GET"]),
+        Route("/api/triggers/config", triggers_put_config, methods=["PUT"]),
+        Route("/api/triggers/tags", triggers_list_tags, methods=["GET"]),
+        Route("/api/triggers/tags", triggers_create_tag, methods=["POST"]),
+        Route("/api/triggers/skill-install", triggers_skill_install, methods=["POST"]),
+        Route("/api/triggers/skill-preview", triggers_skill_preview, methods=["GET"]),
+        Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
+        Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
+        Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),
     ]
 
 
@@ -1490,6 +1661,30 @@ def _persist_default_provider(provider: str, model: str, *, mode: str | None = N
         p.write_text(_yaml.safe_dump(existing, sort_keys=True), encoding="utf-8")
     except Exception:
         pass
+
+
+def _read_overlay() -> dict:
+    """Read the cfg-overlay.yaml, returning a dict (empty on error/missing)."""
+    import yaml as _yaml
+    p = _TRIGGERS_OVERLAY_PATH
+    if not p.exists():
+        return {}
+    try:
+        data = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_overlay(data: dict) -> None:
+    """Atomically write *data* to cfg-overlay.yaml via tmp + os.replace."""
+    import os as _os
+    import yaml as _yaml
+    p = _TRIGGERS_OVERLAY_PATH
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(_yaml.safe_dump(data, sort_keys=True), encoding="utf-8")
+    _os.replace(tmp, p)
 
 
 def _bad_request(message: str) -> JSONResponse:
