@@ -43,6 +43,9 @@ class SessionFocus:
     # Phase 13.8 R5: dirty flag — set by record_user_prompt so the task header
     # refreshes eagerly on the next narration cycle after a new user prompt.
     dirty: bool = False
+    # Phase 13.9a Task 3: in_progress activeForm strings from the latest TodoWrite,
+    # capped at 5.  Populated by record_todos(); injected into render_block().
+    current_todos: list = field(default_factory=list)
 
     def record_user_prompt(self, text: str) -> None:
         text = (text or "").strip()
@@ -65,6 +68,18 @@ class SessionFocus:
             oldest = sorted(self.files_in_play.items(), key=lambda kv: kv[1])
             for k, _ in oldest[: len(self.files_in_play) - _FILES_CAP]:
                 self.files_in_play.pop(k, None)
+
+    def record_todos(self, todos: list) -> None:
+        """Extract in_progress items' activeForm into current_todos. Caps at 5."""
+        in_progress = []
+        for t in todos:
+            if not isinstance(t, dict):
+                continue
+            if t.get("status") == "in_progress":
+                af = t.get("activeForm")
+                if af:
+                    in_progress.append(str(af)[:120])
+        self.current_todos = in_progress[:5]
 
     def should_refresh_header(self) -> bool:
         if not self.task_header:
@@ -111,6 +126,8 @@ class SessionFocus:
             ordered = sorted(self.files_in_play.items(), key=lambda kv: -kv[1])
             files = ", ".join(p for p, _ in ordered)
             lines.append(f"- Files in play: {files}")
+        if self.current_todos:
+            lines.append(f"- Currently doing: {', '.join(self.current_todos)}")
         return "\n".join(lines)
 
 
@@ -141,6 +158,20 @@ class SessionFocusRegistry:
             file_path = _extract_file_path(tool, raw)
             if file_path:
                 f.record_file_touch(file_path, timestamp=event.timestamp)
+            # Phase 13.9a Task 3: TodoWrite extraction
+            if tool == "TodoWrite":
+                raw_str = (raw or "").strip()
+                if isinstance(raw, dict):
+                    parsed = raw
+                elif isinstance(raw_str, str) and raw_str.startswith("{"):
+                    try:
+                        parsed = ast.literal_eval(raw_str)
+                    except (ValueError, SyntaxError):
+                        parsed = None
+                else:
+                    parsed = None
+                if isinstance(parsed, dict) and isinstance(parsed.get("todos"), list):
+                    f.record_todos(parsed["todos"])
 
 
 _FILE_PATH_TOOLS = {"Edit", "Write", "Read", "NotebookEdit", "MultiEdit"}

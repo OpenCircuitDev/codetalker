@@ -199,3 +199,85 @@ async def test_refresh_header_clears_dirty():
     provider.complete = AsyncMock(return_value="building the widget")
     await f.refresh_header(provider)
     assert f.dirty is False
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.9a Task 3: TodoWrite-aware SessionFocus
+# ---------------------------------------------------------------------------
+
+def test_record_todos_extracts_in_progress_only():
+    """Only items with status=='in_progress' end up in current_todos."""
+    f = SessionFocus()
+    todos = [
+        {"status": "in_progress", "activeForm": "implementing JWT middleware"},
+        {"status": "pending", "activeForm": "write tests for auth"},
+        {"status": "completed", "activeForm": "scaffold project structure"},
+        {"status": "in_progress", "activeForm": "wiring up the database layer"},
+    ]
+    f.record_todos(todos)
+    assert f.current_todos == [
+        "implementing JWT middleware",
+        "wiring up the database layer",
+    ]
+
+
+def test_record_todos_caps_at_five():
+    """record_todos never stores more than 5 items even if 10 are in_progress."""
+    f = SessionFocus()
+    todos = [
+        {"status": "in_progress", "activeForm": f"task {i}"}
+        for i in range(10)
+    ]
+    f.record_todos(todos)
+    assert len(f.current_todos) == 5
+    # First 5 in_progress items are kept
+    assert f.current_todos == [f"task {i}" for i in range(5)]
+
+
+def test_render_block_includes_currently_doing_when_set():
+    """render_block() contains 'Currently doing:' when current_todos is non-empty."""
+    f = SessionFocus()
+    f.task_header = "shipping the auth module"
+    f.current_todos = ["implementing JWT middleware", "wiring up the database layer"]
+    block = f.render_block()
+    assert "Currently doing:" in block
+    assert "implementing JWT middleware" in block
+    assert "wiring up the database layer" in block
+
+
+def test_render_block_omits_currently_doing_when_empty():
+    """render_block() does NOT include 'Currently doing:' when current_todos is empty."""
+    f = SessionFocus()
+    f.task_header = "shipping the auth module"
+    block = f.render_block()
+    assert "Currently doing:" not in block
+
+
+def test_registry_on_event_extracts_todowrite():
+    """PRE_TOOL event with tool_name==TodoWrite populates SessionFocus.current_todos."""
+    from collections import namedtuple
+    Event = namedtuple("Event", "type metadata timestamp")
+    reg = SessionFocusRegistry()
+
+    # Simulate a serialized todos dict coming in as the 'input' metadata field
+    import ast
+    todos_payload = str({
+        "todos": [
+            {"status": "in_progress", "activeForm": "scaffolding the narrator module"},
+            {"status": "pending", "activeForm": "write integration tests"},
+            {"status": "in_progress", "activeForm": "wiring TodoWrite to SessionFocus"},
+        ]
+    })
+    reg.on_event(
+        "s-todo",
+        Event(
+            "PRE_TOOL",
+            {"tool_name": "TodoWrite", "input": todos_payload},
+            1.0,
+        ),
+    )
+    f = reg.get_or_create("s-todo")
+    assert f.current_todos == [
+        "scaffolding the narrator module",
+        "wiring TodoWrite to SessionFocus",
+    ]
