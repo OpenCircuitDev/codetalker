@@ -281,6 +281,14 @@ class LiveMode(ModeStrategy):
         if not events:
             return
 
+        # Phase 13.6c: respect per-session disable toggle. Hook handlers
+        # already gate event ingest, but the cadence loop can still fire
+        # for events queued before the toggle. Re-check at narrate-time.
+        if self.sessions is not None and session_id:
+            s = self.sessions.get(session_id)
+            if s is not None and not s.enabled:
+                return
+
         # Filter events to only those belonging to this session.
         # When session_id is empty, all events are used (backward compat).
         scoped_events = events_for_session(events, session_id)

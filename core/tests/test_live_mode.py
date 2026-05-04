@@ -217,3 +217,34 @@ def test_live_mode_has_no_current_session_id_attribute():
         "_current_session_id still exists on LiveMode — "
         "the race condition refactor was not applied"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 6: _narrate respects per-session disable toggle (Phase 13.6c)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_narrate_skips_disabled_session():
+    """When session.enabled=False, narrate must return immediately.
+
+    Hook handlers gate event ingest, but the cadence loop can still fire
+    for events queued before the toggle. This re-check at narrate-time
+    is the second line of defense.
+    """
+    from claude_code_talker.sessions import SessionRegistry, SessionState
+
+    sessions = SessionRegistry()
+    sessions._sessions["sess-A"] = SessionState(session_id="sess-A", cwd="/x", enabled=False)
+    sessions._sessions["sess-B"] = SessionState(session_id="sess-B", cwd="/y", enabled=True)
+
+    provider = _non_streaming_provider()
+    mode = _make_mode(provider, sessions=sessions)
+
+    events_a = [_make_event(ts=1.0, session_id="sess-A")]
+    events_b = [_make_event(ts=1.0, session_id="sess-B")]
+
+    await mode._narrate(events_a, "normal", session_id="sess-A")
+    await mode._narrate(events_b, "normal", session_id="sess-B")
+
+    # Provider should have been called ONCE — only for the enabled session
+    assert provider.complete.await_count == 1
