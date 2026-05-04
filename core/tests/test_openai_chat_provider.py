@@ -2,6 +2,15 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from claude_code_talker.providers.openai_chat import OpenAIChatProvider
+import claude_code_talker.providers.openai_chat as _oc_mod
+
+
+@pytest.fixture(autouse=True)
+def reset_openai_chat_singleton():
+    """Reset the module-level singleton before each test so httpx patching works."""
+    _oc_mod._CLIENT = None
+    yield
+    _oc_mod._CLIENT = None
 
 
 def test_requires_api_key():

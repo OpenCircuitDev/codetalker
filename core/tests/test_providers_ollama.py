@@ -3,6 +3,15 @@ import pytest
 from unittest.mock import patch, MagicMock
 from claude_code_talker.providers.base import LLMProvider
 from claude_code_talker.providers.ollama import OllamaProvider
+import claude_code_talker.providers.ollama as _ollama_mod
+
+
+@pytest.fixture(autouse=True)
+def reset_ollama_singleton():
+    """Reset the module-level singleton before each test so httpx patching works."""
+    _ollama_mod._CLIENT = None
+    yield
+    _ollama_mod._CLIENT = None
 
 
 @pytest.mark.asyncio
@@ -16,17 +25,17 @@ async def test_ollama_inherits_base():
 async def test_ollama_complete_posts_to_endpoint():
     p = OllamaProvider(endpoint="http://localhost:11434", model="llama3.2:1b")
 
-    with patch("claude_code_talker.providers.ollama.httpx.AsyncClient") as mock_client_cls:
-        mock_client = MagicMock()
-        mock_client_cls.return_value.__aenter__.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"response": "hello world"}
-        mock_response.raise_for_status = MagicMock()
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"response": "hello world"}
+    mock_response.raise_for_status = MagicMock()
 
-        async def post(*args, **kwargs):
-            return mock_response
-        mock_client.post = post
+    mock_client = MagicMock()
 
+    async def post(*args, **kwargs):
+        return mock_response
+    mock_client.post = post
+
+    with patch("claude_code_talker.providers.ollama._get_client", return_value=mock_client):
         result = await p.complete("test prompt", max_tokens=100)
         assert result == "hello world"
 

@@ -1,8 +1,18 @@
 """Tests for OpenRouter provider."""
 import os
 import pytest
+import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
 from claude_code_talker.providers.base import LLMProvider
+import claude_code_talker.providers.openrouter as _or_mod
+
+
+@pytest.fixture(autouse=True)
+def reset_openrouter_singleton():
+    """Reset the module-level singleton before each test so patching works cleanly."""
+    _or_mod._CLIENT = None
+    yield
+    _or_mod._CLIENT = None
 
 
 def test_openrouter_inherits_base():
@@ -60,6 +70,34 @@ async def test_openrouter_wraps_http_errors():
         p = OpenRouterProvider(api_key="sk-test")
         with pytest.raises(RuntimeError, match="openrouter"):
             await p.complete("hi", max_tokens=10)
+
+
+# --- Singleton / connection-pool tests (Phase 13.9b Task 6) ---
+
+
+def test_get_client_returns_same_singleton():
+    """_get_client() must return the same object on repeated calls (no re-creation)."""
+    from claude_code_talker.providers.openrouter import _get_client
+    a = _get_client()
+    b = _get_client()
+    assert a is b
+
+
+def test_get_client_is_async_client():
+    """Verify the pool is an httpx.AsyncClient instance."""
+    from claude_code_talker.providers.openrouter import _get_client
+    c = _get_client()
+    assert isinstance(c, httpx.AsyncClient)
+
+
+def test_get_client_singleton_survives_multiple_provider_instances():
+    """Different provider instances share the same underlying client pool."""
+    from claude_code_talker.providers.openrouter import OpenRouterProvider, _get_client
+    _ = OpenRouterProvider(api_key="sk-a")
+    _ = OpenRouterProvider(api_key="sk-b")
+    a = _get_client()
+    b = _get_client()
+    assert a is b
 
 
 @pytest.mark.skipif(not os.environ.get("OPENROUTER_API_KEY"), reason="no API key")
