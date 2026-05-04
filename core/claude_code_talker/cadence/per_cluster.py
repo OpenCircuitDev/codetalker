@@ -6,6 +6,10 @@ import time
 from claude_code_talker.cadence.base import CadenceStrategy, Decision
 from claude_code_talker.event_buffer import Event
 
+# Phase 13.9b Task 4: events at or above this significance bypass cluster
+# grouping and fire immediately (errors, build failures, NOTIFICATIONs, etc.).
+HIGH_SIG_THRESHOLD = 0.8
+
 
 class PerClusterCadence(CadenceStrategy):
     name = "per_cluster"
@@ -17,6 +21,10 @@ class PerClusterCadence(CadenceStrategy):
         self._last_event_at: float = 0.0
 
     def on_event(self, event: Event) -> Decision:
+        # High-significance events (errors, build failures, etc.) skip cluster
+        # grouping entirely to cut ~250ms typical lag on alert-class events.
+        if event.significance >= HIGH_SIG_THRESHOLD:
+            return Decision(fire_immediately=True, events=[event])
         self._cluster.append(event)
         self._last_event_at = time.time()
         if len(self._cluster) >= self.max_size:

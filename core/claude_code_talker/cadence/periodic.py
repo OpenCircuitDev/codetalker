@@ -6,6 +6,10 @@ import time
 from claude_code_talker.cadence.base import CadenceStrategy, Decision
 from claude_code_talker.event_buffer import Event
 
+# Phase 13.9b Task 4: events at or above this significance bypass the tick wait
+# and fire immediately (errors, build failures, NOTIFICATIONs, etc.).
+HIGH_SIG_THRESHOLD = 0.8
+
 
 class PeriodicCadence(CadenceStrategy):
     name = "periodic"
@@ -16,8 +20,12 @@ class PeriodicCadence(CadenceStrategy):
         self._last_fire: float = time.time()
 
     def on_event(self, event: Event) -> Decision:
+        # High-significance events (errors, build failures, etc.) skip the
+        # periodic wait entirely to cut ~250ms typical lag on alert-class events.
+        if event.significance >= HIGH_SIG_THRESHOLD:
+            return Decision(fire_immediately=True, events=[event])
         self._buffer.append(event)
-        return Decision()  # never fires immediately
+        return Decision()
 
     def tick(self) -> Decision:
         if not self._buffer:
