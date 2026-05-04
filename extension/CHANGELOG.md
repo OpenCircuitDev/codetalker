@@ -27,7 +27,9 @@
   reference these. Auto-tuner gains a signal→knob rubric.
 - **Phase 13.6** — Session-scoped narrate. Concurrent Claude Code sessions
   are now properly isolated; narrations no longer bleed across folders.
-  Removed singleton race condition in LiveMode.
+  Removed singleton race condition in LiveMode. Phase 13.6c: per-session
+  disable toggle is now respected at narrate-time (defense in depth past
+  the hook gate, so events queued before the toggle stop firing).
 
 ### Daemon-side companion changes
 - `secrets_store.py` adds `GEMINI_API_KEY` env override.
