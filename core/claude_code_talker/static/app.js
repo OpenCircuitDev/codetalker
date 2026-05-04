@@ -212,34 +212,35 @@
   }
 
   async function toggleSessionEnabled(s) {
+    // Phase 13.7e — OPTIMISTIC UPDATE: flip the icon BEFORE the network
+    // round-trip so the UI feels instant. Revert on failure.
+    const newEnabled = s.enabled === false;
+    const sessionInState = state.sessions.find(x => x.session_id === s.session_id);
+    s.enabled = newEnabled;
+    if (sessionInState) sessionInState.enabled = newEnabled;
+    _lastCatalogSig = "";  // bust unchanged-data guard
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    renderCatalog();
+
+    let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
+    if (!payload) {
+      payload = {
+        live_overlay: {}, attached_profile: s.attached_profile,
+        enabled: true, display_name: null, last_modified: 0.0,
+      };
+    }
+    payload.enabled = newEnabled;
+
     try {
-      let payload = await api("/persistent-sessions/" + s.session_id).catch(() => null);
-      if (!payload) {
-        payload = {
-          live_overlay: {}, attached_profile: s.attached_profile,
-          enabled: true, display_name: null, last_modified: 0.0,
-        };
-      }
-      const newEnabled = s.enabled === false;  // currently disabled → enable
-      payload.enabled = newEnabled;
       await api("/persistent-sessions/" + s.session_id, { method: "PUT", body: payload });
       toast(newEnabled ? "Session enabled" : "Session muted", "success");
-
-      // Phase 13.7c — apply the change locally + force re-render NOW.
-      // The focus guard in renderCatalog() would otherwise skip the next
-      // render (button still focused), leaving the icon stale until the
-      // user clicks elsewhere. Mutating the local state object + busting
-      // the catalog signature ensures the icon flips immediately.
-      s.enabled = newEnabled;
-      const sessionInState = state.sessions.find(x => x.session_id === s.session_id);
-      if (sessionInState) sessionInState.enabled = newEnabled;
-      _lastCatalogSig = "";  // force re-render despite unchanged-data guard
-      // Drop focus so the focus-guard doesn't block the render
-      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-      renderCatalog();
-
       await poll();
     } catch (e) {
+      // Revert optimistic update
+      s.enabled = !newEnabled;
+      if (sessionInState) sessionInState.enabled = !newEnabled;
+      _lastCatalogSig = "";
+      renderCatalog();
       toast("Toggle failed: " + e.message, "error");
     }
   }
