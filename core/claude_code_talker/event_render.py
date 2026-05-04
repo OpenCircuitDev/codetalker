@@ -8,7 +8,10 @@ outcomes rather than bare tool names.
 from __future__ import annotations
 
 import ast
+import re
 from os.path import basename
+
+from claude_code_talker.transcript import strip_urls
 
 
 _FILE_PATH_TOOLS = {"Edit", "Write", "Read", "NotebookEdit", "MultiEdit"}
@@ -49,7 +52,7 @@ def summarize_tool_input(tool_name: str, raw_input: str) -> str:
         return basename(str(fp))[:80] if fp else str(d)[:80]
     if tool_name == "Bash":
         cmd = str(d.get("command", ""))
-        return cmd[:80]
+        return strip_urls(cmd)[:80]
     if tool_name in _PATTERN_TOOLS:
         pat = str(d.get("pattern", ""))
         path = str(d.get("path", ""))
@@ -64,11 +67,15 @@ def summarize_tool_input(tool_name: str, raw_input: str) -> str:
         )
         return f"{in_prog} in_progress" if in_prog else f"{len(todos)} todos"
     if tool_name == "WebFetch":
-        return str(d.get("url", ""))[:80]
+        raw_url = str(d.get("url", ""))
+        # Show domain only so narrator says something meaningful without
+        # reciting the full path (e.g. "github.com" not the full blob URL).
+        m = re.match(r"https?://([^/\s]+)", raw_url, re.IGNORECASE)
+        return f"[{m.group(1)}]" if m else "[link]"
     if tool_name == "WebSearch":
         return str(d.get("query", ""))[:80]
     # Default: stringified dict, truncated
-    return str(d)[:80]
+    return strip_urls(str(d))[:80]
 
 
 def summarize_tool_response(tool_name: str, raw_response: str, success: bool) -> str:
@@ -89,7 +96,7 @@ def summarize_tool_response(tool_name: str, raw_response: str, success: bool) ->
             return f"FAILED: {err}" if err else "FAILED"
         return f"FAILED: {(raw_response or '')[:80]}" if raw_response else "FAILED"
     if tool_name == "Bash" and d:
-        out = str(d.get("stdout") or d.get("output") or "")[:80]
+        out = strip_urls(str(d.get("stdout") or d.get("output") or ""))[:80]
         if out:
             return out
     # Edit / Write / Read / etc. — bare "ok" is fine

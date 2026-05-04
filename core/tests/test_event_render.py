@@ -98,3 +98,35 @@ def test_summarize_response_empty_returns_minimal_status():
     assert out  # something meaningful (probably "ok")
     out_fail = summarize_tool_response("Edit", "", success=False)
     assert "FAIL" in out_fail.upper() or "fail" in out_fail.lower()
+
+
+# ---------------------------------------------------------------------------
+# URL-strip tests (Phase 13.7d)
+# ---------------------------------------------------------------------------
+
+def test_summarize_tool_input_bash_strips_urls():
+    raw = str({"command": "curl https://api.example.com/data > out.json"})
+    out = summarize_tool_input("Bash", raw)
+    assert "https" not in out
+    assert "[link]" in out
+
+
+def test_summarize_tool_input_webfetch_returns_domain_only():
+    raw = str({"url": "https://github.com/owner/repo/blob/main/path/to/file.py"})
+    out = summarize_tool_input("WebFetch", raw)
+    assert "/blob/" not in out   # path stripped
+    assert "github.com" in out
+
+
+def test_summarize_tool_input_webfetch_bare_or_empty_url():
+    # If url is missing / empty, fall back to "[link]"
+    raw = str({"url": ""})
+    out = summarize_tool_input("WebFetch", raw)
+    assert out == "[link]"
+
+
+def test_summarize_tool_input_bash_no_url_unchanged():
+    raw = str({"command": "pytest core/tests --tb=short"})
+    out = summarize_tool_input("Bash", raw)
+    assert "pytest" in out
+    assert "[link]" not in out

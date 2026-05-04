@@ -1,7 +1,7 @@
 """Tests for transcript parsing."""
 import json
 from pathlib import Path
-from claude_code_talker.transcript import collect_turn, is_real_user_message, recent_assistant_prose
+from claude_code_talker.transcript import collect_turn, is_real_user_message, recent_assistant_prose, strip_urls
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -184,3 +184,63 @@ def test_handles_corrupted_transcript_lines(tmp_path):
     out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=5)
     assert len(out) == 1
     assert "good message" in out[0]
+
+
+# ---------------------------------------------------------------------------
+# Tests for strip_urls (Phase 13.7d)
+# ---------------------------------------------------------------------------
+
+def test_strip_urls_replaces_https():
+    assert strip_urls("see https://github.com/foo/bar for details") == "see [link] for details"
+
+
+def test_strip_urls_replaces_http():
+    assert strip_urls("the page http://example.com/x lives") == "the page [link] lives"
+
+
+def test_strip_urls_replaces_bare_www():
+    assert strip_urls("visit www.python.org/docs") == "visit [link]"
+
+
+def test_strip_urls_handles_multiple():
+    out = strip_urls("https://a.com and https://b.com both work")
+    assert out == "[link] and [link] both work"
+
+
+def test_strip_urls_passthrough_when_no_url():
+    assert strip_urls("plain text only") == "plain text only"
+
+
+def test_strip_urls_does_not_match_version_numbers():
+    """Dotted tokens like '1.2.3' must NOT be matched — they lack http:// or www."""
+    assert strip_urls("version 1.2.3 released") == "version 1.2.3 released"
+
+
+def test_strip_urls_handles_empty_string():
+    assert strip_urls("") == ""
+
+
+def test_strip_urls_handles_none_gracefully():
+    # strip_urls guards against falsy input
+    result = strip_urls(None)  # type: ignore[arg-type]
+    assert result is None
+
+
+def test_recent_assistant_prose_strips_urls(tmp_path):
+    """Returned prose lines must have URLs replaced before narrator sees them."""
+    transcript = tmp_path / "sess.jsonl"
+    transcript.write_text(json.dumps({"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Filed at https://github.com/foo/bar/issues/123"},
+    ]}}) + "\n", encoding="utf-8")
+
+    class FakeEntry:
+        transcript_path = transcript
+
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+
+    out = recent_assistant_prose("any", catalog=FakeCatalog(), max_messages=5)
+    assert len(out) == 1
+    assert "https" not in out[0]
+    assert "[link]" in out[0]

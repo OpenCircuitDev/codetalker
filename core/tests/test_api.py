@@ -594,3 +594,29 @@ async def test_put_persistent_session_mirrors_enabled_to_live_registry(app):
         "PUT /persistent-sessions did not mirror enabled to in-memory SessionRegistry — "
         "mute toggle would not take effect without daemon restart"
     )
+
+
+@pytest.mark.asyncio
+async def test_put_persistent_session_auto_registers_when_missing_from_live(app):
+    """Phase 13.7d cold-start regression — when the session isn't in the live
+    registry yet (typical right after daemon restart), PUT enabled=False must
+    BOTH persist AND create a live entry so the mute takes immediate effect.
+    """
+    application, state = app
+    sid = "cold-start-sid-13-7d"
+    # Confirm it's NOT in the live registry to start
+    assert state.sessions.get(sid) is None
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put(
+            "/api/persistent-sessions/" + sid,
+            json={"enabled": False, "live_overlay": {}},
+        )
+    assert r.status_code == 200
+    # The live registry MUST now have it with enabled=False
+    live = state.sessions.get(sid)
+    assert live is not None, (
+        "PUT did not auto-register the cold-start session in the live registry"
+    )
+    assert live.enabled is False

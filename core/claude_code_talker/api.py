@@ -419,8 +419,25 @@ def build_routes(state) -> list[Route]:
         # didn't actually mute the running session.
         if state.sessions is not None:
             live_session = state.sessions.get(sid)
-            if live_session is not None and isinstance(payload.get("enabled"), bool):
-                live_session.enabled = payload["enabled"]
+            if live_session is not None:
+                if isinstance(payload.get("enabled"), bool):
+                    live_session.enabled = payload["enabled"]
+            else:
+                # Phase 13.7d: cold-start path — session is in catalog/persistent
+                # storage but not yet in the live registry (typical right after a
+                # daemon bounce). Auto-register it so the mute toggle takes effect
+                # immediately without waiting for the next hook fire.
+                cwd = ""
+                if state.catalog is not None:
+                    entry = state.catalog.entry_for(sid)
+                    if entry is not None:
+                        # cwd isn't stored on CatalogEntry; leave empty — still
+                        # better than leaving the session absent from the registry.
+                        cwd = ""
+                state.sessions.touch(sid, cwd=cwd)
+                live_session = state.sessions.get(sid)
+                if live_session is not None and isinstance(payload.get("enabled"), bool):
+                    live_session.enabled = payload["enabled"]
         return JSONResponse({"saved": True, "session_id": sid})
 
     async def delete_persistent_session(request: Request) -> JSONResponse:

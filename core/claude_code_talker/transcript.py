@@ -3,7 +3,31 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
+
+# Conservative URL pattern — matches http(s) and bare www.* URLs.
+# Replace each match with the placeholder "[link]" so the narrator can
+# acknowledge a link existed without trying to pronounce it.
+# Note: intentionally does NOT match plain dotted tokens like "version 1.2.3"
+# because those lack the "://" scheme or "www." prefix.
+_URL_PATTERN = re.compile(
+    r"https?://\S+|www\.[^\s]+",
+    re.IGNORECASE,
+)
+
+
+def strip_urls(text: str) -> str:
+    """Return *text* with every URL replaced by the literal string '[link]'.
+
+    Used to keep TTS from reading aloud arbitrary URLs in assistant prose,
+    user prompts, or tool output snippets.  Handles None / empty / non-str
+    gracefully.
+    """
+    if not text:
+        return text
+    return _URL_PATTERN.sub("[link]", text)
+
 
 # IDE / Claude Code system-injected wrappers that shouldn't count as prose.
 _SKIP_PROSE_PREFIXES = (
@@ -170,6 +194,8 @@ def recent_assistant_prose(
         # Skip IDE-injected wrapper content.
         if any(prose.startswith(p) for p in _SKIP_PROSE_PREFIXES):
             continue
+        # Strip URLs so the narrator doesn't read them aloud verbatim.
+        prose = strip_urls(prose)
         # Truncate to bound prompt growth.
         if len(prose) > max_chars_per_message:
             prose = prose[:max_chars_per_message]
