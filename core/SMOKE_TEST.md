@@ -139,3 +139,37 @@ If anything fails, capture the symptom + the line that failed and report. The fr
 - [ ] Click "Revert" → confirm → entry's field reverts in `~/.claude/scripts/codetalker/cfg-overlay.yaml`
 - [ ] Restart daemon → reload UI → reverted state holds
 - [ ] Run eval again → verify history grows (now has 2+ entries)
+
+---
+
+## §16 Phase 14.5 — Trigger Mode (prompt-driven narration)
+
+**Bootstrap check:**
+- [ ] Daemon started for the first time (or with `cfg-overlay.yaml` missing the `triggers:` block) — confirm `cfg-overlay.yaml` now contains a `triggers.tags` block with 5 starter Audible tags. Only `audible_summary` should be `enabled: true`.
+
+**Web UI walkthrough:**
+- [ ] Open Web UI → Settings → Triggers tab
+- [ ] Banner shows "Skill not installed at <path>" or similar — initial state
+- [ ] Tag list shows 5 Audible tags. Only `Audible Summary` checkbox is checked.
+- [ ] Toggle `Audible Briefs` and `Audible Synopsis` ON. Live preview pane updates immediately to include their `## Audible Briefs` and `## Audible Synopsis` sections.
+- [ ] Mode dropdown defaults to `Both`. Change to `Trigger only`. Preview pane unchanged (mode is for daemon, not skill content).
+- [ ] Teacher Level dropdown: change to `Plain English`. Preview's style guidance line changes to the plain-English directive.
+- [ ] Persona text input: change to `energetic`. Preview's persona line updates.
+- [ ] Click `[+ Add tag]`. Edit dialog opens with empty fields, structured radio default.
+- [ ] Type display name "Audible Custom". Set `when_to_trigger`, `format_template`, `example`. Save.
+- [ ] New tag appears in list with id `audible_custom`. Toggle it on. Preview pane includes it.
+- [ ] Click edit on the custom tag. Switch radio to "freeform". Type a freeform prompt fragment. Save. Preview pane reflects the freeform text instead of structured fields.
+- [ ] Click delete on the custom tag (in editor). Confirm. Tag removed from list and preview.
+- [ ] Click `[Install Skill]`. Banner flips to "✓ installed at ~/.claude/skills/codetalker-narration/SKILL.md". Toast confirms.
+- [ ] Click `[Copy SKILL.md]`. Confirm clipboard contains the same text shown in the preview pane.
+
+**End-to-end narration:**
+- [ ] In a Claude Code session, activate the codetalker-narration skill (per Claude Code's skill activation mechanism — typically `/codetalker-narration` or auto-activated via skill metadata).
+- [ ] Ask Claude to do something that should produce an Audible Summary (e.g. "build the auth module").
+- [ ] Within ~3s of Claude writing a `## Audible Summary\n<text>` block, hear the `<text>` spoken verbatim through TTS.
+- [ ] Switch mode to `Trigger only`. Remove the skill from session OR write a prose with NO `## Audible *` block — confirm zero audio plays. Graceful degradation.
+- [ ] Switch mode back to `Both`. Re-activate skill. Audio resumes for tagged blocks.
+- [ ] Add a brand-new tag in Web UI: name "Audible Whatever". Enable it. Reinstall skill. In a new Claude turn, write `## Audible Whatever\nsome text` — confirm it speaks (auto-recognition works for arbitrary tag names).
+
+**Manual paste path:**
+- [ ] Click `[Copy SKILL.md]`. Paste the content into a fresh Claude Code chat at the start of a session. Trigger blocks Claude writes get spoken (works without skill installation, just paste).
