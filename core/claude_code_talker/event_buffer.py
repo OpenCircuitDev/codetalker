@@ -43,6 +43,21 @@ class EventBuffer:
         with self._lock:
             return [e for e in self._events if e.timestamp > timestamp]
 
+    def recent_for_session(self, n: int, session_id: str) -> list[Event]:
+        """Return the *n* most recent events that belong to *session_id*."""
+        with self._lock:
+            matching = [e for e in self._events if e.session_id == session_id]
+            return matching[-n:]
+
+    def active_session_ids(self) -> list[str]:
+        """Return deduplicated session_ids present in the buffer (insertion order)."""
+        with self._lock:
+            seen: dict[str, None] = {}
+            for e in self._events:
+                if e.session_id:
+                    seen[e.session_id] = None
+            return list(seen)
+
     def subscribe(self, callback: Callable[[Event], None]) -> None:
         with self._lock:
             self._subscribers.append(callback)

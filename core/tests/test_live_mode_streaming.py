@@ -14,12 +14,13 @@ from claude_code_talker.cadence.periodic import PeriodicCadence
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_event(ts=0.0, ev_type="POST_TOOL", tool="Read"):
+def _make_event(ts=0.0, ev_type="POST_TOOL", tool="Read", session_id="test-session"):
     return Event(
         timestamp=ts,
         type=ev_type,
         metadata={"tool_name": tool, "success": True},
         significance=0.3,
+        session_id=session_id,
     )
 
 
@@ -79,7 +80,7 @@ async def test_narrate_uses_streaming_when_supported():
     mode = _make_mode(provider)
     events = [_make_event()]
 
-    await mode._narrate(events, priority="normal")
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     # With two sentences, submit should be called at least twice (one per sentence).
     assert mode.audio_queue.submit.call_count >= 2
@@ -96,7 +97,7 @@ async def test_narrate_falls_back_to_complete_when_streaming_unsupported():
     mode = _make_mode(provider)
     events = [_make_event()]
 
-    await mode._narrate(events, priority="normal")
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     provider.complete.assert_called_once()
     assert mode.audio_queue.submit.call_count == 1
@@ -123,10 +124,9 @@ async def test_narrate_streaming_respects_per_session_voice():
     })
 
     mode = _make_mode(provider, voice="default-voice", sessions=sessions)
-    mode._current_session_id = "sess-123"
-    events = [_make_event()]
+    events = [_make_event(session_id="sess-123")]
 
-    await mode._narrate(events, priority="normal")
+    await mode._narrate(events, priority="normal", session_id="sess-123")
 
     assert mode.audio_queue.submit.call_count >= 1
     for call in mode.audio_queue.submit.call_args_list:
@@ -151,7 +151,7 @@ async def test_narrate_streaming_logs_each_chunk_to_narration_log():
     mode = _make_mode(provider, narration_log=narration_log)
     events = [_make_event()]
 
-    await mode._narrate(events, priority="normal")
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     assert narration_log.append.call_count >= 2
     for call in narration_log.append.call_args_list:
@@ -179,7 +179,7 @@ async def test_narrate_streaming_handles_provider_exception_silently():
     events = [_make_event()]
 
     # Should not raise.
-    await mode._narrate(events, priority="normal")
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     mode.audio_queue.submit.assert_not_called()
 

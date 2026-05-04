@@ -182,8 +182,8 @@ async def test_skip_decision_prevents_audio_submit():
     )
 
     # max_sig=0.1 < 0.3, count=1 ≤ 2 → skip
-    events = [Event(timestamp=0.0, type="PRE_TOOL", metadata={"tool_name": "Glob"}, significance=0.1)]
-    await mode._narrate(events, priority="normal")
+    events = [Event(timestamp=0.0, type="PRE_TOOL", metadata={"tool_name": "Glob"}, significance=0.1, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     audio_q.submit.assert_not_called()
     provider.complete.assert_not_called()
@@ -212,8 +212,8 @@ async def test_skip_not_fired_for_significant_event():
     )
 
     # sig=0.7 → "standard", not skip
-    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Bash", "success": False}, significance=0.7)]
-    await mode._narrate(events, priority="alert")
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Bash", "success": False}, significance=0.7, session_id="test-session")]
+    await mode._narrate(events, priority="alert", session_id="test-session")
 
     provider.complete.assert_called_once()
     audio_q.submit.assert_called_once()

@@ -35,8 +35,8 @@ async def test_live_narrate_calls_provider_and_enqueues():
     }
     mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
     # significance=0.6 is above the cadence-aware skip threshold (0.3) and concise threshold (0.5)
-    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6)]
-    await mode._narrate(events, priority="normal")
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
 
     provider.complete.assert_called_once()
     audio_q.submit.assert_called_once()
@@ -55,7 +55,7 @@ async def test_live_narrate_skips_on_provider_error():
     provider.complete = AsyncMock(side_effect=RuntimeError("ollama down"))
     cfg = {"live": {}, "voice": {"model": "j", "rate": 1.0}}
     mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
-    await mode._narrate([Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5)], "normal")
+    await mode._narrate([Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5, session_id="test-session")], "normal", session_id="test-session")
     audio_q.submit.assert_not_called()
 
 
@@ -75,7 +75,7 @@ async def test_live_narrate_skips_on_timeout():
 
     cfg = {"live": {"llm_latency_budget_seconds": 0.1}, "voice": {"model": "j", "rate": 1.0}}
     mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
-    await mode._narrate([Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5)], "normal")
+    await mode._narrate([Event(timestamp=0.0, type="PROSE", metadata={}, significance=0.5, session_id="test-session")], "normal", session_id="test-session")
     audio_q.submit.assert_not_called()
 
 

@@ -54,6 +54,17 @@ LIVE_NARRATION_PROMPT = (
 _STREAMING_TIMEOUT_CEILING = 30.0
 
 
+def events_for_session(events: list[Event], session_id: str) -> list[Event]:
+    """Pure helper: return only the events that belong to *session_id*.
+
+    When *session_id* is empty, all events are returned unchanged so that
+    callers that don't have session context still work.
+    """
+    if not session_id:
+        return list(events)
+    return [e for e in events if e.session_id == session_id]
+
+
 class LiveMode(ModeStrategy):
     name = "live"
 
@@ -68,7 +79,9 @@ class LiveMode(ModeStrategy):
         self.session_focus = session_focus  # Phase 13.5B: per-session WHY/CONTEXT block
         self._task: asyncio.Task | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._current_session_id = ""  # set by hook handler before submitting
+        # Per-session last-narration timestamps for the cadence loop.
+        # dict[session_id, float] — avoids a singleton race on a mutable field.
+        self._last_narrate_by_session: dict[str, float] = {}
 
     # build() satisfies ModeStrategy; not used in production
     def build(self, prose_entries, tool_uses, todos, cfg):
@@ -90,20 +103,69 @@ class LiveMode(ModeStrategy):
 
     def _on_event(self, event: Event) -> None:
         # runs in EventBuffer's caller's thread (the MCP tool handler)
+        # session_id is now carried by the event itself (Task A)
         decision = self.cadence.on_event(event)
         if decision.fire_immediately and self._loop is not None:
             asyncio.run_coroutine_threadsafe(
-                self._narrate(decision.events, priority="alert"),
+                self._narrate(decision.events, priority="alert",
+                               session_id=event.session_id),
                 self._loop,
             )
 
+    # ------------------------------------------------------------------
+    # Per-tick cadence decision — extracted for unit-testability
+    # ------------------------------------------------------------------
+
+    def _decide_cadence_per_session(
+        self,
+        events: list[Event],
+        last_narrate_by_session: dict[str, float],
+        import_time: float,
+    ) -> list[tuple[str, list[Event]]]:
+        """Pure-ish per-tick logic: return (session_id, events_to_narrate) pairs.
+
+        *import_time* is the current wall time passed in by the caller (avoids
+        time.time() inside the function so tests can control it).
+
+        A session fires when:
+        - it has events in *events* (already filtered to recent tick window
+          by the cadence strategy), AND
+        - the verbosity check on its slice is not "skip".
+
+        The caller is responsible for dispatching the returned pairs.
+        """
+        # Group events by session_id.  Events with empty session_id are grouped
+        # under "" and processed as a single unnamed session for backward compat.
+        by_session: dict[str, list[Event]] = {}
+        for ev in events:
+            sid = ev.session_id or ""
+            by_session.setdefault(sid, []).append(ev)
+
+        result = []
+        for sid, session_events in by_session.items():
+            # Verbosity check: skip low-significance batches.
+            verbosity = self._decide_verbosity_for_events(session_events)
+            if verbosity == "skip":
+                continue
+            result.append((sid, session_events))
+
+        return result
+
     async def _cadence_loop(self) -> None:
+        import time as _time
         while True:
             try:
                 await asyncio.sleep(0.5)
                 decision = self.cadence.tick()
                 if decision.fire_periodic:
-                    await self._narrate(decision.events, priority="normal")
+                    now = _time.time()
+                    per_session = self._decide_cadence_per_session(
+                        decision.events, self._last_narrate_by_session, now
+                    )
+                    for sid, session_events in per_session:
+                        self._last_narrate_by_session[sid] = now
+                        await self._narrate(session_events, priority="normal",
+                                            session_id=sid)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -113,23 +175,23 @@ class LiveMode(ModeStrategy):
     # Shared helpers: resolve per-session voice/token config
     # ------------------------------------------------------------------
 
-    def _resolve_teacher_cfg(self):
-        """Return the teacher_mode cfg dict for the current session (or global)."""
+    def _resolve_teacher_cfg(self, session_id: str = ""):
+        """Return the teacher_mode cfg dict for *session_id* (or global)."""
         teacher_cfg = self.cfg.get("teacher_mode")
-        if self.sessions is not None and self._current_session_id:
+        if self.sessions is not None and session_id:
             try:
-                session_cfg = self.sessions.config_for(self._current_session_id)
+                session_cfg = self.sessions.config_for(session_id)
                 teacher_cfg = session_cfg.get("teacher_mode") or teacher_cfg
             except Exception:
                 pass
         return teacher_cfg
 
-    def _resolve_voice_cfg(self):
-        """Return (voice, rate, engine_name) for the current session."""
+    def _resolve_voice_cfg(self, session_id: str = ""):
+        """Return (voice, rate, engine_name) for *session_id*."""
         session_cfg = self.cfg
-        if self.sessions is not None and self._current_session_id:
+        if self.sessions is not None and session_id:
             try:
-                session_cfg = self.sessions.config_for(self._current_session_id)
+                session_cfg = self.sessions.config_for(session_id)
             except Exception:
                 session_cfg = self.cfg
         voice_cfg = session_cfg.get("voice") or {}
@@ -138,7 +200,9 @@ class LiveMode(ModeStrategy):
         engine_name = voice_cfg.get("engine") or "piper"
         return voice, rate, engine_name
 
-    def _append_narration_log(self, text: str, voice: str, engine_name: str, priority: str, mode: str = "live") -> None:
+    def _append_narration_log(self, text: str, voice: str, engine_name: str,
+                               priority: str, session_id: str = "",
+                               mode: str = "live") -> None:
         """Best-effort append to the narration audit log."""
         if self.narration_log is None:
             return
@@ -146,7 +210,7 @@ class LiveMode(ModeStrategy):
             from claude_code_talker.narration_log import NarrationEntry
             self.narration_log.append(NarrationEntry(
                 timestamp=__import__("time").time(),
-                session_id=self._current_session_id,
+                session_id=session_id,
                 text=text,
                 voice=voice or "",
                 engine=engine_name or "",
@@ -160,21 +224,23 @@ class LiveMode(ModeStrategy):
     # Streaming narration path (Sub-task 1.1)
     # ------------------------------------------------------------------
 
-    async def _narrate_streaming(self, events, priority, verbosity_decision: str = "standard") -> None:
+    async def _narrate_streaming(self, events, priority,
+                                  session_id: str = "",
+                                  verbosity_decision: str = "standard") -> None:
         """Stream LLM output through AudioStreamer, emitting one AudioJob per sentence.
 
         ``verbosity_decision`` is pre-computed by ``_narrate`` (caller already
         ran _decide_verbosity_for_events and skipped if "skip").
         """
-        prompt = self._build_prompt(events)
+        prompt = self._build_prompt(events, session_id=session_id)
         budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
-        teacher_cfg = self._resolve_teacher_cfg()
+        teacher_cfg = self._resolve_teacher_cfg(session_id)
         # Override verbosity with cadence-aware decision (don't mutate original)
         if verbosity_decision in ("concise", "standard", "expanded"):
             teacher_cfg = dict(teacher_cfg) if teacher_cfg else {}
             teacher_cfg["verbosity"] = verbosity_decision
         max_tokens = max_tokens_for(teacher_cfg, default=150)
-        voice, rate, engine_name = self._resolve_voice_cfg()
+        voice, rate, engine_name = self._resolve_voice_cfg(session_id)
 
         if not voice:
             logging.debug("live narration skipped: no voice configured")
@@ -195,7 +261,8 @@ class LiveMode(ModeStrategy):
                 priority=priority,
                 engine_name=engine_name,
             ))
-            self._append_narration_log(chunk, voice, engine_name, priority, mode="live-stream")
+            self._append_narration_log(chunk, voice, engine_name, priority,
+                                        session_id=session_id, mode="live-stream")
 
         streamer = AudioStreamer(emit=_emit_chunk)
         try:
@@ -210,20 +277,26 @@ class LiveMode(ModeStrategy):
     # Main narration entry point — dispatches to streaming or non-streaming
     # ------------------------------------------------------------------
 
-    async def _narrate(self, events, priority):
+    async def _narrate(self, events, priority, session_id: str = ""):
         if not events:
             return
 
+        # Filter events to only those belonging to this session.
+        # When session_id is empty, all events are used (backward compat).
+        scoped_events = events_for_session(events, session_id)
+        if not scoped_events:
+            return
+
         # Phase 13.5B: update session focus counter + trigger background header refresh
-        if self.session_focus is not None and self._current_session_id:
-            focus = self.session_focus.get_or_create(self._current_session_id)
+        if self.session_focus is not None and session_id:
+            focus = self.session_focus.get_or_create(session_id)
             focus.narrations_since_refresh += 1
             if focus.should_refresh_header():
                 # Fire-and-forget: refresh runs in background, never blocks this narration
                 asyncio.create_task(focus.refresh_header(self.provider))
 
         # Sub-task 2.1: cadence-aware verbosity check (applied before provider dispatch)
-        verbosity_decision = self._decide_verbosity_for_events(events)
+        verbosity_decision = self._decide_verbosity_for_events(scoped_events)
         if verbosity_decision == "skip":
             logging.debug("live narration skipped: no significant events")
             return
@@ -234,13 +307,15 @@ class LiveMode(ModeStrategy):
             self.provider is not None
             and getattr(self.provider, "supports_streaming", False) is True
         ):
-            await self._narrate_streaming(events, priority, verbosity_decision=verbosity_decision)
+            await self._narrate_streaming(scoped_events, priority,
+                                           session_id=session_id,
+                                           verbosity_decision=verbosity_decision)
             return
 
         # ---- Non-streaming (original) path ----
-        prompt = self._build_prompt(events)
+        prompt = self._build_prompt(scoped_events, session_id=session_id)
         budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
-        teacher_cfg = self._resolve_teacher_cfg()
+        teacher_cfg = self._resolve_teacher_cfg(session_id)
         # Override verbosity with cadence-aware decision (don't mutate original)
         if verbosity_decision in ("concise", "standard", "expanded"):
             teacher_cfg = dict(teacher_cfg) if teacher_cfg else {}
@@ -259,7 +334,7 @@ class LiveMode(ModeStrategy):
         if not text:
             return
 
-        voice, rate, engine_name = self._resolve_voice_cfg()
+        voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
             logging.debug("live narration skipped: no voice configured")
             return
@@ -268,7 +343,8 @@ class LiveMode(ModeStrategy):
             text=text, voice=voice, rate=rate, priority=priority,
             engine_name=engine_name,
         ))
-        self._append_narration_log(text, voice, engine_name, priority, mode="live")
+        self._append_narration_log(text, voice, engine_name, priority,
+                                    session_id=session_id, mode="live")
 
     # ------------------------------------------------------------------
     # Cadence-aware verbosity (Sub-task 2.1)
@@ -310,23 +386,26 @@ class LiveMode(ModeStrategy):
             return "expanded"
         return "standard"
 
-    def _build_prompt(self, events) -> str:
+    def _build_prompt(self, events, session_id: str = "") -> str:
+        # Filter to session-scoped events before rendering.
+        scoped_events = events_for_session(events, session_id)
+
         # --- Static prefix: system instructions + teacher directives (Sub-task 1.2) ---
         # The teacher block is appended to the system portion BEFORE the events so
         # the static prefix grows (and stays byte-identical) when teacher mode is on.
         # Events come LAST, after a fixed separator, so the dynamic tail never
         # disrupts the leading cache-eligible prefix.
-        teacher_cfg = self._resolve_teacher_cfg()
+        teacher_cfg = self._resolve_teacher_cfg(session_id)
         # Build the static section: system text + optional teacher block
         static_section = merge_teacher_into_prompt(LIVE_NARRATION_SYSTEM, teacher_cfg)
 
         # --- Dynamic suffix: events list ---
         lines = []
-        if not events:
+        if not scoped_events:
             lines.append("(no events)")
         else:
-            t0 = events[0].timestamp
-            for ev in events[-15:]:
+            t0 = scoped_events[0].timestamp
+            for ev in scoped_events[-15:]:
                 dt = ev.timestamp - t0
                 meta = ev.metadata
                 if ev.type == "USER_PROMPT":
@@ -352,8 +431,8 @@ class LiveMode(ModeStrategy):
 
         # Phase 13.5B: inject per-session SESSION FOCUS block (WHY/CONTEXT)
         focus_block = ""
-        if self.session_focus is not None and self._current_session_id:
-            focus_block = self.session_focus.get_or_create(self._current_session_id).render_block()
+        if self.session_focus is not None and session_id:
+            focus_block = self.session_focus.get_or_create(session_id).render_block()
 
         return (
             static_section

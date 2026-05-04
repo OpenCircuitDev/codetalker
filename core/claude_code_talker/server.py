@@ -487,10 +487,6 @@ def register_tools(server, state) -> None:
         )
         if not text:
             return "skipped: no text"
-        # Tag LiveMode for audit log routing
-        live = state.modes.get("live")
-        if live is not None:
-            live._current_session_id = session_id
         engine_name = (cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
         voice = (cfg.get("voice") or {}).get("model")
@@ -561,11 +557,6 @@ def register_tools(server, state) -> None:
         if s is not None and not s.enabled:
             return "skipped: per-session disabled"
         cfg = state.sessions.config_for(session_id)
-        # Tell LiveMode which session the upcoming narration belongs to so the
-        # audit log gets the right session_id when this event triggers narration.
-        live = state.modes.get("live")
-        if live is not None:
-            live._current_session_id = session_id
         keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         ev = Event(
             timestamp=time.time(),
