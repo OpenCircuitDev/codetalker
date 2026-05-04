@@ -13,3 +13,5 @@ core/claude_code_talker/_version.py
 .coverage
 htmlcov/
 .superpowers/
+core/claude_code_talker/webui/node_modules/
+core/claude_code_talker/webui/dist/
