@@ -412,6 +412,15 @@ def build_routes(state) -> list[Route]:
         payload.setdefault("display_name", None)
         payload["last_modified"] = _rate_time.time()
         state.persistent_sessions.save(sid, payload)
+        # Phase 13.6d: also update the in-memory SessionRegistry so the
+        # mute toggle takes effect WITHOUT a daemon restart. The bulk
+        # endpoint (api.py:641) already does this; the per-session PUT
+        # was missing the live mirror, so mutes persisted to disk but
+        # didn't actually mute the running session.
+        if state.sessions is not None:
+            live_session = state.sessions.get(sid)
+            if live_session is not None and isinstance(payload.get("enabled"), bool):
+                live_session.enabled = payload["enabled"]
         return JSONResponse({"saved": True, "session_id": sid})
 
     async def delete_persistent_session(request: Request) -> JSONResponse:

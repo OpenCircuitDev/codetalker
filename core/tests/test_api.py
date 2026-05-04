@@ -569,3 +569,28 @@ async def test_hooks_status_returns_installed_true_after_install(app, monkeypatc
     body = r.json()
     assert body["installed"] is True
     assert body["missing_events"] == []
+
+
+@pytest.mark.asyncio
+async def test_put_persistent_session_mirrors_enabled_to_live_registry(app):
+    """Phase 13.6d regression — PUT /persistent-sessions/{sid} must update the
+    in-memory SessionRegistry too, not just persist to disk. Otherwise the
+    mute toggle doesn't take effect until daemon restart.
+    """
+    application, state = app
+    # Force an active session into the registry
+    state.sessions.touch("test-mute-sid", cwd="C:/test")
+    assert state.sessions.get("test-mute-sid").enabled is True
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put(
+            "/api/persistent-sessions/test-mute-sid",
+            json={"enabled": False, "live_overlay": {}},
+        )
+    assert r.status_code == 200
+    # The live registry MUST reflect the change immediately
+    assert state.sessions.get("test-mute-sid").enabled is False, (
+        "PUT /persistent-sessions did not mirror enabled to in-memory SessionRegistry — "
+        "mute toggle would not take effect without daemon restart"
+    )
