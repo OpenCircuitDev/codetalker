@@ -793,3 +793,210 @@ dialog input { display: block; width: 100%; margin: 8px 0 16px 0; }
   background: var(--accent-bg);
   color: var(--accent);
 }
+
+/* ---- Triggers tab ---- */
+
+.triggers-banner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+}
+
+.triggers-banner.installed {
+  background: #1a2e1a;
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.triggers-banner.not-installed {
+  background: #2e1a1a;
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.triggers-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.triggers-actions .primary-btn,
+.triggers-actions .secondary-btn {
+  margin-top: 0;
+}
+
+.triggers-config-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.triggers-config-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.triggers-config-row select,
+.triggers-config-row input[type="text"] {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  min-width: 120px;
+}
+
+.triggers-tags-list {
+  max-height: 220px;
+  margin-bottom: 8px;
+}
+
+.triggers-tags-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+}
+
+.triggers-tag-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.triggers-tag-name.disabled {
+  color: var(--text-muted);
+}
+
+.triggers-tag-edit-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 0;
+}
+
+.triggers-tag-edit-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.triggers-preview {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Tag editor dialog */
+#triggers-edit-dialog {
+  min-width: 440px;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#triggers-edit-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+#triggers-edit-dialog input[type="text"],
+#triggers-edit-dialog textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 6px 8px;
+  width: 100%;
+  resize: vertical;
+  margin: 0;
+  display: block;
+}
+
+.te-mode-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.te-mode-fieldset legend {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.te-mode-fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.te-mode-fieldset input[type="radio"] {
+  width: auto;
+  margin: 0;
+  display: inline;
+}
+
+#te-structured-fields label,
+#te-freeform-fields label {
+  margin-bottom: 10px;
+}
+
+.te-menu {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0;
+  margin: 16px 0 0 0;
+  border: none;
+}
+
+.te-menu button {
+  margin-top: 0;
+}
+
+.danger-btn {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  margin-right: auto;
+}
+
+.danger-btn:hover {
+  background: rgba(247, 118, 142, 0.15);
+}

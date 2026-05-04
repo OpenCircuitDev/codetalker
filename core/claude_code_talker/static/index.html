@@ -95,6 +95,7 @@
         <button type="button" class="settings-tab" data-stab="cache">TTS Cache</button>
         <button type="button" class="settings-tab" data-stab="audit">Audit Log</button>
         <button type="button" class="settings-tab" data-stab="eval">Eval</button>
+        <button type="button" class="settings-tab" data-stab="triggers">Triggers</button>
       </nav>
       <div class="settings-pane active" data-spane="keys">
         <p class="muted">API keys are stored at <code>~/.claude/scripts/codetalker/secrets.yaml</code>. Environment variables override file values. Restart daemon for changes to take effect.</p>
@@ -189,10 +190,75 @@
         <h4 style="margin-top:16px">Tuning history</h4>
         <ul id="eval-history-list" class="audit-list"></ul>
       </div>
+      <div class="settings-pane" data-spane="triggers">
+        <div id="triggers-skill-banner" class="triggers-banner muted">Checking skill install status…</div>
+
+        <div class="triggers-actions">
+          <button type="button" id="triggers-install-btn" class="primary-btn">Install Skill</button>
+          <button type="button" id="triggers-copy-btn" class="secondary-btn">Copy SKILL.md</button>
+        </div>
+
+        <div class="triggers-config-row">
+          <label>Mode
+            <select id="triggers-mode">
+              <option value="llm">LLM narrator only</option>
+              <option value="trigger">Trigger only</option>
+              <option value="both" selected>Both</option>
+            </select>
+          </label>
+          <label>Teacher
+            <select id="triggers-teacher">
+              <option value="plain">Plain</option>
+              <option value="standard" selected>Standard</option>
+              <option value="technical">Technical</option>
+            </select>
+          </label>
+          <label>Persona
+            <input type="text" id="triggers-persona" value="methodical" />
+          </label>
+        </div>
+
+        <h4 style="margin-top:14px">Tags</h4>
+        <ul id="triggers-tags-list" class="audit-list triggers-tags-list"></ul>
+        <button type="button" id="triggers-add-tag-btn" class="secondary-btn">+ Add tag</button>
+
+        <h4 style="margin-top:14px">SKILL.md preview</h4>
+        <pre id="triggers-preview" class="triggers-preview"></pre>
+      </div>
+
       <div class="dialog-actions">
         <button type="button" id="settings-close-btn" class="secondary-btn">Close</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="triggers-edit-dialog">
+    <form method="dialog" id="triggers-edit-form">
+      <h3 id="te-dialog-title">Edit tag</h3>
+      <label>Display name <input type="text" id="te-display-name" required /></label>
+      <label class="checkbox-row"><input type="checkbox" id="te-enabled" /> Enabled</label>
+
+      <fieldset class="te-mode-fieldset">
+        <legend>Editor mode</legend>
+        <label><input type="radio" name="te-mode" value="structured" checked /> Structured</label>
+        <label><input type="radio" name="te-mode" value="freeform" /> Freeform</label>
+      </fieldset>
+
+      <div id="te-structured-fields">
+        <label>When to trigger <textarea id="te-when" rows="2"></textarea></label>
+        <label>Format template <textarea id="te-format" rows="2"></textarea></label>
+        <label>Example <textarea id="te-example" rows="3"></textarea></label>
+      </div>
+      <div id="te-freeform-fields" class="hidden">
+        <label>Freeform prompt fragment <textarea id="te-freeform" rows="8"></textarea></label>
+      </div>
+
+      <menu class="te-menu">
+        <button type="button" id="te-delete" class="danger-btn">Delete</button>
+        <button type="button" id="te-save" class="primary-btn">Save</button>
+        <button type="button" id="te-cancel" class="secondary-btn">Cancel</button>
+      </menu>
+    </form>
   </dialog>
 
   <dialog id="save-profile-dialog">

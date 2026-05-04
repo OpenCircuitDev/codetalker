@@ -634,6 +634,7 @@
     if (name === 'cache') return loadCachePane();
     if (name === 'audit') return loadAuditPane();
     if (name === 'eval') return loadEvalPane();
+    if (name === 'triggers') return loadTriggersPane();
   }
 
   async function loadEvalPane() {
@@ -1243,6 +1244,284 @@
     document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
+  }
+
+  // ---- Triggers pane ----
+
+  // Debounce helper — used to avoid hammering PUT /api/triggers/config on
+  // every keystroke in the persona text input.
+  function debounce(fn, ms) {
+    let timer = null;
+    return function(...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), ms);
+    };
+  }
+
+  async function loadTriggersPane() {
+    try {
+      const [cfg, tags, previewResp] = await Promise.all([
+        api("/triggers/config"),
+        api("/triggers/tags"),
+        fetch(API + "/triggers/skill-preview").then(r => r.text()),
+      ]);
+
+      // Banner
+      const banner = document.getElementById("triggers-skill-banner");
+      if (cfg.skill_installed) {
+        banner.textContent = "Skill installed at ~/.claude/skills/codetalker-narration/SKILL.md";
+        banner.className = "triggers-banner installed";
+      } else {
+        banner.textContent = "Skill not installed — click [Install Skill] to write SKILL.md to ~/.claude/skills/.";
+        banner.className = "triggers-banner not-installed";
+      }
+
+      // Populate controls with current config values
+      const modeEl = document.getElementById("triggers-mode");
+      const teacherEl = document.getElementById("triggers-teacher");
+      const personaEl = document.getElementById("triggers-persona");
+      if (modeEl) modeEl.value = cfg.mode || "both";
+      if (teacherEl) teacherEl.value = cfg.teacher_level || "standard";
+      if (personaEl) personaEl.value = cfg.persona || "methodical";
+
+      // Render tag list
+      renderTagsList(tags);
+
+      // Preview
+      const previewEl = document.getElementById("triggers-preview");
+      if (previewEl) previewEl.textContent = previewResp;
+
+      // Wire config controls — debounced PUT on change
+      const saveConfig = debounce(async () => {
+        try {
+          await api("/triggers/config", {
+            method: "PUT",
+            body: {
+              mode: document.getElementById("triggers-mode").value,
+              teacher_level: document.getElementById("triggers-teacher").value,
+              persona: document.getElementById("triggers-persona").value,
+            },
+          });
+          await refreshTriggersPreview();
+        } catch (e) {
+          toast("Save config failed: " + e.message, "error");
+        }
+      }, 400);
+
+      if (modeEl) modeEl.onchange = saveConfig;
+      if (teacherEl) teacherEl.onchange = saveConfig;
+      if (personaEl) personaEl.oninput = saveConfig;
+
+      // Install Skill button
+      const installBtn = document.getElementById("triggers-install-btn");
+      if (installBtn) {
+        installBtn.onclick = async () => {
+          try {
+            const r = await api("/triggers/skill-install", { method: "POST" });
+            toast("Skill installed (" + (r.enabled_count || 0) + " tag(s) active)", "success");
+            await loadTriggersPane();
+          } catch (e) {
+            toast("Install failed: " + e.message, "error");
+          }
+        };
+      }
+
+      // Copy SKILL.md button
+      const copyBtn = document.getElementById("triggers-copy-btn");
+      if (copyBtn) {
+        copyBtn.onclick = async () => {
+          try {
+            const text = await fetch(API + "/triggers/skill-preview").then(r => r.text());
+            await navigator.clipboard.writeText(text);
+            toast("SKILL.md content copied to clipboard", "success");
+          } catch (e) {
+            toast("Copy failed: " + e.message, "error");
+          }
+        };
+      }
+
+      // Add tag button
+      const addBtn = document.getElementById("triggers-add-tag-btn");
+      if (addBtn) {
+        addBtn.onclick = () => openTagEditor(null);
+      }
+
+    } catch (e) {
+      toast("Load triggers failed: " + e.message, "error");
+    }
+  }
+
+  function renderTagsList(tags) {
+    const ul = document.getElementById("triggers-tags-list");
+    if (!ul) return;
+    ul.innerHTML = "";
+    if (!tags || tags.length === 0) {
+      ul.innerHTML = '<li class="muted">No tags yet. Click [+ Add tag] to create one.</li>';
+      return;
+    }
+    for (const tag of tags) {
+      const li = document.createElement("li");
+
+      // Enabled toggle
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = !!tag.enabled;
+      chk.title = tag.enabled ? "Enabled — click to disable" : "Disabled — click to enable";
+      chk.onchange = async () => {
+        try {
+          await api("/triggers/tags/" + encodeURIComponent(tag.id), {
+            method: "PUT",
+            body: { enabled: chk.checked },
+          });
+          await refreshTriggersPreview();
+        } catch (e) {
+          toast("Toggle failed: " + e.message, "error");
+          chk.checked = !chk.checked;
+        }
+      };
+
+      // Tag display name
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "triggers-tag-name" + (tag.enabled ? "" : " disabled");
+      nameSpan.textContent = tag.display_name || tag.id;
+
+      // Edit button
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "triggers-tag-edit-btn";
+      editBtn.textContent = "Edit";
+      editBtn.onclick = () => openTagEditor(tag);
+
+      li.appendChild(chk);
+      li.appendChild(nameSpan);
+      li.appendChild(editBtn);
+      ul.appendChild(li);
+    }
+  }
+
+  // _teTagId tracks the id of the tag currently open in the edit dialog
+  // (null = new tag mode).
+  let _teTagId = null;
+
+  function openTagEditor(tag) {
+    const dlg = document.getElementById("triggers-edit-dialog");
+    if (!dlg) return;
+
+    _teTagId = tag ? tag.id : null;
+
+    // Populate fields
+    document.getElementById("te-dialog-title").textContent = tag ? "Edit tag" : "New tag";
+    document.getElementById("te-display-name").value = tag ? (tag.display_name || "") : "";
+    document.getElementById("te-enabled").checked = tag ? !!tag.enabled : false;
+
+    const mode = (tag && tag.editor_mode) || "structured";
+    document.querySelectorAll('input[name="te-mode"]').forEach(r => {
+      r.checked = (r.value === mode);
+    });
+    document.getElementById("te-when").value = tag ? (tag.when_to_trigger || "") : "";
+    document.getElementById("te-format").value = tag ? (tag.format_template || "") : "";
+    document.getElementById("te-example").value = tag ? (tag.example || "") : "";
+    document.getElementById("te-freeform").value = tag ? (tag.freeform_text || "") : "";
+
+    // Show/hide structured vs freeform fields
+    toggleTeMode(mode);
+
+    // Show/hide delete button
+    const delBtn = document.getElementById("te-delete");
+    if (delBtn) {
+      delBtn.style.display = tag ? "" : "none";
+    }
+
+    // Wire mode radio buttons (idempotent — replaces previous onclick each open)
+    document.querySelectorAll('input[name="te-mode"]').forEach(r => {
+      r.onchange = () => toggleTeMode(r.value);
+    });
+
+    // Wire Save
+    document.getElementById("te-save").onclick = saveTagEdit;
+
+    // Wire Delete
+    if (delBtn) {
+      delBtn.onclick = async () => {
+        if (!_teTagId) return;
+        if (!confirm("Delete tag '" + (tag.display_name || _teTagId) + "'?")) return;
+        try {
+          await api("/triggers/tags/" + encodeURIComponent(_teTagId), { method: "DELETE" });
+          dlg.close();
+          toast("Tag deleted", "success");
+          const tags = await api("/triggers/tags");
+          renderTagsList(tags);
+          await refreshTriggersPreview();
+        } catch (e) {
+          toast("Delete failed: " + e.message, "error");
+        }
+      };
+    }
+
+    // Wire Cancel
+    document.getElementById("te-cancel").onclick = () => dlg.close();
+
+    dlg.showModal();
+  }
+
+  function toggleTeMode(mode) {
+    const structuredEl = document.getElementById("te-structured-fields");
+    const freeformEl = document.getElementById("te-freeform-fields");
+    if (!structuredEl || !freeformEl) return;
+    if (mode === "freeform") {
+      structuredEl.classList.add("hidden");
+      freeformEl.classList.remove("hidden");
+    } else {
+      structuredEl.classList.remove("hidden");
+      freeformEl.classList.add("hidden");
+    }
+  }
+
+  async function saveTagEdit() {
+    const dlg = document.getElementById("triggers-edit-dialog");
+    const displayName = document.getElementById("te-display-name").value.trim();
+    if (!displayName) {
+      toast("Display name is required", "error");
+      return;
+    }
+    const editorMode = document.querySelector('input[name="te-mode"]:checked').value;
+    const body = {
+      display_name: displayName,
+      enabled: document.getElementById("te-enabled").checked,
+      editor_mode: editorMode,
+      when_to_trigger: document.getElementById("te-when").value.trim(),
+      format_template: document.getElementById("te-format").value.trim(),
+      example: document.getElementById("te-example").value.trim(),
+      freeform_text: document.getElementById("te-freeform").value.trim(),
+    };
+    try {
+      if (_teTagId) {
+        // Update existing tag
+        await api("/triggers/tags/" + encodeURIComponent(_teTagId), { method: "PUT", body });
+        toast("Tag saved", "success");
+      } else {
+        // Create new tag
+        await api("/triggers/tags", { method: "POST", body });
+        toast("Tag created", "success");
+      }
+      dlg.close();
+      const tags = await api("/triggers/tags");
+      renderTagsList(tags);
+      await refreshTriggersPreview();
+    } catch (e) {
+      toast("Save failed: " + e.message, "error");
+    }
+  }
+
+  async function refreshTriggersPreview() {
+    const previewEl = document.getElementById("triggers-preview");
+    if (!previewEl) return;
+    try {
+      const text = await fetch(API + "/triggers/skill-preview").then(r => r.text());
+      previewEl.textContent = text;
+    } catch (e) {
+      // silent — preview is best-effort
+    }
   }
 
   // Expose for later tasks to extend
