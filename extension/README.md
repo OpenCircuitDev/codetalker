@@ -1,79 +1,56 @@
 # Claude Code Talker — VS Code Extension
 
-Voice companion for Claude Code. Wraps the Python `claude-code-talker`
-daemon in a VS Code UI: status bar indicator, Command Palette commands,
-and a workspace config editor.
+Voice companion for Claude Code. The extension launches the Python daemon, registers Claude Code hooks for you, and gives you 12 commands plus a status bar toggle. Most configuration happens in the daemon's Web UI; the commands are quick-access shortcuts.
 
-## Features
+Multiple concurrent Claude Code sessions are properly isolated — narrations never bleed across folders (fixed in v0.3.0).
 
-- **Status bar** (bottom right): shows the active mode (`direct` / `brief` / `live`) and mute state. Click to toggle mute.
-- **Command Palette** (`Ctrl+Shift+P` → search "Claude TTS"): 10 commands for everything you'd otherwise edit in YAML.
-- **Workspace config editor**: multi-step Quick Pick that writes `.claude/tts_workspace.yaml` for the current workspace.
-- **Auto-spawn daemon**: extension launches the Python daemon on activation if it isn't already running.
+## Requirements
 
-## Prerequisites
+- VS Code 1.85+
+- Python 3.11+ with `pip install claude-code-talker`
+- (Optional) Piper TTS binary for offline narration — see [STATUS.md](STATUS.md)
 
-- Python 3.11+
-- `pip install claude-code-talker` (Phase 1+ release)
-- Run `claude-code-talker-setup` once to scaffold global config and verify Piper / cloud engine availability.
+## What you get
 
-## Install
+- **Status bar item** — click to toggle mute
+- **12 commands** in the Command Palette under "Claude TTS:"
 
-From a downloaded VSIX:
+| Command | What it does |
+|---|---|
+| Toggle Mute | Mute/unmute narration |
+| Open Web UI | Launches the daemon's Web UI in your browser |
+| Set API Key | Stores an API key in your OS keychain (Windows Credential Manager / macOS Keychain / Linux libsecret) |
+| Change Mode | Live / brief / direct narration |
+| Change Voice | Pick from voices the daemon advertises |
+| Change Cadence | periodic / per_tool / per_cluster / significant_only / hybrid |
+| Change Provider | LLM provider for narration (openrouter / gemini / anthropic / openai / ollama) |
+| Change Rate | Speech rate 0.5x-2.0x |
+| Edit Workspace Config | Multi-step wizard that writes `.claude/tts_workspace.yaml` |
+| Restart Daemon | Stops + respawns the daemon process |
+| View Daemon Log | Opens the daemon log file in an editor tab |
+| Run Setup | Runs `claude-code-talker setup` in a terminal |
 
-    code --install-extension claude-code-talker-vscode-0.1.0.vsix
+## First-run behavior
 
-Or once published to the Marketplace, search "Claude Code Talker".
+On first activation the extension:
+
+1. Spawns the daemon process with any API keys you've stored in OS keychain injected as environment variables.
+2. Silently installs Claude Code hooks at `~/.claude/settings.json` so the daemon receives events.
+3. If you have an existing `secrets.yaml` file with API keys, prompts you once to migrate them to OS keychain.
 
 ## Settings
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `claudeTts.daemonHost` | `127.0.0.1` | Daemon SSE host |
-| `claudeTts.daemonPort` | `17832` | Daemon SSE port |
+| `claudeTts.daemonHost` | `127.0.0.1` | Daemon host |
+| `claudeTts.daemonPort` | `17832` | Daemon port |
 | `claudeTts.statusBarPollIntervalMs` | `2000` | Status-bar refresh interval |
 | `claudeTts.autoSpawnDaemon` | `true` | Auto-launch daemon on activation if not running |
 
-## Commands
+## Privacy
 
-| Command | Action |
-|---------|--------|
-| `Claude TTS: Toggle Mute` | Mute/unmute the daemon (status bar click does the same) |
-| `Claude TTS: Change Mode` | Switch between `direct` / `brief` / `live` |
-| `Claude TTS: Change Voice` | Pick a voice and play a sample |
-| `Claude TTS: Change Cadence (Live Mode)` | Pick a cadence strategy (workspace config) |
-| `Claude TTS: Change LLM Provider` | Pick a provider (workspace config) |
-| `Claude TTS: Change Rate` | Set speech rate (workspace config) |
-| `Claude TTS: Edit Workspace Config` | Multi-step walkthrough that writes `.claude/tts_workspace.yaml` |
-| `Claude TTS: Restart Daemon` | Graceful shutdown + auto-spawn |
-| `Claude TTS: View Daemon Log` | Open `~/.claude/scripts/codetalker.log` |
-| `Claude TTS: Run Setup Wizard` | Run `claude-code-talker-setup` in a terminal |
-
-## Architecture
-
-The extension is a thin client. The daemon does all the work: hook event
-processing, mode strategies, audio queue, LLM calls, etc. The extension
-talks to the daemon via MCP-over-SSE on `http://127.0.0.1:17832/sse`.
-
-```
-   VS Code window
-        │
-        ▼
-   ┌──────────────────────┐
-   │ Extension (TS)       │
-   │ • status bar         │
-   │ • commands           │
-   │ • config editor      │
-   │ • MCP-over-SSE client│
-   └──────────┬───────────┘
-              │
-              ▼
-   ┌──────────────────────┐
-   │ Daemon (Python)      │
-   │ port 17832           │
-   └──────────────────────┘
-```
+Narrations are sent to whichever LLM provider you select (Anthropic, OpenRouter, OpenAI, Gemini, or local Ollama). TTS audio is generated by your selected engine; cloud engines (Edge, ElevenLabs, OpenAI) send the narration text to their servers. Local engines (Piper, XTTS) keep everything on-device.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see LICENSE in the repo root.

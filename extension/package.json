@@ -2,8 +2,13 @@
   "name": "claude-code-talker-vscode",
   "displayName": "Claude Code Talker",
   "description": "Voice companion for Claude Code — status bar + Open Web UI",
-  "version": "0.2.0",
+  "version": "0.3.0",
+  "license": "MIT",
   "publisher": "OpenCircuitDev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenCircuitDev/codetalker"
+  },
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],
