@@ -30,31 +30,74 @@ _FILE_PATH = re.compile(
     r"(?:[A-Za-z]:[\\/])?(?:[\w\-.]+[\\/])+[\w\-.]+",
 )
 
+# Backtick code-span: `token` — Phase 13.8 R1.
+# Captures the content inside single backticks (non-greedy, no newlines).
+_BACKTICK_SPAN = re.compile(r"`([^`\n]+)`")
+
+# Long numeric token: 7 or more consecutive digits as a standalone word.
+# Catches Unix timestamps, SHA-prefix-like IDs, etc.
+# Phase 13.8 R2.
+_LONG_NUMERIC = re.compile(r"\b\d{7,}\b")
+
+
+def _normalize_backtick_span(content: str) -> str:
+    """Normalise the *content* of a single backtick span for TTS.
+
+    Rules (applied in priority order):
+    1. If the content contains a path separator (/ or \\), reduce to basename.
+    2. If the content contains underscores (snake_case), replace _ with space.
+    3. Otherwise leave the word intact (CamelCase, simple token, etc.).
+
+    The backtick characters themselves are always stripped by the caller.
+    """
+    # Rule 1: path → basename
+    if "/" in content or "\\" in content:
+        content = re.split(r"[/\\]", content)[-1]
+    # Rule 2: snake_case → space-separated (applied to the (possibly
+    # already-reduced) basename)
+    if "_" in content:
+        content = content.replace("_", " ")
+    return content
+
 
 def strip_urls(text: str) -> str:
     """Return *text* with URL-like tokens replaced for TTS-friendly reading.
 
-    - Markdown links `[label](url)` → `label` (just the human label).
-    - Bare URLs `https://...` / `www.foo.com` → `[link]`.
-    - Bare file paths with separators (`src/foo.py`, `C:/x/y.ts`) → basename only.
+    Processing order (each step feeds into the next):
+    1. Backtick code-spans `` `token` `` → normalised plain text (R1).
+    2. Markdown links ``[label](url)`` → label only.
+    3. Bare URLs ``https://...`` / ``www.foo.com`` → ``[link]``.
+    4. Bare file paths with separators → basename only.
+    5. Long numeric tokens (7+ digits) → ``"a long number"`` (R2).
 
     Handles None / empty / non-str gracefully.
     """
     if not text:
         return text
-    # Order matters: collapse markdown links first (so their inner URL
-    # isn't matched separately by the URL pattern), then bare URLs, then
-    # bare paths (so URL-internal path segments aren't double-processed).
+
+    # R1: backtick code-spans — normalise content, strip backticks.
+    def _replace_backtick(m: re.Match) -> str:
+        return _normalize_backtick_span(m.group(1))
+
+    text = _BACKTICK_SPAN.sub(_replace_backtick, text)
+
+    # Order matters for the remaining steps: collapse markdown links first (so
+    # their inner URL isn't matched separately by the URL pattern), then bare
+    # URLs, then bare paths (so URL-internal path segments aren't
+    # double-processed).
     text = _MARKDOWN_LINK.sub(r"\1", text)
     text = _URL_PATTERN.sub("[link]", text)
+
     def _path_to_basename(m: re.Match) -> str:
         token = m.group(0)
-        # Don't touch already-replaced [link]s or natural sentences with no
-        # separator (the regex requires a separator already, so this is mostly
-        # a guard against unusual matches).
         # Keep only the basename — last segment after / or \
         return re.split(r"[\\/]", token)[-1]
+
     text = _FILE_PATH.sub(_path_to_basename, text)
+
+    # R2: long numeric tokens (7+ digits standalone) → "a long number".
+    text = _LONG_NUMERIC.sub("a long number", text)
+
     return text
 
 

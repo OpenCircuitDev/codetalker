@@ -40,6 +40,9 @@ class SessionFocus:
     task_header: str = ""
     task_header_at: float = 0.0
     narrations_since_refresh: int = 0
+    # Phase 13.8 R5: dirty flag — set by record_user_prompt so the task header
+    # refreshes eagerly on the next narration cycle after a new user prompt.
+    dirty: bool = False
 
     def record_user_prompt(self, text: str) -> None:
         text = (text or "").strip()
@@ -49,6 +52,7 @@ class SessionFocus:
         if self.recent_user_prompts and self.recent_user_prompts[-1] == text:
             return
         self.recent_user_prompts.append(text)
+        self.dirty = True  # Phase 13.8 R5: mark stale on every new prompt
 
     def record_file_touch(self, path: str, *, timestamp: float | None = None) -> None:
         path = (path or "").strip()
@@ -64,6 +68,10 @@ class SessionFocus:
 
     def should_refresh_header(self) -> bool:
         if not self.task_header:
+            return True
+        # Phase 13.8 R5: a new user prompt marks the focus dirty so the header
+        # refreshes on the very next narration cycle.
+        if self.dirty:
             return True
         if self.narrations_since_refresh >= _HEADER_REFRESH_AFTER_NARRATIONS:
             return True
@@ -85,6 +93,7 @@ class SessionFocus:
             self.task_header = header[:200]
             self.task_header_at = time.time()
             self.narrations_since_refresh = 0
+            self.dirty = False  # Phase 13.8 R5: clear after successful refresh
 
     def render_block(self) -> str:
         has_anything = bool(self.task_header or self.recent_user_prompts or self.files_in_play)

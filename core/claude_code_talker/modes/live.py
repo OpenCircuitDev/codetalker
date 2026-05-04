@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.event_buffer import Event, EventBuffer
@@ -12,6 +13,44 @@ from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
 from claude_code_talker.transcript import recent_assistant_prose
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R3: chunk sanitizer — strip artefacts before TTS
+# ---------------------------------------------------------------------------
+
+# Matches markdown code fences: ```optional_lang\n...\n```
+_CODE_FENCE = re.compile(r"```[^\n]*\n?.*?```", re.DOTALL)
+
+# Matches event-format prefixes: [T+0.0s], [T+1.5s tool→ Edit foo.py], etc.
+# These bleed in when the LLM echoes the events block back in its output.
+_T_PREFIX = re.compile(r"\[T\+[\d.]+s[^\]]*\]")
+
+
+def _sanitize_chunk(chunk: str) -> str:
+    """Strip TTS-hostile artefacts from a raw LLM output chunk.
+
+    Applied rules (in order):
+    1. Code fences (```...```) → removed entirely.
+    2. Event-format prefixes ``[T+Xs ...]`` → removed.
+    3. JSON bleed — chunk starts with ``{`` or ``[`` and contains ``":`` or
+       ``,"``) → treat as structured data, return empty string.
+
+    Normal prose passes through unchanged.
+    """
+    # Rule 3 first (cheapest guard): JSON bleed detection.
+    stripped = chunk.strip()
+    if stripped and stripped[0] in ("{", "["):
+        if '":' in stripped or ',"' in stripped:
+            return ""
+
+    # Rule 1: code fences
+    chunk = _CODE_FENCE.sub("", chunk)
+
+    # Rule 2: [T+Xs ...] event prefixes
+    chunk = _T_PREFIX.sub("", chunk)
+
+    return chunk
 
 
 # The system portion is kept constant so that Google Gemini's implicit prefix
@@ -26,7 +65,7 @@ which tools are firing, what files are being touched, which steps just
 completed, any findings or errors. Lean factual.
 
 Rules:
-- ONE short sentence (max 30 words) of spoken English. Present or past tense.
+- Up to 2-3 sentences (max 60 words) of spoken English. Present or past tense.
 - Mention tool actions and file targets briefly ("editing auth.py", "running
   tests", "reading the spec").
 - Surface findings, errors, and decisions when they appear in the events.
@@ -253,6 +292,7 @@ class LiveMode(ModeStrategy):
         stream_budget = min(budget * 2.0, _STREAMING_TIMEOUT_CEILING)
 
         def _emit_chunk(chunk: str) -> None:
+            chunk = _sanitize_chunk(chunk)
             chunk = chunk.strip()
             if not chunk:
                 return
@@ -448,7 +488,7 @@ class LiveMode(ModeStrategy):
         prose_block = ""
         if self.catalog is not None and session_id:
             prose_lines = recent_assistant_prose(session_id, self.catalog,
-                                                 max_messages=3, max_chars_per_message=1500)
+                                                 max_messages=6, max_chars_per_message=1500)
             if prose_lines:
                 prose_block = "\nRECENT ASSISTANT REASONING (most recent last):\n" + \
                               "\n".join(f'- "{p}"' for p in prose_lines)

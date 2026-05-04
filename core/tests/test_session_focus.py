@@ -160,3 +160,42 @@ def test_registry_handles_event_dispatch():
     f = reg.get_or_create("s1")
     assert "do the thing" in list(f.recent_user_prompts)
     assert "foo.py" in f.files_in_play
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R5: dirty flag — record_user_prompt sets dirty
+# ---------------------------------------------------------------------------
+
+def test_record_user_prompt_sets_dirty():
+    """record_user_prompt should set dirty=True so the focus header refreshes."""
+    f = SessionFocus()
+    assert f.dirty is False
+    f.record_user_prompt("implement the auth pipeline")
+    assert f.dirty is True
+
+
+def test_should_refresh_header_true_when_dirty(monkeypatch):
+    """should_refresh_header returns True when dirty=True even if count+time are fine."""
+    f = SessionFocus()
+    f.task_header = "fresh header"
+    f.task_header_at = 100.0
+    f.narrations_since_refresh = 0
+    import claude_code_talker.session_focus as sf
+    monkeypatch.setattr(sf.time, "time", lambda: 110.0)  # 10s past, not stale
+    # Without dirty: should be False
+    assert f.should_refresh_header() is False
+    # Set dirty: should now be True
+    f.dirty = True
+    assert f.should_refresh_header() is True
+
+
+@pytest.mark.asyncio
+async def test_refresh_header_clears_dirty():
+    """refresh_header must clear dirty=True after a successful LLM call."""
+    f = SessionFocus()
+    f.dirty = True
+    f.recent_user_prompts.append("build the widget")
+    provider = MagicMock()
+    provider.complete = AsyncMock(return_value="building the widget")
+    await f.refresh_header(provider)
+    assert f.dirty is False

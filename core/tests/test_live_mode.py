@@ -278,3 +278,89 @@ async def test_build_prompt_includes_assistant_reasoning_when_catalog_set(tmp_pa
     prompt = mode._build_prompt(events, session_id="sess-A")
     assert "RECENT ASSISTANT REASONING" in prompt
     assert "Categorizing 81 stubs" in prompt
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R3: _sanitize_chunk unit tests
+# ---------------------------------------------------------------------------
+
+def test_sanitize_chunk_strips_code_fence():
+    """Code fences ```...``` are stripped from chunks."""
+    from claude_code_talker.modes.live import _sanitize_chunk
+    out = _sanitize_chunk("```python\nprint('hello')\n```")
+    assert "```" not in out
+
+
+def test_sanitize_chunk_strips_t_plus_prefix_mid_text():
+    """[T+1.5s tool→ Edit] prefixes in the middle of text are stripped."""
+    from claude_code_talker.modes.live import _sanitize_chunk
+    out = _sanitize_chunk("some text [T+1.5s tool→ Edit] more text")
+    assert "[T+" not in out
+    assert "some text" in out
+    assert "more text" in out
+
+
+def test_sanitize_chunk_strips_t_plus_prefix_at_start():
+    """[T+0.0s] prefix at the start of a chunk is stripped."""
+    from claude_code_talker.modes.live import _sanitize_chunk
+    out = _sanitize_chunk("[T+0.0s] Claude is editing the file.")
+    assert "[T+" not in out
+    assert "Claude is editing" in out
+
+
+def test_sanitize_chunk_json_bleed_returns_empty():
+    """Chunks starting with { or [ that look like JSON are skipped (return empty)."""
+    from claude_code_talker.modes.live import _sanitize_chunk
+    assert _sanitize_chunk('{"tool": "Edit", "file": "foo.py"}') == ""
+    assert _sanitize_chunk('[{"type": "result", "content": "x"}]') == ""
+
+
+def test_sanitize_chunk_normal_prose_passthrough():
+    """Normal prose is returned unchanged."""
+    from claude_code_talker.modes.live import _sanitize_chunk
+    text = "Claude is editing the auth module to fix the JWT bug."
+    assert _sanitize_chunk(text) == text
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R4: verbosity defaults bump — prompt content check
+# ---------------------------------------------------------------------------
+
+def test_live_narration_system_has_doubled_word_limit():
+    """System prompt should allow up to 60 words (was 30)."""
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "60 words" in LIVE_NARRATION_SYSTEM
+    assert "30 words" not in LIVE_NARRATION_SYSTEM
+
+
+def test_build_prompt_uses_6_recent_messages(tmp_path):
+    """_build_prompt should call recent_assistant_prose with max_messages=6."""
+    import json as _json
+    transcript = tmp_path / "sess.jsonl"
+    # Write 8 messages so we can verify truncation to 6
+    entries = [
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": f"Message {i}"},
+        ]}}
+        for i in range(8)
+    ]
+    transcript.write_text("\n".join(_json.dumps(e) for e in entries), encoding="utf-8")
+
+    class FakeEntry:
+        transcript_path = transcript
+
+    class FakeCatalog:
+        def get(self, sid):
+            return FakeEntry()
+
+    provider = _non_streaming_provider()
+    mode = _make_mode(provider)
+    mode.catalog = FakeCatalog()
+
+    events = [_make_event(ts=1.0, session_id="sess-A")]
+    prompt = mode._build_prompt(events, session_id="sess-A")
+    # With max_messages=6 we should see messages 2–7 (last 6 of 8), not 0 or 1
+    assert "Message 7" in prompt
+    assert "Message 2" in prompt
+    assert "Message 0" not in prompt
+    assert "Message 1" not in prompt

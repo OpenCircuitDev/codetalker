@@ -288,3 +288,85 @@ def test_strip_handles_combined_markdown_and_bare_url():
     assert "other.com" not in out
     assert "[link]" in out
     assert "issue" in out
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R1: backtick code-span normalizer
+# ---------------------------------------------------------------------------
+
+def test_backtick_snake_case_underscores_to_spaces():
+    """snake_case inside backticks → underscores replaced with spaces, backticks stripped."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("calling `probe_actors_with_mount` now")
+    assert "`" not in out
+    assert "probe actors with mount" in out
+
+
+def test_backtick_path_reduces_to_basename():
+    """Paths inside backticks → only the basename, backticks stripped."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("see `src/modes/live.py` for details")
+    assert "`" not in out
+    assert "live.py" in out
+    assert "src" not in out
+
+
+def test_backtick_camelcase_preserved():
+    """CamelCase inside backticks → backticks stripped, word left intact."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("using `AudioStreamer` class here")
+    assert "`" not in out
+    assert "AudioStreamer" in out
+
+
+def test_backtick_multiple_spans_in_one_string():
+    """Multiple backtick spans in one string — all stripped and normalised."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("call `strip_urls` then `emit_chunk`")
+    assert "`" not in out
+    assert "strip urls" in out
+    assert "emit chunk" in out
+
+
+def test_backtick_passthrough_when_no_backticks():
+    """Strings without backticks pass through unchanged."""
+    from claude_code_talker.transcript import strip_urls
+    text = "plain text with no backticks"
+    assert strip_urls(text) == text
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.8 R2: long-numeric token stripper
+# ---------------------------------------------------------------------------
+
+def test_long_numeric_7plus_digits_replaced():
+    """Standalone 7-digit numeric token → 'a long number'."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("tmp dir 1777879 here")
+    assert "1777879" not in out
+    assert "a long number" in out
+
+
+def test_long_numeric_6_digits_not_replaced():
+    """6-digit numeric NOT replaced — too short to be a timestamp."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("version 123456 released")
+    assert "123456" in out
+    assert "a long number" not in out
+
+
+def test_long_numeric_inside_basename_replaced():
+    """Long numeric inside a basename (e.g. win071_v3_vision_1777879631) → replaced."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("file `win071_v3_vision_1777879631.py` done")
+    assert "1777879631" not in out
+    assert "a long number" in out
+
+
+def test_long_numeric_multiple_in_string():
+    """Two standalone long-numeric tokens both replaced."""
+    from claude_code_talker.transcript import strip_urls
+    out = strip_urls("ids 1234567890 and 9876543210 seen")
+    assert "1234567890" not in out
+    assert "9876543210" not in out
+    assert out.count("a long number") == 2
