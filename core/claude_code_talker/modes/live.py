@@ -344,6 +344,20 @@ class LiveMode(ModeStrategy):
             if focus.should_refresh_header():
                 # Fire-and-forget: refresh runs in background, never blocks this narration
                 asyncio.create_task(focus.refresh_header(self.provider))
+            # Phase 13.9c Task 8: narrative summary refresh (every 5 narrations or dirty)
+            focus.summary_narrations_since += 1
+            if focus.summary_narrations_since >= 5 or focus.dirty:
+                # Gather recent prose from transcript watcher if available
+                _recent_prose: list[str] = []
+                _tw = getattr(self, "_transcript_watcher", None)
+                if _tw is not None:
+                    _recent_prose = _tw.get_cached_prose(session_id)
+                asyncio.create_task(
+                    focus.refresh_narrative_summary(self.provider, recent_prose=_recent_prose)
+                )
+            # Phase 13.9c Task 8: clear audible_summary_line after it is consumed
+            # (captured into the prompt by render_block; clear so it isn't re-spoken)
+            focus.audible_summary_line = ""
 
         # Sub-task 2.1: cadence-aware verbosity check (applied before provider dispatch)
         verbosity_decision = self._decide_verbosity_for_events(scoped_events)

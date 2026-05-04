@@ -230,7 +230,12 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.tts_cache = TTSCache()
     state.tuning_history = TuningHistory()
     state.session_focus = SessionFocusRegistry()
-    state.transcript_watcher = TranscriptWatcher()
+    state.transcript_watcher = TranscriptWatcher(
+        on_new_prose=lambda sid, prose: (
+            state.session_focus.record_assistant_prose(sid, prose)
+            if state.session_focus is not None else None
+        ),
+    )
     # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
     state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()

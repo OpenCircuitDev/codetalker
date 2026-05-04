@@ -281,3 +281,71 @@ def test_registry_on_event_extracts_todowrite():
         "scaffolding the narrator module",
         "wiring TodoWrite to SessionFocus",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.9c Task 8: persistent narrative summary + "Audible summary:" verbatim path
+# ---------------------------------------------------------------------------
+
+def test_extract_audible_summary_finds_line():
+    from claude_code_talker.session_focus import extract_audible_summary
+    text = "Some preamble.\nAudible summary: I'm restarting PIE clean.\nMore text after."
+    assert "restarting PIE" in extract_audible_summary(text)
+
+
+def test_extract_audible_summary_returns_last_when_multiple():
+    from claude_code_talker.session_focus import extract_audible_summary
+    text = "Audible summary: first.\nAudible summary: second."
+    assert "second" in extract_audible_summary(text)
+
+
+def test_extract_audible_summary_case_insensitive():
+    from claude_code_talker.session_focus import extract_audible_summary
+    assert "the line" in extract_audible_summary("AUDIBLE SUMMARY: the line")
+
+
+def test_extract_audible_summary_no_match_returns_empty():
+    from claude_code_talker.session_focus import extract_audible_summary
+    assert extract_audible_summary("plain text only") == ""
+
+
+def test_record_assistant_prose_populates_audible_line():
+    reg = SessionFocusRegistry()
+    reg.record_assistant_prose("s1", "blah\nAudible summary: do the thing.\nblah")
+    assert "do the thing" in reg.get_or_create("s1").audible_summary_line
+
+
+def test_render_block_includes_audible_summary_when_set():
+    f = SessionFocus()
+    f.audible_summary_line = "I'm restarting PIE."
+    block = f.render_block()
+    assert "AGENT EXPLICIT NARRATION" in block
+    assert "restarting PIE" in block
+
+
+def test_render_block_includes_narrative_summary_when_set():
+    f = SessionFocus()
+    f.narrative_summary = "Working on the JWT auth refactor across 3 sessions."
+    block = f.render_block()
+    assert "Session arc so far" in block
+    assert "JWT auth refactor" in block
+
+
+@pytest.mark.asyncio
+async def test_refresh_narrative_summary_calls_provider():
+    f = SessionFocus()
+    provider = MagicMock()
+    provider.complete = AsyncMock(return_value="updated summary text")
+    await f.refresh_narrative_summary(provider, recent_prose=["one", "two"])
+    assert f.narrative_summary == "updated summary text"
+    assert f.summary_narrations_since == 0
+
+
+@pytest.mark.asyncio
+async def test_refresh_narrative_summary_keeps_stale_on_failure():
+    f = SessionFocus()
+    f.narrative_summary = "stale"
+    provider = MagicMock()
+    provider.complete = AsyncMock(side_effect=RuntimeError("down"))
+    await f.refresh_narrative_summary(provider, recent_prose=["x"])
+    assert f.narrative_summary == "stale"

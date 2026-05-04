@@ -1,6 +1,7 @@
 """Per-session running focus for narrator context enrichment.
 
-Tracks: recent user prompts, files-in-play, an LLM-generated task header.
+Tracks: recent user prompts, files-in-play, an LLM-generated task header,
+a cumulative narrative summary, and the latest "Audible summary:" line.
 The narrator injects ``render_block()`` into its prompt so it can produce
 narrations that reference the session's continuity (the WHY + CONTEXT).
 """
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import logging
+import re
 import threading
 import time
 from collections import deque
@@ -18,6 +20,46 @@ _HEADER_REFRESH_AFTER_NARRATIONS = 5
 _HEADER_REFRESH_AFTER_SECONDS = 60.0
 _FILES_CAP = 8
 _PROMPTS_CAP = 3
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.9c Task 8: "Audible summary:" verbatim detection
+# ---------------------------------------------------------------------------
+
+_AUDIBLE_SUMMARY_PATTERN = re.compile(
+    r"^audible summary[:\s]+(.+?)(?:\n|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def extract_audible_summary(text: str) -> str:
+    """Return the most recent 'Audible summary:' line from text, or empty."""
+    if not text:
+        return ""
+    matches = _AUDIBLE_SUMMARY_PATTERN.findall(text)
+    return matches[-1].strip() if matches else ""
+
+
+# ---------------------------------------------------------------------------
+# Phase 13.9c Task 8: narrative summary prompt template
+# ---------------------------------------------------------------------------
+
+_NARRATIVE_SUMMARY_PROMPT_TEMPLATE = """\
+You maintain a running 1-paragraph summary of what a Claude Code session has been
+working on. Update the summary based on the previous version + the recent
+assistant prose.
+
+PREVIOUS SUMMARY:
+{previous}
+
+RECENT ASSISTANT PROSE (newest last):
+{prose}
+
+Output ONLY the updated summary as a single paragraph (≤500 chars). Do not
+include preamble or quotes. The summary should be in past/present tense and
+describe the cumulative arc — what's been investigated, decided, built,
+or attempted across the session so far.
+"""
 
 
 _HEADER_PROMPT_TEMPLATE = """\
@@ -46,6 +88,12 @@ class SessionFocus:
     # Phase 13.9a Task 3: in_progress activeForm strings from the latest TodoWrite,
     # capped at 5.  Populated by record_todos(); injected into render_block().
     current_todos: list = field(default_factory=list)
+    # Phase 13.9c Task 8: persistent narrative summary (cumulative paragraph ≤500 chars)
+    narrative_summary: str = ""
+    summary_last_refreshed_at: float = 0.0
+    summary_narrations_since: int = 0  # increments per narrate; resets on refresh
+    # Phase 13.9c Task 8: latest "Audible summary:" line detected from assistant prose
+    audible_summary_line: str = ""
 
     def record_user_prompt(self, text: str) -> None:
         text = (text or "").strip()
@@ -110,8 +158,32 @@ class SessionFocus:
             self.narrations_since_refresh = 0
             self.dirty = False  # Phase 13.8 R5: clear after successful refresh
 
+    async def refresh_narrative_summary(self, provider, recent_prose: list[str]) -> None:
+        """Update the cumulative narrative summary via a cheap LLM call.
+
+        Fire-and-forget: caller should use asyncio.create_task(). On failure,
+        the stale summary is preserved (never blanked).
+        """
+        prompt = _NARRATIVE_SUMMARY_PROMPT_TEMPLATE.format(
+            previous=self.narrative_summary or "(no prior summary)",
+            prose="\n---\n".join(recent_prose[-10:]) or "(no recent prose)",
+        )
+        try:
+            raw = await provider.complete(prompt, max_tokens=200)
+        except Exception as e:
+            logging.debug("narrative summary refresh failed: %s", e)
+            return
+        summary = (raw or "").strip().strip('"').strip("'")
+        if summary:
+            self.narrative_summary = summary[:500]
+            self.summary_last_refreshed_at = time.time()
+            self.summary_narrations_since = 0
+
     def render_block(self) -> str:
-        has_anything = bool(self.task_header or self.recent_user_prompts or self.files_in_play)
+        has_anything = bool(
+            self.task_header or self.recent_user_prompts or self.files_in_play
+            or self.narrative_summary or self.audible_summary_line
+        )
         if not has_anything:
             return ""
         lines = ["", "SESSION FOCUS:"]
@@ -128,6 +200,13 @@ class SessionFocus:
             lines.append(f"- Files in play: {files}")
         if self.current_todos:
             lines.append(f"- Currently doing: {', '.join(self.current_todos)}")
+        # Phase 13.9c Task 8: narrative summary + audible summary
+        if self.narrative_summary:
+            lines.append(f"- Session arc so far: {self.narrative_summary}")
+        if self.audible_summary_line:
+            lines.append(
+                f'- AGENT EXPLICIT NARRATION (use near-verbatim): "{self.audible_summary_line}"'
+            )
         return "\n".join(lines)
 
 
@@ -145,6 +224,13 @@ class SessionFocusRegistry:
                 f = SessionFocus()
                 self._by_session[session_id] = f
             return f
+
+    def record_assistant_prose(self, session_id: str, prose: str) -> None:
+        """Called when new assistant prose lands. Detects 'Audible summary:' lines."""
+        f = self.get_or_create(session_id)
+        line = extract_audible_summary(prose)
+        if line:
+            f.audible_summary_line = line[:500]
 
     def on_event(self, session_id: str, event) -> None:
         """Update focus for ``session_id`` from a single Event."""
