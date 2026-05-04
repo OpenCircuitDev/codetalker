@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import AsyncIterator
 
 
 class TTSEngine(ABC):
@@ -27,3 +28,18 @@ class TTSEngine(ABC):
     @abstractmethod
     def list_voices(self) -> list[str]:
         """Return the names of voices currently installed/available."""
+
+    async def synthesize_stream(
+        self, text: str, voice: str, rate: float
+    ) -> AsyncIterator[bytes]:
+        """Yield audio bytes in chunks as synthesis progresses.
+
+        The default implementation calls synthesize() and yields the full result
+        as a single chunk.  Engines that support native streaming (e.g. Edge TTS)
+        override this to yield chunks as the cloud server produces them, enabling
+        earlier playback start (first-chunk early dispatch).
+
+        Callers that need complete audio (audit log, voice preview) should keep
+        using synthesize() directly.
+        """
+        yield self.synthesize(text, voice, rate)
