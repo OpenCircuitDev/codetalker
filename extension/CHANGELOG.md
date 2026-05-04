@@ -30,6 +30,34 @@
   Removed singleton race condition in LiveMode. Phase 13.6c: per-session
   disable toggle is now respected at narrate-time (defense in depth past
   the hook gate, so events queued before the toggle stop firing).
+  Phase 13.6d: PUT /api/persistent-sessions mirrors the enabled flag to
+  the live SessionRegistry so the mute toggle takes effect without a
+  daemon restart.
+- **Phase 13.7** — Narrator pulls recent assistant prose (last 3 messages,
+  ≤1500 chars each) from the session transcript at narrate-time and
+  injects them as a "RECENT ASSISTANT REASONING" block in the prompt.
+  PROSE events were dead infrastructure with no producer; this fix
+  bypasses event ingest entirely by reading the canonical transcript.
+  Result: the narrator can now weave assistant intent (decisions,
+  percentages, breakdowns, forward plans) into output instead of just
+  describing file edits.
+- **Phase 13.7b–e (UI/UX polish):**
+  - Web UI session list now skips re-render while the user is
+    interacting (focus or hover), fixing the "buttons and dropdowns
+    lose focus every 2s" bug.
+  - Optimistic mute toggle: the 🔊/🔇 icon flips instantly on click,
+    reverts only if the network PUT fails.
+  - At-a-glance status indicators in session list: pulsing accent
+    border on actively-firing sessions; pulsing RED border on active
+    AND muted sessions ("you're missing audio for this!").
+  - Cold-start mute fix: PUT /api/persistent-sessions now auto-registers
+    the session in the live registry when missing (typical right after
+    daemon restart), so mute clicks land immediately even before the
+    session's first hook fires.
+  - URL stripping in narrator inputs: URLs in assistant prose, USER
+    prompts, and Bash command/output summaries are replaced with
+    "[link]" so TTS doesn't recite full paths. WebFetch summaries
+    show domain only (e.g. "[github.com]").
 
 ### Daemon-side companion changes
 - `secrets_store.py` adds `GEMINI_API_KEY` env override.
