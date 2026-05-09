@@ -1,8 +1,8 @@
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { initialWizardState, wizardReducer } from "./wizardReducer";
 import { BrowserRecorder } from "./BrowserRecorder";
-import { createCharacter } from "./characters.api";
+import { cloneVoice, createCharacter, getCloneVoiceJob } from "./characters.api";
 import type { Persona } from "./characters.types";
 
 const PERSONA_OPTIONS: Persona[] = ["methodical", "warm", "technical", "plain", "sarcastic", "energetic"];
@@ -16,12 +16,18 @@ export function CreateCharacterWizard({ onClose }: { onClose: () => void }) {
       dispatch({ type: "SAVE_START" });
       const voiceRef = state.cloneJob?.voice_ref ?? (state.voiceSource?.kind === "library" ? state.voiceSource.voiceId : "");
       if (!voiceRef) throw new Error("no voice ref");
-      await createCharacter({
-        id: state.identity.id,
-        display_name: state.identity.display_name,
-        voice_ref: voiceRef,
-        persona: state.identity.persona,
-      });
+      try {
+        await createCharacter({
+          id: state.identity.id,
+          display_name: state.identity.display_name,
+          voice_ref: voiceRef,
+          persona: state.identity.persona,
+        });
+      } catch (e: any) {
+        // Phase 25c: recording/upload pre-creates the character at step 3 so
+        // clone-voice has a target. If it already exists, that's fine.
+        if (!String(e?.message || "").includes(": 409")) throw e;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["characters"] });
@@ -102,20 +108,82 @@ function Step2VoiceSource({ dispatch }: any) {
 }
 
 function Step3Preview({ state, dispatch }: any) {
-  // For Phase 25c v1, library voices skip the clone step.
-  // For recording/upload, kick off cloneVoice and poll the job. (Wired in Task 10.)
+  // Phase 25c v1: library voices skip the clone path; recording/upload calls
+  // POST /api/characters/{id}/clone-voice and polls until succeeded/failed.
+  useEffect(() => {
+    if (state.cloneJob) return;
+    if (!state.voiceSource) return;
+
+    if (state.voiceSource.kind === "library") {
+      dispatch({
+        type: "CLONE_JOB_UPDATED",
+        job: { job_id: "library", status: "succeeded", voice_ref: state.voiceSource.voiceId },
+      });
+      return;
+    }
+
+    // recording / upload — pre-create the character with a placeholder
+    // voice_ref so the clone-voice endpoint has a target, then kick off the
+    // clone and poll the resulting job.
+    const blob = state.voiceSource.kind === "recording"
+      ? state.voiceSource.blob
+      : state.voiceSource.file;
+    const mime = state.voiceSource.kind === "recording"
+      ? state.voiceSource.mimeType
+      : (state.voiceSource.file.type || "audio/webm");
+    let cancelled = false;
+    let tick: number | null = null;
+
+    (async () => {
+      try {
+        // pre-create character with placeholder; tolerate 409 (already exists)
+        try {
+          await createCharacter({
+            id: state.identity.id,
+            display_name: state.identity.display_name,
+            voice_ref: `char-${state.identity.id}`,
+            persona: state.identity.persona,
+          });
+        } catch (e: any) {
+          if (!String(e?.message || "").includes(": 409")) throw e;
+        }
+        const job = await cloneVoice(state.identity.id, blob, mime);
+        if (cancelled) return;
+        dispatch({ type: "CLONE_JOB_UPDATED", job });
+        if (job.status === "succeeded" || job.status === "failed") return;
+        tick = window.setInterval(async () => {
+          try {
+            const fresh = await getCloneVoiceJob(job.job_id);
+            if (cancelled) return;
+            dispatch({ type: "CLONE_JOB_UPDATED", job: fresh });
+            if (fresh.status === "succeeded" || fresh.status === "failed") {
+              if (tick) { window.clearInterval(tick); tick = null; }
+            }
+          } catch (e: any) {
+            if (tick) { window.clearInterval(tick); tick = null; }
+            dispatch({ type: "SAVE_ERROR", error: e?.message || "clone poll failed" });
+          }
+        }, 1500);
+      } catch (e: any) {
+        if (!cancelled) dispatch({ type: "SAVE_ERROR", error: e?.message || "clone failed" });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (tick) window.clearInterval(tick);
+    };
+  }, [state.voiceSource, state.cloneJob, state.identity.id, state.identity.display_name, state.identity.persona, dispatch]);
+
   return (
     <div className="space-y-3">
-      <p className="text-sm">Preview your voice. Press play.</p>
-      {state.preview.audioUrl ? (
-        <audio src={state.preview.audioUrl} controls />
-      ) : (
-        <p className="text-zinc-400 text-sm italic">preview not ready yet</p>
+      <p className="text-sm">
+        Voice cloning status: <strong>{state.cloneJob?.status ?? "starting..."}</strong>
+      </p>
+      {state.cloneJob?.status === "succeeded" && (
+        <p className="text-emerald-400 text-sm">voice ref: {state.cloneJob.voice_ref}</p>
       )}
-      <div className="flex justify-between">
-        <button onClick={() => dispatch({ type: "BACK" })} className="text-zinc-400">Back</button>
-        <button onClick={() => dispatch({ type: "CLONE_JOB_UPDATED", job: { job_id: "stub", status: "succeeded", voice_ref: "stub" }})} className="px-3 py-1 bg-cyan-600 text-white rounded">Continue</button>
-      </div>
+      <button onClick={() => dispatch({ type: "BACK" })} className="text-zinc-400">Back</button>
     </div>
   );
 }
