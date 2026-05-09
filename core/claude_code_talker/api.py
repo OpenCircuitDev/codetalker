@@ -446,6 +446,20 @@ def build_routes(state) -> list[Route]:
         char = state.characters.get(cid)
         if char is None:
             return JSONResponse({"error": f"character not found: {cid}"}, status_code=400)
+        # Phase 25a — validate voice_ref resolves to a voice in some registered engine
+        voice_ok = False
+        for engine in (state.engines or {}).values():
+            try:
+                if char.voice_ref in (engine.list_voices() or []):
+                    voice_ok = True
+                    break
+            except Exception:
+                continue
+        if not voice_ok:
+            return JSONResponse(
+                {"error": f"character voice_ref not found in any engine: {char.voice_ref!r}"},
+                status_code=400,
+            )
         s.attached_character = cid
         return JSONResponse({
             "state": {"session_id": s.session_id, "attached_character": s.attached_character}

@@ -95,7 +95,12 @@ async def test_attach_character_endpoint_sets_field(tmp_path):
     from claude_code_talker.server import build_server_state, build_asgi_app
     state = build_server_state()
     state.characters = CharacterStore(characters_dir=tmp_path / "chars")
-    state.characters.save(Character(id="alice", display_name="Alice", voice_ref="en_GB-jenny_dioco-medium"))
+    state.characters.save(Character(id="alice", display_name="Alice", voice_ref="test-voice"))
+    # Ensure the voice resolves in the fake engine
+    class _FakeEngine:
+        def list_voices(self):
+            return ["test-voice"]
+    state.engines = {"fake": _FakeEngine()}
     s = state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
     app = build_asgi_app(state, disable_transport_security=True)
     transport = ASGITransport(app=app)
@@ -187,3 +192,27 @@ async def test_api_sessions_response_includes_attached_character(tmp_path):
         match = next((row for row in data if row["session_id"] == "test-sid"), None)
         assert match is not None
         assert match.get("attached_character") == "alice"
+
+
+@pytest.mark.asyncio
+async def test_attach_character_400_when_voice_ref_unresolved(tmp_path):
+    """Spec section 4: attach-character returns 400 if voice_ref doesn't resolve in any engine."""
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    # Character points at a voice no engine actually has
+    state.characters.save(Character(
+        id="ghost",
+        display_name="Ghost",
+        voice_ref="this-voice-does-not-exist-anywhere",
+    ))
+    state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post("/api/sessions/test-sid/attach-character", json={"character_id": "ghost"})
+        assert r.status_code == 400
+        assert "voice" in r.json().get("error", "").lower()
+        # Session should NOT have the character attached
+        assert state.sessions.get("test-sid").attached_character is None
