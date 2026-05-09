@@ -297,3 +297,17 @@ Plus `core/tests/smoke/test_mesh_smoke.py` (gated by env vars; skipped without k
 ## Success criteria
 
 A user can: (1) drop API keys via `/api/secrets`; (2) POST a generate-mesh request for a character; (3) poll status; (4) on completion, find the mesh at the storage path AND see the Character record updated; (5) check `mesh_usage.jsonl` for cost record.
+
+## Verified providers
+
+| Provider | Status | Verified date | Notes |
+|---|---|---|---|
+| **Meshy v2** | ✅ verified | 2026-05-09 | Smoke test job `9258e26eca36` ran 55s (45s gen + 10s download), produced an 8.6 MB GLB at `~/.claude/scripts/codetalker/models/smoke-meshy/9258e26eca36.glb` with valid `glTF` v2 magic header. `Character.mesh_path` persisted correctly. |
+| Hyper3D Rodin | ⏳ awaiting key | — | Mocked tests passing; live smoke pending. |
+| Tripo3D | ⏳ awaiting key | — | Mocked tests passing; live smoke pending. |
+
+### Bugs found during smoke testing
+
+1. **Stale daemon ran pre-Phase-25b code** — `PUT /api/secrets` rejected `meshy_api_key` until daemon restart. Documentation gap; restart is required after upgrading. Surfacing this clearly is a deferred follow-up.
+2. **`GET /api/secrets` had a hardcoded 4-key list** — Phase 25b Task 10 added the input rows + slot in `secrets_store.KNOWN_KEYS` but the GET handler never iterated them. Fixed in commit `c480785`.
+3. **Signed-URL extension extraction broken** — Real CDN URLs are signed with `?expires=...&signature=...&key-pair-id=...`; naive `rsplit('.', 1)[-1]` swallowed the entire query string into the file extension. Caused Meshy's first job to "succeed-then-fail" (CDN delivered the model, but the local file write blew up on Windows-illegal `?`). Fixed in commit `5c06428` with a shared `extension_from_url()` helper, regression tests using realistic signed-URL fixtures, and resilience in adapter `download()` for stale dest paths containing `?`.
