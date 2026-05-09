@@ -85,3 +85,95 @@ def test_character_to_dict_round_trips():
     d = c.to_dict()
     c2 = Character.from_dict(d)
     assert c == c2
+
+
+def test_character_store_save_creates_file_at_expected_path(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    c = Character(id="alice", display_name="Alice", voice_ref="v")
+    p = store.save(c)
+    assert p.exists()
+    assert p.name == "alice.yaml"
+
+
+def test_character_store_save_sets_created_and_updated_at(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    c = Character(id="alice", display_name="Alice", voice_ref="v")
+    store.save(c)
+    loaded = store.get("alice")
+    assert loaded.created_at > 0
+    assert loaded.updated_at > 0
+
+
+def test_character_store_save_preserves_created_at_updates_updated_at(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    c = Character(id="alice", display_name="Alice", voice_ref="v")
+    store.save(c)
+    first_created = store.get("alice").created_at
+    time.sleep(0.01)
+    c2 = store.get("alice")
+    c2.display_name = "Alice II"
+    store.save(c2)
+    final = store.get("alice")
+    assert final.created_at == first_created
+    assert final.updated_at > first_created
+    assert final.display_name == "Alice II"
+
+
+def test_character_store_get_returns_none_for_missing(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    assert store.get("nope") is None
+
+
+def test_character_store_get_returns_none_for_invalid_id(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    assert store.get("../etc/passwd") is None
+    assert store.get("UPPER") is None
+    assert store.get("") is None
+
+
+def test_character_store_list_sorted_by_display_name_case_insensitive(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    store.save(Character(id="b", display_name="zebra", voice_ref="v"))
+    store.save(Character(id="a", display_name="apple", voice_ref="v"))
+    store.save(Character(id="c", display_name="Banana", voice_ref="v"))
+    names = [c.display_name for c in store.list()]
+    assert names == ["apple", "Banana", "zebra"]
+
+
+def test_character_store_list_empty_when_dir_missing(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "nonexistent")
+    assert store.list() == []
+
+
+def test_character_store_list_skips_malformed_yaml(tmp_path):
+    d = tmp_path / "chars"
+    d.mkdir()
+    (d / "good.yaml").write_text("id: good\ndisplay_name: G\nvoice_ref: v\n", encoding="utf-8")
+    (d / "broken.yaml").write_text("not: valid: yaml: here", encoding="utf-8")
+    store = CharacterStore(characters_dir=d)
+    chars = store.list()
+    assert [c.id for c in chars] == ["good"]
+
+
+def test_character_store_delete_returns_true_when_existed(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    store.save(Character(id="alice", display_name="Alice", voice_ref="v"))
+    assert store.delete("alice") is True
+    assert store.get("alice") is None
+
+
+def test_character_store_delete_returns_false_when_missing(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    assert store.delete("nope") is False
+
+
+def test_character_store_delete_rejects_invalid_id(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    assert store.delete("../etc/passwd") is False
+
+
+def test_character_store_save_calls_validate(tmp_path):
+    store = CharacterStore(characters_dir=tmp_path / "chars")
+    c = Character(id="BAD-ID", display_name="X", voice_ref="v")
+    with pytest.raises(CharacterValidationError):
+        store.save(c)

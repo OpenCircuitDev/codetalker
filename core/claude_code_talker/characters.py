@@ -60,6 +60,86 @@ class Character:
         return asdict(self)
 
 
+DEFAULT_CHARACTERS_DIR = Path.home() / ".claude" / "scripts" / "codetalker" / "characters"
+
+
 class CharacterStore:
-    """Stub — full implementation in Task 2."""
-    pass
+    """File-backed character storage. Atomic writes via tmp + rename."""
+
+    def __init__(self, characters_dir: Path | None = None):
+        self._dir = characters_dir if characters_dir is not None else DEFAULT_CHARACTERS_DIR
+
+    def _path(self, char_id: str) -> Path:
+        return self._dir / f"{char_id}.yaml"
+
+    def list(self) -> list[Character]:
+        """Return all characters sorted by display_name (case-insensitive)."""
+        if not self._dir.exists():
+            return []
+        chars: list[Character] = []
+        for p in self._dir.glob("*.yaml"):
+            try:
+                d = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                if not isinstance(d, dict):
+                    continue
+                chars.append(Character.from_dict(d))
+            except (yaml.YAMLError, OSError, TypeError):
+                continue
+        chars.sort(key=lambda c: (c.display_name or "").lower())
+        return chars
+
+    def get(self, char_id: str) -> Character | None:
+        if not _ID_RE.match(char_id or ""):
+            return None
+        path = self._path(char_id)
+        if not path.exists():
+            return None
+        try:
+            d = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            if not isinstance(d, dict):
+                return None
+            return Character.from_dict(d)
+        except (yaml.YAMLError, OSError, TypeError):
+            return None
+
+    def save(self, character: Character) -> Path:
+        """Validate and atomically write the character to disk.
+
+        Sets created_at on first save (preserves it on subsequent saves);
+        updates updated_at on every save.
+        """
+        character.validate()
+        self._dir.mkdir(parents=True, exist_ok=True)
+        target = self._path(character.id)
+        now = time.time()
+        if not character.created_at:
+            existing = self.get(character.id)
+            character.created_at = (
+                existing.created_at if existing and existing.created_at else now
+            )
+        character.updated_at = now
+        tmp = self._dir / f"{character.id}.yaml.tmp"
+        try:
+            tmp.write_text(
+                yaml.safe_dump(character.to_dict(), sort_keys=False),
+                encoding="utf-8",
+            )
+            tmp.replace(target)
+        except OSError:
+            try:
+                tmp.unlink()
+            except FileNotFoundError:
+                pass
+            raise
+        return target
+
+    def delete(self, char_id: str) -> bool:
+        """Remove the character file. Returns True if it existed, False if not."""
+        if not _ID_RE.match(char_id or ""):
+            return False
+        path = self._path(char_id)
+        try:
+            path.unlink()
+            return True
+        except FileNotFoundError:
+            return False
