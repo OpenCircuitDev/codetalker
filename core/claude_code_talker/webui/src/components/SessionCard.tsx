@@ -1,11 +1,11 @@
 // Phase 27 — SessionCard 4-zone layout: identity / chips / live ticker / controls.
 // Keeps backwards-compat with project/profile badges so existing telemetry doesn't disappear.
+import { memo } from "react";
 import { motion } from "framer-motion";
 import type { Session } from "../types";
 import { useSessionConfig } from "../hooks/useSessionConfig";
 import { cardEntry } from "../theme/motion";
 import { CharacterAvatar } from "./CharacterAvatar";
-import { LiveTicker } from "./LiveTicker";
 import { SpeakingDot } from "./SpeakingDot";
 import { ProjectBadge } from "./ProjectBadge";
 import { ProfileBadge } from "./ProfileBadge";
@@ -14,11 +14,17 @@ import { SessionMarkupQuick } from "./SessionMarkupQuick";
 
 type Props = { session: Session };
 
-export function SessionCard({ session }: Props) {
+function SessionCardImpl({ session }: Props) {
   const { data: config } = useSessionConfig(session.session_id);
-  const muted = config?.enabled === false || session.enabled === false || !!session.is_muted;
+  // CCT-28 cat 3: muted is canonically derived from the post-overlay-resolved
+  // config's `enabled` flag. session.enabled / session.is_muted are kept as
+  // fallbacks only when config hasn't loaded yet (first paint), so the card
+  // doesn't visibly flip muted-styling on initial config arrival.
+  const muted =
+    config !== undefined
+      ? config.enabled === false
+      : session.enabled === false || !!session.is_muted;
   const char = session.attached_character;
-  const events = session.events ?? [];
   // CCT-28 fix: trust the backend's display_name (already resolves
   // custom_title > vscode_label > slug > c.title > project_slug). Reading
   // session.title first overrode `/title` renames whenever Claude Code
@@ -27,6 +33,7 @@ export function SessionCard({ session }: Props) {
 
   return (
     <motion.article
+      layout
       variants={cardEntry}
       initial="initial"
       animate="animate"
@@ -77,23 +84,34 @@ export function SessionCard({ session }: Props) {
         )}
       </div>
 
-      {/* Subtitle: show display_name only when distinct from the headline. */}
-      {session.display_name && session.display_name !== headline && (
-        <div className="text-sm text-[var(--color-text-2)] line-clamp-2">
-          {session.display_name}
-        </div>
-      )}
-
-      {/* Zone 3: live ticker (only when events known) */}
-      {events.length > 0 && (
-        <div className="h-32 bg-[var(--color-surface-2)] rounded">
-          <LiveTicker events={events} maxEvents={20} />
-        </div>
-      )}
-
-      {/* Zone 4: controls (mute / mode / voice) + per-session markup quick toggles */}
+      {/* Zone 4: controls (mute / mode / voice / cadence) + per-session markup quick toggles */}
       <SessionControls sessionId={session.session_id} config={config} />
       <SessionMarkupQuick sessionId={session.session_id} />
     </motion.article>
   );
 }
+
+// CCT-28: shallow comparator so refetched lists with reference-equal session
+// objects (post keepPreviousData) skip rerendering each card. Compare only
+// the fields we actually render.
+function sessionEqual(prev: Props, next: Props): boolean {
+  const a = prev.session;
+  const b = next.session;
+  if (a === b) return true;
+  return (
+    a.session_id === b.session_id &&
+    a.display_name === b.display_name &&
+    a.project_slug === b.project_slug &&
+    a.cwd === b.cwd &&
+    a.last_modified === b.last_modified &&
+    a.is_live === b.is_live &&
+    a.enabled === b.enabled &&
+    a.attached_profile === b.attached_profile &&
+    a.is_speaking === b.is_speaking &&
+    a.is_muted === b.is_muted &&
+    a.mode === b.mode &&
+    a.attached_character === b.attached_character
+  );
+}
+
+export const SessionCard = memo(SessionCardImpl, sessionEqual);

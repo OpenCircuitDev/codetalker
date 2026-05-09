@@ -75,9 +75,12 @@ describe("SessionCard", () => {
     expect(dot).toBeTruthy();
   });
 
-  it("renders ticker when events present", () => {
+  // CCT-28 cat 3 cleanup: SessionCard no longer renders a per-card LiveTicker
+  // because the backend never populates `session.events`. The dead block was
+  // removed; the ActivityTab feeds the global LiveTicker from the SSE stream.
+  it("does not render the dead per-card ticker", () => {
     render(withClient(<SessionCard session={withCharacter} />));
-    expect(screen.getByText("Working")).toBeInTheDocument();
+    expect(screen.queryByText("Working")).not.toBeInTheDocument();
   });
 
   // CCT-28 regression: when display_name and title disagree (user ran /title
