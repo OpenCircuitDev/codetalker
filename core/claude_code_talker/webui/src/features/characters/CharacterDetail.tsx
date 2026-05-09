@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character } from "./characters.types";
 import { PersonaBadge } from "./PersonaBadge";
 import { attachCharacter } from "./characters.api";
+import { MeshGenerator } from "./MeshGenerator";
 
 interface SessionLite { session_id: string; title?: string }
 
@@ -64,6 +65,7 @@ export function CharacterDetail({ character }: { character: Character | null }) 
           <p className="text-emerald-400 text-xs">attached</p>
         )}
       </div>
+      <MeshGenerator characterId={character.id} />
     </div>
   );
 }
