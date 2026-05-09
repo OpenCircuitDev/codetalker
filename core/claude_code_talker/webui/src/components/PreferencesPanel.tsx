@@ -1,8 +1,44 @@
 // Phase 27 — Preferences panel: sound effects, density, accent.
+// CCT-31 — adds AR Companion pairing QR generator.
+import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { usePreferences } from "../hooks/usePreferences";
 
 export function PreferencesPanel() {
   const { prefs, setPref } = usePreferences();
+  const [pairToken, setPairToken] = useState<string | null>(null);
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
+
+  const issueToken = async () => {
+    setPairing(true);
+    setPairError(null);
+    try {
+      const r = await fetch("/api/companion/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: navigator.userAgent.slice(0, 40) }),
+      });
+      if (!r.ok) {
+        setPairError(`HTTP ${r.status}`);
+        return;
+      }
+      const data = await r.json();
+      setPairToken(data.token);
+    } catch (e) {
+      setPairError(String(e));
+    } finally {
+      setPairing(false);
+    }
+  };
+
+  const pairPayload = pairToken
+    ? JSON.stringify({
+        daemon_url: `http://${window.location.host}`,
+        pairing_token: pairToken,
+      })
+    : null;
+
   return (
     <section className="space-y-4 p-4 bg-[var(--color-surface-1)] rounded-lg border border-zinc-800">
       <h2 className="font-bold text-[var(--color-text-1)]">Preferences</h2>
@@ -52,6 +88,33 @@ export function PreferencesPanel() {
             <span className="capitalize">{a}</span>
           </label>
         ))}
+      </fieldset>
+
+      <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
+        <legend className="text-sm font-bold text-[var(--color-text-1)]">AR Companion</legend>
+        <p className="text-xs text-[var(--color-text-3)]">
+          Pair the codetalker Android app on your XREAL Beam Pro by scanning a QR token
+          from this device.
+        </p>
+        <button
+          type="button"
+          onClick={issueToken}
+          disabled={pairing}
+          className="px-3 py-1 bg-cyan-600 text-white rounded disabled:opacity-50"
+        >
+          {pairing ? "Issuing..." : "Issue pairing token"}
+        </button>
+        {pairError && (
+          <p className="text-xs text-red-400">Pairing failed: {pairError}</p>
+        )}
+        {pairPayload && (
+          <div className="mt-2 inline-block bg-white p-3 rounded">
+            <QRCodeSVG value={pairPayload} size={192} />
+            <p className="text-zinc-700 text-xs mt-2 max-w-[192px]">
+              Scan with the codetalker Android app
+            </p>
+          </div>
+        )}
       </fieldset>
     </section>
   );
