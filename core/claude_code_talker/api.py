@@ -72,16 +72,20 @@ def build_routes(state) -> list[Route]:
         else:
             catalog_entries = []
         seen_sids = set()
+        from claude_code_talker.catalog import _slug_to_display_name
         for c in catalog_entries:
             sid = c.session_id
             seen_sids.add(sid)
             live_match = live_by_sid.get(sid)
             persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
-            # Display priority: persistent display_name > Claude Code panel
-            # label > catalog auto-title > project_slug
+            # Display priority: persistent display_name > Claude Code panel label
+            # > Claude Code current slug (kebab-case, tracks /title renames)
+            # > catalog auto-title (cached first prompt) > project_slug
+            slug_display = _slug_to_display_name(c.slug) if c.slug else ""
             display_name = (
                 (persistent.get("display_name") if persistent else None)
                 or (c.vscode_label or None)
+                or (slug_display or None)
                 or (c.title or None)
                 or c.project_slug
             )

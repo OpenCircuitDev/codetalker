@@ -183,6 +183,57 @@ def _read_transcript_title(transcript: Path) -> str:
     return first_user
 
 
+def _read_transcript_latest_slug(transcript: Path) -> str:
+    """Best-effort: read the last `slug` value Claude Code wrote to this transcript.
+
+    Claude Code records its session slug on every JSONL line. The slug updates
+    when the user runs `/title` or Claude Code re-derives it. We want the
+    LATEST one, so we read a tail chunk of the file and pick the last `slug`.
+    Returns "" if not found.
+    """
+    try:
+        size = transcript.stat().st_size
+    except OSError:
+        return ""
+    if size == 0:
+        return ""
+    chunk_size = min(size, 8192)
+    try:
+        with transcript.open("rb") as f:
+            f.seek(size - chunk_size)
+            tail = f.read(chunk_size)
+    except OSError:
+        return ""
+    try:
+        text = tail.decode("utf-8", errors="ignore")
+    except UnicodeDecodeError:
+        return ""
+    # Walk lines from last to first, return first non-empty slug found.
+    for line in reversed(text.split("\n")):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            d = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        slug = d.get("slug")
+        if isinstance(slug, str) and slug.strip():
+            return slug.strip()
+    return ""
+
+
+def _slug_to_display_name(slug: str) -> str:
+    """Convert kebab-case slug to Title Case display name.
+
+    'i-would-like-to-modular-fog' -> 'I Would Like To Modular Fog'
+    'fluffy-tickling-hamming' -> 'Fluffy Tickling Hamming'
+    """
+    if not slug:
+        return ""
+    return " ".join(word.capitalize() for word in slug.split("-") if word)
+
+
 @dataclass
 class CatalogEntry:
     session_id: str
@@ -192,6 +243,7 @@ class CatalogEntry:
     line_count: int = 0
     title: str = ""
     vscode_label: str = ""  # user-set label from Claude Code's VS Code panel
+    slug: str = ""           # latest slug Claude Code wrote (kebab-case)
 
 
 class SessionCatalog:
@@ -245,6 +297,8 @@ class SessionCatalog:
                     continue
                 sid = transcript.stem
                 title = prior_titles.get(sid) or _read_transcript_title(transcript)
+                # slug is always re-read since users rename sessions during their lifetime
+                slug = _read_transcript_latest_slug(transcript)
                 new_entries[sid] = CatalogEntry(
                     session_id=sid,
                     project_slug=project_slug,
@@ -252,6 +306,7 @@ class SessionCatalog:
                     last_modified=stat.st_mtime,
                     title=title,
                     vscode_label=vscode_labels.get(sid, ""),
+                    slug=slug,
                 )
         # Apply max_entries cap by keeping the most-recent-mtime entries.
         if len(new_entries) > self._max_entries:
