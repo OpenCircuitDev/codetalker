@@ -62,6 +62,8 @@ class ServerState:
     # Phase 14 v0.4.0 — voice install task tracking + preview audio tokens
     voice_install_tasks: dict = None   # str → InstallTaskState
     voice_preview_audio: dict = None   # token str → Path
+    # Phase 23 — fan-out narration event stream consumed by /api/narration-stream
+    narration_stream: object = None
     # Phase 13.9c Task 7 — continuous transcript watcher (pre-populates prose cache)
     transcript_watcher: TranscriptWatcher = None
 
@@ -301,10 +303,13 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.catalog.start_watcher(interval_seconds=30.0)
 
     state.event_buffer = EventBuffer(max_size=int(live_cfg.get("buffer_size", 30)))
+    from claude_code_talker.narration_stream import NarrationStream
+    state.narration_stream = NarrationStream()
     state.audio_queue = AudioQueue(
         state,
         max_depth=int(live_cfg.get("queue_max_depth", 5)),
         staleness_seconds=float(live_cfg.get("staleness_seconds", 20.0)),
+        narration_stream=state.narration_stream,
     )
     state.audio_queue.start()
 

@@ -185,7 +185,7 @@ class AudioQueue:
     pending normals/routines. FIFO within the same priority level.
     """
 
-    def __init__(self, state, max_depth: int = 5, staleness_seconds: float = 20.0) -> None:
+    def __init__(self, state, max_depth: int = 5, staleness_seconds: float = 20.0, narration_stream=None) -> None:
         self._state = state
         self._queue: list[tuple] = []  # heap of (priority_rank, seq, job)
         self._cv = threading.Condition()
@@ -198,6 +198,8 @@ class AudioQueue:
         self._poison = False
         self._max_depth = max_depth
         self._staleness = staleness_seconds
+        self._narration_stream = narration_stream
+        self._loop = None  # captured lazily — see _publish_event
 
     def start(self) -> None:
         if not self._worker.is_alive():
@@ -215,6 +217,7 @@ class AudioQueue:
             self._cv.notify()
         if job.priority == "alert":
             self._handle.stop()  # interrupt current playback
+        self._publish_event(job, "queued")
 
     def _enforce_depth_locked(self) -> None:
         """Caller holds self._cv. Drops non-alert items if over max_depth."""
@@ -233,6 +236,32 @@ class AudioQueue:
         self._queue.clear()
         for t in kept:
             heapq.heappush(self._queue, t)
+
+    def _publish_event(self, job, status: str) -> None:
+        """Phase 23 — thread-safe NarrationStream publish. No-op if not wired."""
+        if self._narration_stream is None:
+            return
+        try:
+            import asyncio
+            import time
+            from claude_code_talker.narration_stream import NarrationEvent
+            if self._loop is None:
+                try:
+                    self._loop = asyncio.get_event_loop_policy().get_event_loop()
+                except Exception:
+                    return
+            ev = NarrationEvent(
+                session_id=getattr(job, "session_id", "") or "",
+                timestamp=time.time(),
+                text=(job.text or "")[:200],
+                voice=getattr(job, "voice", "") or "",
+                mode=getattr(job, "mode", "") or "",
+                status=status,
+            )
+            asyncio.run_coroutine_threadsafe(self._narration_stream.publish(ev), self._loop)
+        except Exception:
+            # Never let a narration error break audio playback.
+            pass
 
     def shutdown(self, drain_timeout: float = 5.0) -> None:
         with self._cv:
@@ -264,10 +293,14 @@ class AudioQueue:
             # Drop stale non-alert jobs
             if job.priority != "alert" and (time.time() - job.enqueued_at) > self._staleness:
                 logging.debug("dropping stale audio job: %s", job.text[:40])
+                self._publish_event(job, "skipped")
                 continue
+            self._publish_event(job, "speaking")
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
                 play_audio_bytes(wav, audio_format=job.audio_format, handle=self._handle)
+                self._publish_event(job, "done")
             except Exception as e:
                 logging.warning("audio job failed: %s", e)
+                self._publish_event(job, "skipped")
