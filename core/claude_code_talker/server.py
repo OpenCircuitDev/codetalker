@@ -828,9 +828,15 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     static_dir = Path(__file__).parent / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
 
+    react_dir = Path(__file__).parent / "webui" / "dist"
+    # react_dir may not exist if the webui hasn't been built yet — that's fine,
+    # we still mount it so a 404 is informative.
+    react_dir.mkdir(parents=True, exist_ok=True)
+
     routes = []
     routes.extend(build_routes(state))
     routes.append(Mount("/ui", app=StaticFiles(directory=str(static_dir), html=True)))
+    routes.append(Mount("/ui-react", app=StaticFiles(directory=str(react_dir), html=True)))
     routes.append(Mount("/", app=fmcp_app))  # FastMCP handles /sse and /messages at root
 
     from contextlib import asynccontextmanager
