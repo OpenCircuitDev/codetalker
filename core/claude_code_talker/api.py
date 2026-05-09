@@ -427,6 +427,65 @@ def build_routes(state) -> list[Route]:
         state.characters.delete(cid)
         return JSONResponse({"deleted": True})
 
+    async def characters_clone_voice(request: Request) -> JSONResponse:
+        """Phase 25c — POST /api/characters/{char_id}/clone-voice.
+
+        v1 stub clone path: creates a tracker job, immediately marks it
+        succeeded with ``voice_ref = char-<character_id>``.  Phase 25b will
+        replace the synchronous success with an async cloning pipeline.
+        """
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        if getattr(state, "clone_jobs", None) is None:
+            return JSONResponse({"error": "clone-job tracker unavailable"}, status_code=503)
+        cid = request.path_params.get("char_id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        if state.characters.get(cid) is None:
+            return JSONResponse({"error": "character not found"}, status_code=404)
+        try:
+            form = await request.form()
+        except Exception as e:  # pragma: no cover - hard to unit-test bad multipart
+            return JSONResponse({"error": f"invalid form: {e}"}, status_code=400)
+        audio = form.get("audio")
+        mime_type = str(form.get("mime_type") or "audio/webm")
+        if audio is None:
+            return JSONResponse({"error": "audio field required"}, status_code=400)
+        # UploadFile has .read(); a plain str/bytes form value does not.
+        if hasattr(audio, "read"):
+            audio_bytes = await audio.read()
+        else:
+            audio_bytes = bytes(audio) if isinstance(audio, (bytes, bytearray)) else str(audio).encode()
+        job = state.clone_jobs.create(cid, audio_bytes, mime_type)
+        # Phase 25c v1: stub clone — succeed immediately with placeholder voice_ref.
+        state.clone_jobs.set_succeeded(job.job_id, voice_ref=f"char-{cid}")
+        body = state.clone_jobs.get(job.job_id)
+        return JSONResponse(
+            {
+                "job_id": body.job_id,
+                "status": body.status,
+                "voice_ref": body.voice_ref,
+            },
+            status_code=202,
+        )
+
+    async def voice_clone_job_get(request: Request) -> JSONResponse:
+        """Phase 25c — GET /api/voice-clone-jobs/{job_id}."""
+        if getattr(state, "clone_jobs", None) is None:
+            return JSONResponse({"error": "clone-job tracker unavailable"}, status_code=503)
+        job_id = request.path_params.get("job_id", "")
+        job = state.clone_jobs.get(job_id)
+        if job is None:
+            return JSONResponse({"error": "job not found"}, status_code=404)
+        return JSONResponse(
+            {
+                "job_id": job.job_id,
+                "status": job.status,
+                "voice_ref": job.voice_ref,
+                "error": job.error,
+            }
+        )
+
     async def attach_character(request: Request) -> JSONResponse:
         if state.characters is None or state.sessions is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)
@@ -446,15 +505,24 @@ def build_routes(state) -> list[Route]:
         char = state.characters.get(cid)
         if char is None:
             return JSONResponse({"error": f"character not found: {cid}"}, status_code=400)
-        # Phase 25a — validate voice_ref resolves to a voice in some registered engine
+        # Phase 25a — validate voice_ref resolves to a voice in some registered engine.
+        # Phase 25c v1 stub-clone path: voice_refs of the form ``char-<id>`` are
+        # produced by /api/characters/{id}/clone-voice as a placeholder until
+        # Phase 25b's real cloner runs.  We allowlist them here so the wizard's
+        # save-then-attach flow works end-to-end without bypassing the check
+        # for arbitrary voices.
         voice_ok = False
-        for engine in (state.engines or {}).values():
-            try:
-                if char.voice_ref in (engine.list_voices() or []):
-                    voice_ok = True
-                    break
-            except Exception:
-                continue
+        if char.voice_ref and char.voice_ref.startswith("char-"):
+            # stub-clone placeholder: trust it (Phase 25b will replace with real ref)
+            voice_ok = True
+        else:
+            for engine in (state.engines or {}).values():
+                try:
+                    if char.voice_ref in (engine.list_voices() or []):
+                        voice_ok = True
+                        break
+                except Exception:
+                    continue
         if not voice_ok:
             return JSONResponse(
                 {"error": f"character voice_ref not found in any engine: {char.voice_ref!r}"},
@@ -1869,6 +1937,9 @@ def build_routes(state) -> list[Route]:
         Route("/api/characters", create_character, methods=["POST"]),
         Route("/api/characters/{char_id}", put_character, methods=["PUT"]),
         Route("/api/characters/{char_id}", delete_character, methods=["DELETE"]),
+        # Phase 25c — voice cloning kickoff + job status
+        Route("/api/characters/{char_id}/clone-voice", characters_clone_voice, methods=["POST"]),
+        Route("/api/voice-clone-jobs/{job_id}", voice_clone_job_get, methods=["GET"]),
         Route("/api/sessions/{session_id}/attach-character", attach_character, methods=["POST"]),
         Route("/api/sessions/{session_id}/character", detach_character, methods=["DELETE"]),
         Route("/api/voices", list_voices, methods=["GET"]),

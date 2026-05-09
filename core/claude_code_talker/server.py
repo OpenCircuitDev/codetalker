@@ -68,6 +68,8 @@ class ServerState:
     transcript_watcher: TranscriptWatcher = None
     # Phase 25a — Character store (file-backed CRUD on ~/.claude/scripts/codetalker/characters/)
     characters: object = None
+    # Phase 25c — voice clone job tracker (sidecar JSON per job)
+    clone_jobs: object = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -294,6 +296,11 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.persistent_sessions = persistent_sessions
     from claude_code_talker.characters import CharacterStore
     state.characters = CharacterStore()
+    # Phase 25c — voice clone job tracker
+    from claude_code_talker.voice.cloning_jobs import CloneJobTracker
+    state.clone_jobs = CloneJobTracker(
+        Path.home() / ".claude" / "scripts" / "codetalker" / "voice_clone_jobs"
+    )
     state.sessions = SessionRegistry(
         profile_store=profiles,
         persistent_session_store=persistent_sessions,
