@@ -70,6 +70,15 @@ def detect_file_path(text: str) -> list[Span]:
         path = m.group(1)
         if "/" not in path and "\\" not in path:
             continue  # require a directory separator to avoid false positives like "x.y"
+        # Skip URL-like matches (the URL handler in modes/direct.py rewrites them).
+        prefix = text[max(0, m.start() - 3):m.start()]
+        if prefix.endswith("://") or prefix.endswith(":/"):
+            continue
+        # Skip leading-slash UNC-style fragments produced by greedy matching
+        # against http://host/path — basename() returns empty for these and
+        # the legacy URL handler will pick them up.
+        if path.startswith("//") or path.startswith("\\\\"):
+            continue
         out.append(Span(
             form="file_path",
             start=m.start(), end=m.end(),

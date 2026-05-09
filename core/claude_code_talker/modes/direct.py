@@ -10,6 +10,7 @@ import re
 
 import mistune
 
+from claude_code_talker.markup.pipeline import transform as _markup_transform
 from claude_code_talker.modes.base import ModeStrategy
 
 
@@ -123,11 +124,20 @@ class DirectMode(ModeStrategy):
         return "\n\n".join(kept)
 
     def _postprocess(self, text, cfg):
+        # Phase 26: structure-aware markup transform first (code fences are
+        # already stripped at the AST stage, but file paths, long numerals,
+        # inline code, etc. are handled here uniformly).
+        text = _markup_transform(text, cfg)
+
         elements = cfg.get("elements") or {}
         if not elements.get("insight_block", False):
             text = INSIGHT_RE.sub("", text)
         if (cfg.get("urls") or {}).get("shorten_to_host", True):
             text = URL_RE.sub(r"\1", text)
+        # Legacy path-handling fallback — covers Windows-style drive paths and
+        # other shapes the markup recognizer's stricter regex skips. Markup
+        # already rewrote any matches it caught, so PATH_RE_FILENAME here only
+        # touches paths that survived (e.g. "c:/Users/foo/bar.py").
         handling = (cfg.get("paths") or {}).get("handling", "filename")
         if handling == "filename":
             text = PATH_RE_FILENAME.sub(r"\1", text)
