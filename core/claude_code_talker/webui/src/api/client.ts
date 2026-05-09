@@ -13,4 +13,13 @@ export const api = {
   sessions: () => fetchJson<Session[]>("/api/sessions"),
   sessionConfig: (id: string) =>
     fetchJson<SessionConfig>(`/api/sessions/${encodeURIComponent(id)}`),
+  putOverlay: async (id: string, overlay: Partial<SessionConfig>) => {
+    const r = await fetch(`/api/sessions/${encodeURIComponent(id)}/overlay`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(overlay),
+    });
+    if (!r.ok) throw new Error(`overlay PUT failed: ${r.status}`);
+    return r.json();
+  },
 };
