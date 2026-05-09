@@ -27,20 +27,6 @@ class SessionState:
     enabled: bool = True
 
 
-@dataclass
-class LiveSession:
-    """Active session with character attachment. Phase 25a."""
-    session_id: str
-    cwd: str = ""
-    transcript_path: str = ""
-    last_hook_at: float = 0.0
-    live_overlay: dict = field(default_factory=dict)
-    attached_profile: str | None = None
-    attached_character: str | None = None
-    cached_cfg: dict | None = None
-    enabled: bool = True
-
-
 def _deep_merge(base: dict, overlay: dict) -> dict:
     """Recursively merge overlay into base. Overlay values win. Returns base."""
     for k, v in overlay.items():
@@ -227,3 +213,7 @@ class SessionRegistry:
             return
         oldest_sid = min(self._sessions.items(), key=lambda kv: kv[1].last_hook_at)[0]
         del self._sessions[oldest_sid]
+
+
+# Phase 25a — backwards-compat alias for tests that reference the older name
+LiveSession = SessionState
