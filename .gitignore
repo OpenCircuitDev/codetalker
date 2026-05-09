@@ -16,3 +16,8 @@ htmlcov/
 core/claude_code_talker/webui/node_modules/
 core/claude_code_talker/webui/dist/
 *.tsbuildinfo
+
+# CCT-31 paid-edition Android companion app — lives locally in companion-android/
+# until the codetalker-pro private repo is created (CCT-30). Has its own git
+# init inside; never commit it to the public OSS codetalker repo.
+companion-android/
