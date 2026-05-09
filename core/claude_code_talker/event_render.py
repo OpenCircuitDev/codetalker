@@ -10,7 +10,9 @@ from __future__ import annotations
 import ast
 import re
 from os.path import basename
+from typing import Any
 
+from claude_code_talker.markup.pipeline import transform_event as _markup_transform_event
 from claude_code_talker.transcript import strip_urls
 
 
@@ -128,3 +130,37 @@ def summarize_tool_response(tool_name: str, raw_response: str, success: bool) ->
             return f"{prefix}{out}"
     # Edit / Write / Read / etc. — bare "ok" is fine
     return "ok"
+
+
+def describe_post_tool_event(
+    tool_name: str,
+    raw_response: str,
+    success: bool,
+    cfg: dict[str, Any] | None = None,
+) -> str | None:
+    """Phase 26: structure-aware narration for a POST_TOOL event.
+
+    Builds the event-shape that ``markup.pipeline.transform_event`` expects
+    (``kind="post_tool"``) and routes it through the ``tool_output`` form's
+    treatment. Returns ``None`` when the active treatment is ``skip`` or the
+    payload is empty — caller should fall back to ``summarize_tool_response``
+    or omit the narration entirely.
+    """
+    cfg = cfg or {}
+    d = _safe_parse_dict(raw_response) if raw_response else None
+    stdout = ""
+    exit_code: int | None = None
+    if d:
+        stdout = str(d.get("stdout") or d.get("output") or "")
+        ec = d.get("exit_code")
+        if isinstance(ec, int):
+            exit_code = ec
+    elif raw_response:
+        stdout = raw_response
+    event = {
+        "kind": "post_tool",
+        "name": tool_name,
+        "exit_code": exit_code if exit_code is not None else (0 if success else 1),
+        "stdout": stdout,
+    }
+    return _markup_transform_event(event, cfg)
