@@ -18,7 +18,11 @@ export function SessionCard({ session }: Props) {
   const muted = config?.enabled === false || session.enabled === false || !!session.is_muted;
   const char = session.attached_character;
   const events = session.events ?? [];
-  const headline = session.title || session.display_name || session.session_id.slice(0, 8);
+  // CCT-28 fix: trust the backend's display_name (already resolves
+  // custom_title > vscode_label > slug > c.title > project_slug). Reading
+  // session.title first overrode `/title` renames whenever Claude Code
+  // emitted an ai-title, causing visible flicker as catalog scans landed.
+  const headline = session.display_name || session.session_id.slice(0, 8);
 
   return (
     <motion.article

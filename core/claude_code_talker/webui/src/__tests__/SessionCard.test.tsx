@@ -23,6 +23,7 @@ const baseFixture: Session = {
 
 const withCharacter: Session = {
   ...baseFixture,
+  display_name: "fix auth bug",
   title: "fix auth bug",
   attached_character: {
     id: "robin",
@@ -77,5 +78,22 @@ describe("SessionCard", () => {
   it("renders ticker when events present", () => {
     render(withClient(<SessionCard session={withCharacter} />));
     expect(screen.getByText("Working")).toBeInTheDocument();
+  });
+
+  // CCT-28 regression: when display_name and title disagree (user ran /title
+  // after Claude Code emitted an ai-title), the headline must follow
+  // display_name. Previously the frontend read `session.title || session.display_name`
+  // which inverted the backend's resolved precedence, causing the headline
+  // to flip from the user's customTitle to the auto-title on every catalog
+  // rescan.
+  it("CCT-28: headline follows display_name even when title disagrees", () => {
+    const conflicting: Session = {
+      ...baseFixture,
+      display_name: "Customer rename",
+      title: "auto-generated label",
+    };
+    render(withClient(<SessionCard session={conflicting} />));
+    expect(screen.getByText("Customer rename")).toBeInTheDocument();
+    expect(screen.queryByText("auto-generated label")).not.toBeInTheDocument();
   });
 });
