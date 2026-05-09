@@ -108,3 +108,50 @@ def detect_audible_block(text: str) -> list[Span]:
             parsed={"tag": m.group(1).lower(), "body": m.group(2)},
         ))
     return out
+
+
+def detect_todo_update(event: dict[str, Any]) -> list[Span]:
+    if event.get("kind") != "tool_use" or event.get("name") != "TodoWrite":
+        return []
+    todos = (event.get("input") or {}).get("todos") or []
+    counts = {"completed": 0, "in_progress": 0, "pending": 0}
+    for t in todos:
+        s = (t or {}).get("status") or "pending"
+        counts[s] = counts.get(s, 0) + 1
+    return [Span(
+        form="todo_update",
+        start=0, end=0, text="",
+        parsed={"todos": todos, **counts},
+    )]
+
+
+def detect_tool_output(event: dict[str, Any]) -> list[Span]:
+    if event.get("kind") != "post_tool":
+        return []
+    name = event.get("name") or ""
+    if name == "Task":
+        return []  # handled by detect_subagent_dispatch
+    stdout = event.get("stdout") or ""
+    return [Span(
+        form="tool_output",
+        start=0, end=0, text=stdout,
+        parsed={
+            "tool_name": name,
+            "exit_code": event.get("exit_code"),
+            "line_count": stdout.count("\n"),
+        },
+    )]
+
+
+def detect_subagent_dispatch(event: dict[str, Any]) -> list[Span]:
+    name = event.get("name") or ""
+    kind = event.get("kind") or ""
+    if name != "Task":
+        return []
+    phase = "pre" if kind == "tool_use" else "post" if kind == "post_tool" else None
+    if phase is None:
+        return []
+    parsed: dict[str, Any] = {"phase": phase, "tool_use_id": event.get("id")}
+    if phase == "pre":
+        parsed["subagent_type"] = (event.get("input") or {}).get("subagent_type")
+    return [Span("subagent_dispatch", 0, 0, "", parsed=parsed)]

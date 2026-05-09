@@ -78,3 +78,45 @@ def test_detect_audible_block_passthrough():
     spans = detect_audible_block(text)
     assert len(spans) == 1
     assert "Hello there" in spans[0].text
+
+
+def test_detect_todo_update_from_tool_event():
+    from claude_code_talker.markup.recognizers import detect_todo_update
+    event = {
+        "kind": "tool_use",
+        "name": "TodoWrite",
+        "input": {"todos": [{"content": "a", "status": "completed"}, {"content": "b", "status": "in_progress"}]},
+    }
+    spans = detect_todo_update(event)
+    assert len(spans) == 1
+    assert spans[0].parsed["completed"] == 1
+    assert spans[0].parsed["in_progress"] == 1
+
+
+def test_detect_todo_update_ignores_non_todo_events():
+    from claude_code_talker.markup.recognizers import detect_todo_update
+    event = {"kind": "tool_use", "name": "Bash", "input": {}}
+    assert detect_todo_update(event) == []
+
+
+def test_detect_tool_output_post_event():
+    from claude_code_talker.markup.recognizers import detect_tool_output
+    event = {
+        "kind": "post_tool",
+        "name": "Bash",
+        "exit_code": 0,
+        "stdout": "line1\nline2\nline3\n",
+    }
+    spans = detect_tool_output(event)
+    assert len(spans) == 1
+    assert spans[0].parsed["tool_name"] == "Bash"
+    assert spans[0].parsed["line_count"] == 3
+    assert spans[0].parsed["exit_code"] == 0
+
+
+def test_detect_subagent_dispatch_pre_and_post():
+    from claude_code_talker.markup.recognizers import detect_subagent_dispatch
+    pre = {"kind": "tool_use", "name": "Task", "id": "abc", "input": {"subagent_type": "Explore"}}
+    post = {"kind": "post_tool", "name": "Task", "id": "abc"}
+    assert detect_subagent_dispatch(pre)[0].parsed["phase"] == "pre"
+    assert detect_subagent_dispatch(post)[0].parsed["phase"] == "post"
