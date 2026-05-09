@@ -40,6 +40,14 @@ export function SessionControls({ sessionId, config }: Props) {
         value={config?.voice?.model}
         onChange={(model) => mutation.mutate({ voice: { ...config?.voice, model } })}
       />
+      <a
+        href="/ui/#markup"
+        target="_blank"
+        rel="noopener"
+        className="text-xs text-cyan-400 hover:underline"
+      >
+        Markup settings →
+      </a>
     </div>
   );
 }
