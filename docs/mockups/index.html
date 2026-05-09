@@ -3,8 +3,45 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>codetalker — AR Companion Mockups</title>
-<meta name="description" content="Codetalker AR companion app + XREAL Air 2 Pro display mockups. Forge-style review surface for Beam Pro side button, double-click menu, rocker session switcher, screen mirror, and audio-streaming HUD." />
+<title>codetalker — AR Companion · Design Reference</title>
+<meta name="description" content="Codetalker AR companion app + XREAL Air 2 Pro display documentation. Mockups today, screenshots tomorrow. Forge-style reference for Beam Pro side button, double-click menu, rocker session switcher, screen mirror, and audio-streaming HUD." />
+<!--
+═════════════════════════════════════════════════════════════════════════════
+  CCT-31 — Codetalker AR Companion Design Reference
+  ─────────────────────────────────────────────────────────────────────────
+  This page does double duty:
+    1. Review surface during pre-hardware design (mockups visible).
+    2. Living documentation post-hardware (mockups swap for screenshots).
+
+  ─── How to swap a mockup for a real screenshot ──────────────────────────
+  Each mockup lives inside a <figure data-doc-id="..."> wrapper. When you
+  have a real screenshot:
+
+    1. Capture the device screen (Android Studio's "Take screenshot"
+       button on the emulator/device, or scrcpy + crop).
+    2. Save it to docs/mockups/screenshots/<doc-id>.png — example:
+       docs/mockups/screenshots/android.pairing.choose.png
+    3. Inside the matching <figure>, replace the contents of
+       <div class="mockup-source"> with:
+         <img src="screenshots/android.pairing.choose.png"
+              alt="Android pairing choose screen"
+              class="rounded-2xl shadow-2xl" />
+    4. Change the figure's `data-status="mockup"` to `data-status="screenshot"`.
+       The status badge updates automatically.
+
+  Stable doc-ids (use these for cross-references in CHANGELOG / Phase 8 docs):
+    android.pairing.choose / .qr / .manual / .list / .active / .diagnostics
+    xreal.hud.idle / .listening / .responding / .menu / .mirror / .activity
+    controls.beam-pro / .gesture-matrix
+    flow.end-to-end
+    settings.pair-qr / .character-attach / .markup-quick
+    status.daemon / .android
+
+  ─── Print / PDF export ──────────────────────────────────────────────────
+  Ctrl+P → Save as PDF for offline review. Print stylesheet hides nav,
+  expands cards, and forces backgrounds-on for color fidelity.
+═════════════════════════════════════════════════════════════════════════════
+-->
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -196,6 +233,72 @@ tailwind.config = {
   padding: 4px 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
   margin: 2px;
 }
+
+/* ─── Documentation status badge (mockup vs screenshot) ─── */
+.doc-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+}
+[data-status="mockup"] .doc-status-badge {
+  background: rgba(251, 191, 36, 0.12); color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+[data-status="screenshot"] .doc-status-badge {
+  background: rgba(16, 185, 129, 0.12); color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+[data-status="screenshot"] .doc-status-badge::before {
+  content: ''; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; background: #10B981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+[data-status="mockup"] .doc-status-badge::before {
+  content: '◇'; font-size: 10px;
+}
+
+/* Stable per-mockup containers — swap mockup-source contents for an <img> */
+figure.mockup-fig {
+  margin: 0; display: flex; flex-direction: column; align-items: center;
+}
+.mockup-source { display: flex; flex-direction: column; align-items: center; }
+.mockup-meta {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #6e7585;
+}
+
+/* Anchored mockup highlight (when arriving via #anchor link) */
+:target.neon-card {
+  outline: 2px solid #00D4FF;
+  outline-offset: 4px;
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+}
+
+/* ─── Print stylesheet (PDF export for offline review) ─── */
+@media print {
+  body { background: white !important; color: #111 !important; }
+  nav, .neon-line { display: none !important; }
+  .neon-card {
+    background: white !important; color: #111 !important;
+    border: 1px solid #999 !important;
+    break-inside: avoid; page-break-inside: avoid;
+    box-shadow: none !important;
+  }
+  .glass-panel { background: white !important; backdrop-filter: none !important; }
+  .phone-frame, .glasses-frame, .beam-controller {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  section { page-break-before: auto; padding: 0.5in 0.5in 0 !important; }
+  h1, h2 { color: #111 !important; }
+  .text-gray-300, .text-gray-400, .text-gray-500 { color: #444 !important; }
+  .neon-logo-text {
+    -webkit-text-fill-color: initial !important;
+    background: none !important;
+    color: #00D4FF !important;
+  }
+  pre { white-space: pre-wrap !important; }
+}
 </style>
 </head>
 
@@ -218,6 +321,7 @@ tailwind.config = {
         <a href="#flow" class="text-gray-400 hover:text-neon-green transition">Flow</a>
         <a href="#settings" class="text-gray-400 hover:text-neon-cyan transition">Settings</a>
         <a href="#status" class="text-gray-400 hover:text-neon-pink transition">Status</a>
+        <a href="#maintenance" class="text-gray-400 hover:text-white transition">Maintenance</a>
       </div>
     </div>
   </div>
@@ -246,6 +350,33 @@ tailwind.config = {
         Phases 1–9 daemon shipped · Phases 5–7+polish Android shipped · MJPEG parser ready · Phase 8 awaiting Nebula SDK
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- DOC STATUS BANNER                                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="py-6 border-t border-b border-forge-border bg-forge-surface/50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <span class="doc-status-badge" style="font-size: 10px; padding: 4px 10px;" data-doc-page-status>
+          <span data-mockup-count>—</span> mockups · <span data-screenshot-count>—</span> screenshots
+        </span>
+        <div class="text-xs text-gray-500 font-mono">
+          rev. 2026-05-09 · CCT-31 · <a href="https://github.com/OpenCircuitDev/codetalker/commits/main/docs/mockups" class="text-neon-cyan hover:underline">commit log →</a>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <button onclick="window.print()" class="border border-forge-border rounded px-3 py-1.5 text-gray-400 hover:text-neon-cyan hover:border-neon-cyan/40 transition font-mono">⎙ PDF export</button>
+        <button onclick="toggleStatusFilter()" class="border border-forge-border rounded px-3 py-1.5 text-gray-400 hover:text-neon-amber hover:border-neon-amber/40 transition font-mono" id="filter-btn">show all</button>
+      </div>
+    </div>
+    <p class="text-xs text-gray-500 mt-3 leading-relaxed">
+      <span class="text-gray-300">This page is dual-purpose</span> — review surface today, living documentation tomorrow.
+      Each mockup has a stable <code class="text-neon-cyan">data-doc-id</code>; replacing the inner <code class="text-neon-cyan">.mockup-source</code> div with an <code class="text-neon-cyan">&lt;img&gt;</code> tag and flipping <code class="text-neon-amber">data-status</code> from <code>mockup</code> to <code>screenshot</code> updates the badge and counts automatically.
+      See <a href="#maintenance" class="text-neon-cyan hover:underline">Maintenance</a> for the full recipe.
+    </p>
   </div>
 </section>
 
@@ -1047,6 +1178,110 @@ tailwind.config = {
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- FOOTER                                                  -->
 <!-- ═══════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MAINTENANCE / SCREENSHOT SWAP RECIPE                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="maintenance" class="py-16 border-t border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-10">
+      <span class="text-xs font-cyber tracking-widest text-neon-cyan uppercase neon-text-cyan">Section 7</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">Maintenance — swap mockups for screenshots</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">As Phase 8 lands and the AR HUD becomes real, photograph each mode and replace the matching mockup. Stable doc-ids let cross-references in the implementation plan stay accurate forever.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+      <!-- Recipe -->
+      <div class="neon-card neon-card-green p-6">
+        <div class="text-xs font-cyber tracking-widest text-neon-green uppercase mb-4">Recipe · per-mockup swap</div>
+        <pre class="text-xs leading-relaxed font-mono text-gray-300 bg-forge-dark/60 border border-forge-border rounded p-4 overflow-x-auto">
+<span class="text-gray-500"># 1. Capture the screen on real hardware</span>
+adb shell screencap -p /sdcard/cap.png
+adb pull /sdcard/cap.png \
+  docs/mockups/screenshots/<span class="text-neon-cyan">android.pairing.choose</span>.png
+
+<span class="text-gray-500"># 2. In docs/mockups/index.html, find the figure</span>
+<span class="text-gray-500"># with data-doc-id matching, and replace</span>
+<span class="text-gray-500"># the .mockup-source contents with:</span>
+
+&lt;figure class="mockup-fig"
+  data-doc-id="<span class="text-neon-cyan">android.pairing.choose</span>"
+  <span class="text-neon-amber">data-status="screenshot"</span>&gt;
+  &lt;div class="mockup-source"&gt;
+    &lt;img src="screenshots/<span class="text-neon-cyan">android.pairing.choose</span>.png"
+         alt="Pairing screen — choose path"
+         class="rounded-3xl shadow-2xl max-w-[280px]" /&gt;
+  &lt;/div&gt;
+  ...
+&lt;/figure&gt;
+
+<span class="text-gray-500"># 3. Badge updates automatically. Banner</span>
+<span class="text-gray-500"># counter shifts +1 to "screenshots".</span></pre>
+      </div>
+
+      <!-- Doc-id reference -->
+      <div class="neon-card neon-card-purple p-6">
+        <div class="text-xs font-cyber tracking-widest text-neon-purple uppercase mb-4">Stable doc-ids · cross-reference these in plans</div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-[11px] font-mono">
+          <div class="text-gray-500">Section</div>
+          <div class="text-gray-500">doc-id</div>
+
+          <div class="text-gray-300">Pairing — choose</div>
+          <div class="text-neon-cyan">android.pairing.choose</div>
+          <div class="text-gray-300">Pairing — QR scan</div>
+          <div class="text-neon-cyan">android.pairing.qr</div>
+          <div class="text-gray-300">Pairing — manual</div>
+          <div class="text-neon-cyan">android.pairing.manual</div>
+          <div class="text-gray-300">Session list</div>
+          <div class="text-neon-cyan">android.session.list</div>
+          <div class="text-gray-300">Active speaker</div>
+          <div class="text-neon-cyan">android.session.active</div>
+          <div class="text-gray-300">Diagnostics</div>
+          <div class="text-neon-cyan">android.diagnostics</div>
+
+          <div class="text-gray-300 mt-2">HUD — idle</div>
+          <div class="text-neon-purple mt-2">xreal.hud.idle</div>
+          <div class="text-gray-300">HUD — listening</div>
+          <div class="text-neon-purple">xreal.hud.listening</div>
+          <div class="text-gray-300">HUD — responding</div>
+          <div class="text-neon-purple">xreal.hud.responding</div>
+          <div class="text-gray-300">HUD — menu</div>
+          <div class="text-neon-purple">xreal.hud.menu</div>
+          <div class="text-gray-300">HUD — mirror</div>
+          <div class="text-neon-purple">xreal.hud.mirror</div>
+          <div class="text-gray-300">HUD — activity</div>
+          <div class="text-neon-purple">xreal.hud.activity</div>
+
+          <div class="text-gray-300 mt-2">Beam Pro</div>
+          <div class="text-neon-amber mt-2">controls.beam-pro</div>
+          <div class="text-gray-300">Pair QR panel</div>
+          <div class="text-neon-amber">settings.pair-qr</div>
+          <div class="text-gray-300">Character attach</div>
+          <div class="text-neon-amber">settings.character-attach</div>
+          <div class="text-gray-300">Markup quick</div>
+          <div class="text-neon-amber">settings.markup-quick</div>
+        </div>
+        <div class="text-[10px] text-gray-600 font-mono mt-4 pt-4 border-t border-forge-border">
+          Cross-reference example in a plan: <code class="text-neon-cyan">see <a href="#mockup-android.pairing.choose">docs/mockups/#mockup-android.pairing.choose</a></code>
+        </div>
+      </div>
+
+      <!-- Conventions -->
+      <div class="neon-card neon-card-amber p-6 lg:col-span-2">
+        <div class="text-xs font-cyber tracking-widest text-neon-amber uppercase mb-4">Conventions</div>
+        <ul class="space-y-2 text-sm text-gray-300">
+          <li><span class="text-neon-amber font-semibold">Phone screenshots:</span> 280×580 portrait or scaled-to-fit. Strip notch via crop. Save as <code class="text-neon-cyan font-mono">android.&lt;path&gt;.png</code>.</li>
+          <li><span class="text-neon-amber font-semibold">Glasses captures:</span> XREAL Air 2 Pro outputs DisplayPort. Best path is OBS recording the Beam Pro's mirrored output, screenshot a frame, save as <code class="text-neon-cyan font-mono">xreal.&lt;path&gt;.png</code> at 16:9.</li>
+          <li><span class="text-neon-amber font-semibold">Status badge:</span> auto-rendered. Set <code class="text-neon-cyan">data-status="mockup"</code> for placeholders, <code class="text-neon-cyan">data-status="screenshot"</code> when real. Banner totals update automatically.</li>
+          <li><span class="text-neon-amber font-semibold">Filter button:</span> "show all / show mockups only / show screenshots only" cycles through filter states — useful when QA-ing only the un-photographed sections.</li>
+          <li><span class="text-neon-amber font-semibold">Print/PDF:</span> Ctrl+P → Save as PDF. Print stylesheet hides nav, switches palette to print-friendly, expands cards.</li>
+          <li><span class="text-neon-amber font-semibold">Anchor links:</span> every mockup has a stable id like <code class="text-neon-cyan">#mockup-android.pairing.choose</code>. Link to those in CHANGELOG, plans, and PR descriptions; the URL never changes even when the mockup becomes a screenshot.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <footer class="border-t border-forge-border py-12 mt-12">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex flex-col md:flex-row justify-between items-center gap-6">
@@ -1066,6 +1301,140 @@ tailwind.config = {
     </div>
   </div>
 </footer>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- DOCUMENTATION JS                                        -->
+<!-- Auto-tags mockup cards, derives stable doc-ids from     -->
+<!-- captions, renders status badges, powers banner counts   -->
+<!-- and the filter cycle button.                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  // Map caption text → stable doc-id. Edit this map only when adding new mockups.
+  const DOC_ID_MAP = {
+    'Choose Path': 'android.pairing.choose',
+    'QR Scanner': 'android.pairing.qr',
+    'Manual Entry': 'android.pairing.manual',
+    'Session List': 'android.session.list',
+    'Active Speaker': 'android.session.active',
+    'Diagnostics': 'android.diagnostics',
+    'Mode 1 · Idle (passive listen)': 'xreal.hud.idle',
+    'Mode 2 · Listening (mic open)': 'xreal.hud.listening',
+    'Mode 3 · Buddy responding': 'xreal.hud.responding',
+    'Mode 4 · Session menu': 'xreal.hud.menu',
+    'Mode 5 · Screen mirror': 'xreal.hud.mirror',
+    'Mode 6 · Activity flash': 'xreal.hud.activity',
+    'Hardware mapping': 'controls.beam-pro',
+    'Gesture matrix': 'controls.gesture-matrix',
+    'Preferences → AR Companion': 'settings.pair-qr',
+    'Characters → Aria → Attach to session': 'settings.character-attach',
+    'Per-session Markup quick toggles (CCT-29) — flow to AR captions automatically': 'settings.markup-quick',
+  };
+
+  function classifyCard(card) {
+    // A card is a "mockup" if it contains a phone-frame, glasses-frame, or beam-controller.
+    const isMockup =
+      card.querySelector('.phone-frame') ||
+      card.querySelector('.glasses-frame') ||
+      card.querySelector('.beam-controller');
+    if (!isMockup) return null;
+
+    // Find caption: the inner element whose text matches a DOC_ID_MAP key.
+    let docId = null;
+    let captionEl = null;
+    for (const el of card.querySelectorAll('div, span, h3, h4')) {
+      const txt = el.textContent.trim();
+      if (DOC_ID_MAP[txt]) {
+        docId = DOC_ID_MAP[txt];
+        captionEl = el;
+        break;
+      }
+    }
+    return { docId, captionEl };
+  }
+
+  function ensureBadge(card, docId) {
+    if (card.querySelector('.doc-status-badge')) return;
+    const status = card.dataset.status || 'mockup';
+    const badge = document.createElement('span');
+    badge.className = 'doc-status-badge';
+    badge.textContent = status === 'screenshot' ? 'screenshot' : 'mockup';
+    badge.title = 'doc-id: ' + (docId || '(unmapped)');
+
+    // Drop the badge into the bottom-of-card caption area if found, else append.
+    const trailing = card.querySelector('.text-center');
+    if (trailing) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-center justify-center gap-2 mt-2';
+      wrapper.appendChild(badge);
+      if (docId) {
+        const code = document.createElement('code');
+        code.className = 'text-[9px] text-gray-600 font-mono';
+        code.textContent = docId;
+        wrapper.appendChild(code);
+      }
+      trailing.appendChild(wrapper);
+    } else {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-center gap-2 mt-3';
+      wrapper.appendChild(badge);
+      if (docId) {
+        const code = document.createElement('code');
+        code.className = 'text-[9px] text-gray-600 font-mono';
+        code.textContent = docId;
+        wrapper.appendChild(code);
+      }
+      card.appendChild(wrapper);
+    }
+  }
+
+  function tagAll() {
+    let mockup = 0, screenshot = 0;
+    document.querySelectorAll('.neon-card').forEach((card) => {
+      const r = classifyCard(card);
+      if (!r) return;
+
+      // Stable id derived from doc-id (anchor links work).
+      if (r.docId && !card.id) card.id = 'mockup-' + r.docId;
+      if (r.docId) card.dataset.docId = r.docId;
+
+      // Default status if not set.
+      if (!card.dataset.status) card.dataset.status = 'mockup';
+
+      ensureBadge(card, r.docId);
+
+      if (card.dataset.status === 'screenshot') screenshot++;
+      else mockup++;
+    });
+
+    const m = document.querySelector('[data-mockup-count]');
+    const s = document.querySelector('[data-screenshot-count]');
+    if (m) m.textContent = mockup;
+    if (s) s.textContent = screenshot;
+  }
+
+  // Filter cycle: all → mockup-only → screenshot-only → all
+  const FILTER_STATES = ['all', 'mockup', 'screenshot'];
+  const FILTER_LABELS = { 'all': 'show all', 'mockup': 'mockups only', 'screenshot': 'screenshots only' };
+  let filterIdx = 0;
+
+  window.toggleStatusFilter = function () {
+    filterIdx = (filterIdx + 1) % FILTER_STATES.length;
+    const mode = FILTER_STATES[filterIdx];
+    document.querySelectorAll('.neon-card[data-doc-id]').forEach((c) => {
+      const status = c.dataset.status || 'mockup';
+      const visible = mode === 'all' || status === mode;
+      c.style.display = visible ? '' : 'none';
+    });
+    const btn = document.getElementById('filter-btn');
+    if (btn) btn.textContent = FILTER_LABELS[mode];
+  };
+
+  document.addEventListener('DOMContentLoaded', tagAll);
+  // Tag immediately if DOM is already ready (defensive).
+  if (document.readyState !== 'loading') tagAll();
+})();
+</script>
 
 </body>
 </html>
