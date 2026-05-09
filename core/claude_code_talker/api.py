@@ -2050,7 +2050,10 @@ def build_routes(state) -> list[Route]:
         from dataclasses import asdict as _asdict
         return JSONResponse(_asdict(state.mesh_jobs.get(job.job_id)))
 
-    return [
+    # CCT-31 — Companion (XREAL Android AR) routes are built separately and appended.
+    from claude_code_talker.companion.api import make_routes as _companion_routes
+
+    routes = [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
@@ -2137,6 +2140,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/mesh-jobs/{job_id}", mesh_jobs_get, methods=["GET"]),
         Route("/api/mesh-jobs/{job_id}/poll", mesh_jobs_poll, methods=["POST"]),
     ]
+    routes.extend(_companion_routes(state))
+    return routes
 
 
 def _persist_default_provider(provider: str, model: str, *, mode: str | None = None) -> None:

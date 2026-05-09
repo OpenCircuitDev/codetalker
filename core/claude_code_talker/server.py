@@ -74,6 +74,13 @@ class ServerState:
     mesh_jobs: object = None
     # Phase 25b — root for downloaded mesh files (<home>/models/<character_id>/<job_id>.<ext>)
     mesh_models_root: object = None
+    # CCT-31 — XREAL Android AR companion (daemon side)
+    pairing: object = None             # PairingStore
+    audio_hub: object = None           # AudioStreamHub
+    audio_hub_loop: object = None      # asyncio loop the hub lives on (set at lifespan start)
+    screen_capture: object = None      # ScreenCaptureSource
+    buddy_manager: object = None       # BuddyManager
+    companion_active_session: str | None = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -334,6 +341,26 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     )
     state.audio_queue.start()
 
+    # CCT-31 — Companion subsystems (daemon-side AR companion).
+    from claude_code_talker.companion.pairing import PairingStore
+    from claude_code_talker.companion.audio_stream import AudioStreamHub
+    from claude_code_talker.companion.screen_capture import ScreenCaptureSource
+    from claude_code_talker.companion.buddy import BuddyManager
+    _companion_home_env = os.environ.get("CLAUDE_CODE_TALKER_HOME")
+    _companion_home = (
+        Path(_companion_home_env) / "companion"
+        if _companion_home_env
+        else Path.home() / ".claude" / "scripts" / "codetalker" / "companion"
+    )
+    state.pairing = PairingStore(_companion_home / "pairing.json")
+    state.audio_hub = AudioStreamHub()
+    state.screen_capture = ScreenCaptureSource()
+    state.buddy_manager = BuddyManager(
+        api_key=secrets.get("anthropic_api_key") or "",
+        transcript_dir=Path.home() / ".claude" / "projects",
+    )
+    state.companion_active_session = None
+
     state.modes["brief"] = BriefMode(provider=_select_provider(state, "brief"))
     state.modes["live"] = LiveMode(
         provider=_select_provider(state, "live"),
@@ -365,6 +392,13 @@ async def autostart_live_if_configured(state: ServerState) -> None:
     # Phase 13.9c Task 7 — start continuous transcript watcher (needs asyncio loop).
     if state.transcript_watcher is not None:
         state.transcript_watcher.start()
+    # CCT-31 — capture the running loop so the audio worker thread can fan
+    # synthesized frames out through state.audio_hub via run_coroutine_threadsafe.
+    try:
+        import asyncio as _asyncio
+        state.audio_hub_loop = _asyncio.get_running_loop()
+    except RuntimeError:
+        pass
 
 
 def main():
