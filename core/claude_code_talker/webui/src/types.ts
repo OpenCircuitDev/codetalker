@@ -7,19 +7,18 @@ export type AttachedCharacter = {
   mesh_path?: string | null;
 };
 
-// Phase 27 — ticker event embedded in a session.
-export type SessionTickerEvent = {
-  id: string;
-  kind: string;
-  text: string;
-  ts: number;
-};
-
 // Mirror of the JSON shape returned by GET /api/sessions
 export type Session = {
   session_id: string;
   cwd: string;
   project_slug: string;
+  /**
+   * @deprecated CCT-28: the backend's resolved `display_name` is the
+   * canonical headline — `title` is the raw auto-title and must not be
+   * consumed by the UI. Kept here only because the fixture in
+   * SessionCard.test.tsx still asserts the regression. Remove once the
+   * test no longer references it.
+   */
   title?: string;
   display_name: string;
   last_modified: number;
@@ -32,7 +31,9 @@ export type Session = {
   is_speaking?: boolean;
   is_muted?: boolean;
   mode?: string;
-  events?: SessionTickerEvent[];
+  // CCT-28 cat 3: removed `events?: SessionTickerEvent[]`. The backend never
+  // populated this field; the dead per-card LiveTicker block was removed.
+  // The global LiveTicker in ActivityTab feeds from the SSE stream instead.
 };
 
 // Mirror of GET /api/sessions/{id} — per-session config overlay

@@ -32,7 +32,6 @@ const withCharacter: Session = {
     voice_ref: "char-robin",
   },
   is_speaking: true,
-  events: [{ id: "1", kind: "speak", text: "Working", ts: Date.now() }],
 };
 
 describe("SessionCard", () => {

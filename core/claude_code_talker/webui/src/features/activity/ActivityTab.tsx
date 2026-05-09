@@ -1,8 +1,14 @@
 // Phase 27 — Global activity log. Aggregates the existing /api/narration-stream
 // SSE feed (which already fans across all sessions) into the LiveTicker UI.
-import { useEffect, useState } from "react";
+//
+// CCT-28 cat 3: previously this tab opened its own EventSource alongside any
+// consumer of useNarrationStream (e.g. the NarrationFeed rail), so the
+// daemon received two SSE subscriptions while the tab was visible. We now
+// reuse the shared hook and adapt NarrationEvent -> TickerEvent in a
+// useMemo, so there is exactly one subscription per page.
+import { useMemo } from "react";
 import { LiveTicker, type TickerEvent } from "../../components/LiveTicker";
-import type { NarrationEvent } from "../../types";
+import { useNarrationStream } from "../../hooks/useNarrationStream";
 
 const KIND_FROM_STATUS: Record<string, string> = {
   speaking: "speak",
@@ -12,31 +18,20 @@ const KIND_FROM_STATUS: Record<string, string> = {
   overflow: "error",
 };
 
-export function ActivityTab() {
-  const [events, setEvents] = useState<TickerEvent[]>([]);
+const ACTIVITY_BUFFER = 300;
 
-  useEffect(() => {
-    const es = new EventSource("/api/narration-stream");
-    let counter = 0;
-    es.onmessage = (m) => {
-      try {
-        const ev = JSON.parse(m.data) as NarrationEvent;
-        const ticker: TickerEvent = {
-          id: `${ev.session_id}:${ev.timestamp}:${counter++}`,
-          kind: KIND_FROM_STATUS[ev.status] || "system",
-          text: ev.text || `(${ev.status})`,
-          ts: (ev.timestamp || Date.now() / 1000) * 1000,
-        };
-        setEvents((cur) => {
-          const next = [...cur, ticker];
-          return next.length > 300 ? next.slice(-300) : next;
-        });
-      } catch {
-        /* ignore malformed events */
-      }
-    };
-    return () => es.close();
-  }, []);
+export function ActivityTab() {
+  const narrationEvents = useNarrationStream(undefined, ACTIVITY_BUFFER);
+  const events = useMemo<TickerEvent[]>(
+    () =>
+      narrationEvents.map((ev, i) => ({
+        id: `${ev.session_id}:${ev.timestamp}:${i}`,
+        kind: KIND_FROM_STATUS[ev.status] || "system",
+        text: ev.text || `(${ev.status})`,
+        ts: (ev.timestamp || Date.now() / 1000) * 1000,
+      })),
+    [narrationEvents],
+  );
 
   return (
     <div className="h-full p-4 flex flex-col">
@@ -47,7 +42,7 @@ export function ActivityTab() {
         </p>
       </header>
       <div className="flex-1 min-h-[400px] bg-[var(--color-surface-1)] rounded border border-zinc-800 overflow-hidden">
-        <LiveTicker events={events} maxEvents={300} />
+        <LiveTicker events={events} maxEvents={ACTIVITY_BUFFER} />
       </div>
     </div>
   );
