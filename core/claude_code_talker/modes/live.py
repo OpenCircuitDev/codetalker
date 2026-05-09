@@ -10,6 +10,7 @@ from claude_code_talker.event_buffer import Event, EventBuffer
 from claude_code_talker.cadence.base import CadenceStrategy
 from claude_code_talker.audio import AudioJob
 from claude_code_talker.audio_streamer import AudioStreamer
+from claude_code_talker.markup.pipeline import transform_for_live
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
 from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
 from claude_code_talker.transcript import recent_assistant_prose, strip_urls
@@ -29,28 +30,36 @@ _CODE_FENCE = re.compile(r"```[^\n]*\n?.*?```", re.DOTALL)
 _T_PREFIX = re.compile(r"\[T\+[\d.]+s[^\]]*\]")
 
 
-def _sanitize_chunk(chunk: str) -> str:
+def _sanitize_chunk(chunk: str, cfg: dict | None = None) -> str:
     """Strip TTS-hostile artefacts from a raw LLM output chunk.
 
     Applied rules (in order):
-    1. Code fences (```...```) → removed entirely.
-    2. Event-format prefixes ``[T+Xs ...]`` → removed.
-    3. JSON bleed — chunk starts with ``{`` or ``[`` and contains ``":`` or
+    1. JSON bleed — chunk starts with ``{`` or ``[`` and contains ``":`` or
        ``,"``) → treat as structured data, return empty string.
+    2. ``[T+Xs ...]`` event prefixes → removed (live-mode-specific artefact
+       not part of normal markdown markup).
+    3. Phase 26: structure-aware markup pipeline (code fences, file paths,
+       inline code, long numerals, system reminders, etc.).
 
-    Normal prose passes through unchanged.
+    Normal prose passes through unchanged. *cfg* is the active session cfg —
+    when ``None``, the default direct preset applies, mirroring the legacy
+    behavior of stripping code fences wholesale.
     """
-    # Rule 3 first (cheapest guard): JSON bleed detection.
+    # Rule 1 first (cheapest guard): JSON bleed detection.
     stripped = chunk.strip()
     if stripped and stripped[0] in ("{", "["):
         if '":' in stripped or ',"' in stripped:
             return ""
 
-    # Rule 1: code fences
-    chunk = _CODE_FENCE.sub("", chunk)
-
-    # Rule 2: [T+Xs ...] event prefixes
+    # Rule 2: [T+Xs ...] event prefixes — live-mode artefact, not markdown
     chunk = _T_PREFIX.sub("", chunk)
+
+    # Rule 3: structure-aware markup transform
+    if cfg is None:
+        # Preserve legacy "strip code fences" behavior when no cfg threaded
+        chunk = _CODE_FENCE.sub("", chunk)
+    else:
+        chunk = transform_for_live(chunk, cfg)
 
     return chunk
 
@@ -273,6 +282,10 @@ class LiveMode(ModeStrategy):
         Returns early when live.mode == 'llm' (legacy LLM-narration-only path).
         In 'trigger' or 'both' modes, each enabled Audible block found in *prose*
         is stripped of URLs and submitted as an AudioJob at normal priority.
+
+        Phase 26: each block's body is also run through ``transform_for_live`` so
+        per-form markup treatments (and any per-tag ``markup_overrides``) apply
+        before the chunk reaches TTS.
         """
         mode = (self.cfg.get("live") or {}).get("mode", "llm")
         if mode == "llm":
@@ -291,6 +304,13 @@ class LiveMode(ModeStrategy):
         for b in blocks:
             clean = strip_urls(b.content)
             if not clean:
+                continue
+            # Phase 26: per-tag markup_overrides may reshape the block's body
+            # (e.g. an audible_plan_entry tag forcing plan_block→read).
+            tag = lib.get(b.tag_id) if getattr(b, "tag_id", None) else None
+            tag_overrides = getattr(tag, "markup_overrides", None) if tag else None
+            clean = transform_for_live(clean, self.cfg, tag_overrides) or clean
+            if not clean.strip():
                 continue
             self.audio_queue.submit(AudioJob(
                 text=clean,
@@ -333,7 +353,9 @@ class LiveMode(ModeStrategy):
         stream_budget = min(budget * 2.0, _STREAMING_TIMEOUT_CEILING)
 
         def _emit_chunk(chunk: str) -> None:
-            chunk = _sanitize_chunk(chunk)
+            # Phase 26: pass cfg so markup pipeline (code fences, paths, etc.)
+            # runs against each streaming chunk before TTS.
+            chunk = _sanitize_chunk(chunk, self.cfg)
             chunk = chunk.strip()
             if not chunk:
                 return

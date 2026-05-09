@@ -117,3 +117,21 @@ def transform_event(event: dict[str, Any], cfg: dict[str, Any]) -> str | None:
         if spans:
             return apply_treatment(spans[0], treatments["tool_output"], cfg)
     return None
+
+
+def transform_for_live(prose: str, cfg: dict[str, Any], tag_overrides: dict | None = None) -> str:
+    """Live-mode entry point. Optionally layer per-tag *markup_overrides* on top
+    of the active session cfg before running the standard ``transform`` pipeline.
+
+    *tag_overrides* must be the dict directly off ``Tag.markup_overrides``,
+    keyed by form name (e.g. ``{"plan_block": {"kind": "read"}}``).
+    """
+    if tag_overrides:
+        markup = dict(cfg.get("markup") or {})
+        for form, override in (tag_overrides or {}).items():
+            existing = dict(markup.get(form) or {})
+            if isinstance(override, dict):
+                existing.update(override)
+            markup[form] = existing
+        cfg = {**cfg, "markup": markup}
+    return transform(prose, cfg)
