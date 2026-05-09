@@ -331,6 +331,30 @@ def build_routes(state) -> list[Route]:
                 out.append({"name": name, "key_count": 0, "corrupted": True})
         return JSONResponse(out)
 
+    _CHARACTER_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+    def _bad_character_id(cid: str) -> JSONResponse:
+        return JSONResponse(
+            {"error": f"invalid character id: {cid!r}"}, status_code=400
+        )
+
+    async def list_characters(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse([])
+        chars = state.characters.list()
+        return JSONResponse([c.to_dict() for c in chars])
+
+    async def get_character(request: Request) -> JSONResponse:
+        cid = request.path_params.get("char_id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        c = state.characters.get(cid)
+        if c is None:
+            return JSONResponse({"error": "character not found"}, status_code=404)
+        return JSONResponse(c.to_dict())
+
     async def get_profile(request: Request) -> JSONResponse:
         name = request.path_params["name"]
         if not is_valid_profile_name(name):
@@ -1643,6 +1667,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/profiles/{name}", get_profile, methods=["GET"]),
         Route("/api/profiles/{name}", put_profile, methods=["PUT"]),
         Route("/api/profiles/{name}", delete_profile, methods=["DELETE"]),
+        Route("/api/characters", list_characters, methods=["GET"]),
+        Route("/api/characters/{char_id}", get_character, methods=["GET"]),
         Route("/api/voices", list_voices, methods=["GET"]),
         # Phase 14 v0.4.0 — voice clone CRUD (order matters: specific before wildcard)
         Route("/api/voices/list", voices_list, methods=["GET"]),
