@@ -36,13 +36,19 @@ export type Session = {
   // The global LiveTicker in ActivityTab feeds from the SSE stream instead.
 };
 
-// Mirror of GET /api/sessions/{id} — per-session config overlay
+// Mirror of GET /api/sessions/{id} — per-session config overlay (resolved cfg).
 export type SessionConfig = {
   enabled: boolean;
   preset?: string;
   voice?: { engine?: string; model?: string; rate?: number };
   active_mode?: string;
-  cadence?: string;
+  // CCT-28 cat 4 — cadence is nested under cfg.live.cadence on the wire
+  // (see static/app.js's "live.cadence" overlay key); overlay PUTs send
+  // `{ live: { cadence: "<value>" } }`.
+  live?: {
+    cadence?: string;
+    significance_threshold?: number;
+  };
 };
 
 // Phase 23 — narration stream event

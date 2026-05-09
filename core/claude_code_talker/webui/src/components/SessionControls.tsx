@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { ModePicker } from "./ModePicker";
 import { VoicePicker } from "./VoicePicker";
+import { CadencePicker } from "./CadencePicker";
 import type { SessionConfig } from "../types";
 
 type Props = {
@@ -39,6 +40,15 @@ export function SessionControls({ sessionId, config }: Props) {
       <VoicePicker
         value={config?.voice?.model}
         onChange={(model) => mutation.mutate({ voice: { ...config?.voice, model } })}
+      />
+      {/* CCT-28 cat 4 — cadence applies only to live mode, but is shown
+          alongside mode/voice for parity with the legacy panel. The
+          backend ignores cadence overlays when active_mode != "live". */}
+      <CadencePicker
+        value={config?.live?.cadence}
+        onChange={(cadence) =>
+          mutation.mutate({ live: { ...config?.live, cadence } })
+        }
       />
       {/* Markup quick controls now live in SessionMarkupQuick (inline, per-session). */}
     </div>
