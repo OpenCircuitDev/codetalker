@@ -178,10 +178,12 @@ def resolve_for_session(
     base_cfg: dict,
     session: SessionState,
     profile_store: ProfileStore,
+    character_store=None,
 ) -> dict:
-    """Merge base_cfg → profile (if attached) → session.live_overlay.
+    """Merge base_cfg → profile (if attached) → character (if attached) → session.live_overlay.
 
     base_cfg is the existing preset → global → workspace merge.
+    Character supplies only voice.model and triggers.persona; never behavior fields.
     Caches the resolved dict on session.cached_cfg; returns the cache on
     subsequent calls. Caller must invalidate via SessionRegistry.invalidate
     when overlay or attached_profile changes.
@@ -200,6 +202,17 @@ def resolve_for_session(
                 "session %s references missing profile %s; falling through",
                 session.session_id, session.attached_profile,
             )
+
+    # Phase 25a — character identity merge (between profile and overlay).
+    # Character supplies only voice.model and triggers.persona; never behavior fields.
+    char_id = getattr(session, "attached_character", None)
+    if char_id and character_store is not None:
+        char = character_store.get(char_id)
+        if char is not None:
+            _deep_merge_inplace(resolved, {
+                "voice": {"model": char.voice_ref},
+                "triggers": {"persona": char.persona},
+            })
 
     if session.live_overlay:
         _deep_merge_inplace(resolved, session.live_overlay)

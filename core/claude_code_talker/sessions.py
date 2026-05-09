@@ -47,6 +47,7 @@ class SessionRegistry:
         profile_store: "ProfileStore | None" = None,
         persistent_session_store: "PersistentSessionStore | None" = None,
         base_cfg_provider: "Callable[[], dict] | None" = None,
+        character_store=None,
     ):
         self._sessions: dict[str, SessionState] = {}
         self._lock = threading.RLock()
@@ -56,6 +57,7 @@ class SessionRegistry:
         self._profile_store = profile_store
         self._persistent_session_store = persistent_session_store
         self._base_cfg_provider = base_cfg_provider
+        self._character_store = character_store
 
     def get(self, session_id: str) -> SessionState | None:
         with self._lock:
@@ -180,7 +182,7 @@ class SessionRegistry:
             return base
         if self._profile_store is None:
             raise RuntimeError("SessionRegistry constructed without profile_store")
-        return resolve_for_session(base, s, self._profile_store)
+        return resolve_for_session(base, s, self._profile_store, self._character_store)
 
     def start_sweeper(self, *, interval_seconds: float = 60.0, max_idle_seconds: float = 1800.0) -> None:
         """Start a background thread that calls expire_idle on a timer."""

@@ -298,6 +298,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         profile_store=profiles,
         persistent_session_store=persistent_sessions,
         base_cfg_provider=lambda: state.cfg,
+        character_store=state.characters,
     )
     state.sessions.start_sweeper(interval_seconds=60.0, max_idle_seconds=1800.0)
 
