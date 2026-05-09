@@ -38,6 +38,21 @@ HOOK_INSTRUCTIONS = """
 """
 
 
+def _section(title: str) -> None:
+    """Print a section header."""
+    print(f"\n> {title}")
+
+
+def _ok(msg: str) -> None:
+    """Print a success status line."""
+    print(f"  [+] {msg}")
+
+
+def _fail(msg: str) -> None:
+    """Print a failure status line."""
+    print(f"  [-] {msg}")
+
+
 def ensure_directories():
     GLOBAL_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     PIPER_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,42 +88,55 @@ def _check_ollama_running() -> bool:
 
 def main():
     print("== Claude Code Talker setup ==")
-    ensure_directories()
+
+    _section("Setting up directories")
+    try:
+        ensure_directories()
+        _ok("directories ready")
+    except Exception as e:
+        _fail(f"directory setup failed: {e}")
+        return
+
+    _section("Scaffolding global config")
     if scaffold_global_config():
-        print(f"  wrote default config to {GLOBAL_CONFIG_PATH}")
+        _ok(f"wrote default config to {GLOBAL_CONFIG_PATH}")
     else:
-        print(f"  config already exists at {GLOBAL_CONFIG_PATH} (left untouched)")
+        _ok(f"config already exists at {GLOBAL_CONFIG_PATH} (left untouched)")
 
+    _section("Verifying Piper TTS")
     if piper_installed():
-        print(f"  piper binary present at {PIPER_DIR}")
+        _ok(f"piper binary present at {PIPER_DIR}")
     else:
-        print(f"  piper NOT installed at {PIPER_DIR}")
-        print("  download from https://github.com/rhasspy/piper/releases and extract there")
+        _fail(f"piper NOT installed at {PIPER_DIR}")
+        print("    download from https://github.com/rhasspy/piper/releases and extract there")
 
+    _section("Checking installed voices")
     voices = installed_voices()
     if voices:
-        print(f"  voices installed: {', '.join(voices)}")
+        voice_list = ', '.join(voices[:3]) + ('...' if len(voices) > 3 else '')
+        _ok(f"{len(voices)} voice(s) installed: {voice_list}")
     else:
-        print("  no voices installed")
-        print("  download voices from https://huggingface.co/rhasspy/piper-voices into")
-        print(f"    {VOICES_DIR}")
+        _fail("no voices installed")
+        print("    download voices from https://huggingface.co/rhasspy/piper-voices into")
+        print(f"      {VOICES_DIR}")
 
     print()
-    print("== Daemon ==")
+    _section("Daemon")
     print("Phase 2A introduces a long-running daemon on localhost:17832.")
     print("Hooks auto-spawn the daemon on first use; you don't need to start it manually.")
     print("Manual control:")
     print("  claude-code-talker serve  - foreground daemon (Ctrl+C to stop)")
     print("  claude-code-talker stop   - graceful shutdown of running daemon")
+
     print()
-    print("== Modes ==")
+    _section("Modes")
     print("  direct     - read each turn aloud (regex-cleaned)")
     print("  brief      - LLM-translated turn summary at end of each turn")
     print("  live       - sportscaster narration as Claude works (Phase 2B)")
     print("Switch via the workspace config (mode: live) or the tts_set_mode MCP tool.")
 
     print()
-    print("== LLM Providers ==")
+    _section("LLM Providers")
     ollama_running = _check_ollama_running()
     print(f"  ollama (local, free):       {'running on localhost:11434' if ollama_running else 'not detected on localhost:11434'}")
 
@@ -126,8 +154,9 @@ def main():
     print("Recommendation:")
     print("  Mode B brief:   anthropic if available (premium quality, low frequency)")
     print("  Mode C live:    ollama (high frequency; cloud adds up fast)")
+
     print()
-    print("== Voice cloning (optional) ==")
+    _section("Voice cloning (optional)")
     print("Clone any voice via the voice-cloner sub-project:")
     print("  pip install claude-code-talker-voice-cloner")
     print("  claude-code-talker-voice-cloner from-youtube --url <YT URL> --start 1:23 --duration 15 --name marvin")
@@ -135,13 +164,14 @@ def main():
     print("Note: XTTS is GPU-accelerated; CPU synthesis is 3-8s per phrase.")
 
     print()
-    print("== Web UI ==")
+    _section("Web UI")
     print("Open the multi-session control panel in any browser:")
     print("  http://127.0.0.1:17832/ui/")
     print("From there: see active Claude sessions, tune voice/mode/cadence per session,")
     print("save settings as named profiles, install hooks with one click.")
+
     print()
-    print("== Hook integration ==")
+    _section("Hook integration")
     print("(Optional — the Web UI's 'install hooks' link does this for you, idempotently.)")
     print(HOOK_INSTRUCTIONS)
 
