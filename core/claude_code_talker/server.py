@@ -66,6 +66,8 @@ class ServerState:
     narration_stream: object = None
     # Phase 13.9c Task 7 — continuous transcript watcher (pre-populates prose cache)
     transcript_watcher: TranscriptWatcher = None
+    # Phase 25a — Character store (file-backed CRUD on ~/.claude/scripts/codetalker/characters/)
+    characters: object = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -290,6 +292,8 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.virtual_eval_latest = None
     persistent_sessions = PersistentSessionStore()
     state.persistent_sessions = persistent_sessions
+    from claude_code_talker.characters import CharacterStore
+    state.characters = CharacterStore()
     state.sessions = SessionRegistry(
         profile_store=profiles,
         persistent_session_store=persistent_sessions,
