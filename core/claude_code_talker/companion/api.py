@@ -30,10 +30,48 @@ def make_routes(state) -> list[Route]:
         catalog = state.catalog
         if catalog is None:
             return JSONResponse([])
+
+        # CCT-31 + CCT-28: resolve attached_character → full character record so
+        # the AR companion knows whose voice + persona + mesh is bound to each
+        # session. Voice cloning lands here naturally — when a character has a
+        # cloned voice_ref, the daemon's TTS pipeline already routes audio
+        # through that voice; the companion just needs to display "who's
+        # speaking" so the listener gets the visual + audio match.
+        live_by_sid: dict[str, object] = {}
+        try:
+            for s in (state.sessions.list_active() if state.sessions else []):
+                live_by_sid[s.session_id] = s
+        except AttributeError:
+            pass
+        characters = state.characters
+
+        def _resolve_character(sid: str) -> dict | None:
+            live = live_by_sid.get(sid)
+            cid = getattr(live, "attached_character", None) if live else None
+            if not cid and state.persistent_sessions is not None:
+                persistent = state.persistent_sessions.get(sid)
+                if persistent:
+                    cid = persistent.get("attached_character")
+            if not cid or characters is None:
+                return None
+            char = characters.get(cid)
+            if char is None:
+                return None
+            return {
+                "id": char.id,
+                "display_name": char.display_name,
+                "persona": getattr(char, "persona", None),
+                "voice_ref": char.voice_ref,
+                "mesh_path": getattr(char, "mesh_path", None),
+            }
+
         return JSONResponse([{
             "session_id": e.session_id,
-            "display_name": (e.custom_title or e.vscode_label or e.title or e.project_slug),
-            "is_live": False,
+            "display_name": (
+                e.custom_title or e.vscode_label or e.title or e.project_slug
+            ),
+            "is_live": e.session_id in live_by_sid,
+            "attached_character": _resolve_character(e.session_id),
         } for e in catalog.entries()])
 
     async def start_buddy(request: Request) -> Response:
