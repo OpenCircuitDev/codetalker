@@ -1,7 +1,8 @@
 """Tests for triggers.tags — Tag dataclass + TagLibrary CRUD."""
 import pytest
+from dataclasses import asdict
 from claude_code_talker.triggers.tags import (
-    Tag, TagLibrary, STARTER_TAGS, compose_skill_content,
+    Tag, TagLibrary, STARTER_TAGS, compose_skill_content, compose_skill_body,
 )
 
 
@@ -117,3 +118,24 @@ def test_starter_tags_includes_claude_code_tuned_starters():
         assert tag.when_to_trigger, f"{tag.id} missing when_to_trigger"
         assert tag.format_template, f"{tag.id} missing format_template"
         assert tag.example, f"{tag.id} missing example"
+
+
+@pytest.mark.parametrize("tag_id,expected_display", [
+    ("audible_plan_entry", "Audible Plan Entry"),
+    ("audible_subagent_done", "Audible Subagent Result"),
+    ("audible_todo_advance", "Audible Todos Update"),
+    ("audible_skill_invoked", "Audible Skill Invoked"),
+    ("audible_permission_request", "Audible Permission Request"),
+])
+def test_compose_skill_body_includes_cc_tuned_tag_when_enabled(tag_id, expected_display):
+    """Phase 21: each CC-tuned starter, when enabled, appears in the composed skill body."""
+    lib = TagLibrary()
+    for t in STARTER_TAGS:
+        copy = Tag(**asdict(t))
+        if copy.id == tag_id:
+            copy.enabled = True
+        lib.add(copy)
+    body = compose_skill_body(lib)
+    assert f"## {expected_display}" in body
+    assert "## Trigger blocks" in body
+    assert "## Style guidance" in body
