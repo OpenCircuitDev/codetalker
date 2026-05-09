@@ -420,6 +420,44 @@ def build_routes(state) -> list[Route]:
         state.characters.delete(cid)
         return JSONResponse({"deleted": True})
 
+    async def attach_character(request: Request) -> JSONResponse:
+        if state.characters is None or state.sessions is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        sid = request.path_params.get("session_id", "")
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session id: {sid!r}")
+        s = state.sessions.get(sid)
+        if s is None:
+            return JSONResponse({"error": "session not found"}, status_code=404)
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+        cid = (body or {}).get("character_id", "")
+        if not _CHARACTER_ID_RE.match(cid or ""):
+            return _bad_character_id(cid)
+        char = state.characters.get(cid)
+        if char is None:
+            return JSONResponse({"error": f"character not found: {cid}"}, status_code=400)
+        s.attached_character = cid
+        return JSONResponse({
+            "state": {"session_id": s.session_id, "attached_character": s.attached_character}
+        })
+
+    async def detach_character(request: Request) -> JSONResponse:
+        if state.sessions is None:
+            return JSONResponse({"error": "session registry unavailable"}, status_code=503)
+        sid = request.path_params.get("session_id", "")
+        if not is_valid_session_id(sid):
+            return _bad_request(f"invalid session id: {sid!r}")
+        s = state.sessions.get(sid)
+        if s is None:
+            return JSONResponse({"error": "session not found"}, status_code=404)
+        s.attached_character = None
+        return JSONResponse({
+            "state": {"session_id": s.session_id, "attached_character": None}
+        })
+
     async def get_profile(request: Request) -> JSONResponse:
         name = request.path_params["name"]
         if not is_valid_profile_name(name):
@@ -1737,6 +1775,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/characters", create_character, methods=["POST"]),
         Route("/api/characters/{char_id}", put_character, methods=["PUT"]),
         Route("/api/characters/{char_id}", delete_character, methods=["DELETE"]),
+        Route("/api/sessions/{session_id}/attach-character", attach_character, methods=["POST"]),
+        Route("/api/sessions/{session_id}/character", detach_character, methods=["DELETE"]),
         Route("/api/voices", list_voices, methods=["GET"]),
         # Phase 14 v0.4.0 — voice clone CRUD (order matters: specific before wildcard)
         Route("/api/voices/list", voices_list, methods=["GET"]),

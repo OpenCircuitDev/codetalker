@@ -87,3 +87,49 @@ def test_resolve_for_session_character_store_none_is_safe(tmp_path):
 
     resolved = resolve_for_session(base, s, profile_store, None)
     assert resolved["voice"]["model"] == "default"  # graceful fallback
+
+
+@pytest.mark.asyncio
+async def test_attach_character_endpoint_sets_field(tmp_path):
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    state.characters.save(Character(id="alice", display_name="Alice", voice_ref="en_GB-jenny_dioco-medium"))
+    s = state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post("/api/sessions/test-sid/attach-character", json={"character_id": "alice"})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["state"]["attached_character"] == "alice"
+        assert state.sessions.get("test-sid").attached_character == "alice"
+
+
+@pytest.mark.asyncio
+async def test_attach_character_400_on_unknown_character(tmp_path):
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post("/api/sessions/test-sid/attach-character", json={"character_id": "nope"})
+        assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_attach_character_404_on_unknown_session(tmp_path):
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    state.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post("/api/sessions/missing-sid/attach-character", json={"character_id": "alice"})
+        assert r.status_code == 404
