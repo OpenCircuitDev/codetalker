@@ -210,6 +210,39 @@ async def test_poll_failure_records_error(state, app):
 
 
 @pytest.mark.asyncio
+async def test_mesh_succeeded_persists_to_disk_across_reload(state, app, tmp_path):
+    """Phase 25b Task 11 — confirm mesh_path/mesh_provider/mesh_prompt round-trip
+    through the YAML store, and that mesh_prompt_history accumulates entries."""
+    state.characters.save(Character(id="archer", display_name="Archer", voice_ref="v"))
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        post = await client.post(
+            "/api/mesh-jobs",
+            json={"character_id": "archer", "provider": "hyper3d", "prompt": "a longbow"},
+        )
+        job_id = post.json()["job_id"]
+        _StubProvider.next_status = "succeeded"
+        _StubProvider.next_model_url = "https://cdn/lb.glb"
+        await client.post(f"/api/mesh-jobs/{job_id}/poll")
+
+    # Re-load the character from disk via a new CharacterStore instance.
+    fresh_store = CharacterStore(characters_dir=state.characters._dir)
+    char = fresh_store.get("archer")
+    assert char is not None
+    assert char.mesh_path
+    assert char.mesh_path.endswith(".glb")
+    assert char.mesh_provider == "hyper3d"
+    assert char.mesh_prompt == "a longbow"
+    assert isinstance(char.mesh_prompt_history, list)
+    assert len(char.mesh_prompt_history) == 1
+    # mesh_prompt_history entries are dicts with prompt/provider/ts keys.
+    entry = char.mesh_prompt_history[0]
+    assert entry["prompt"] == "a longbow"
+    assert entry["provider"] == "hyper3d"
+    assert "ts" in entry
+
+
+@pytest.mark.asyncio
 async def test_mesh_providers_lists_three(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
