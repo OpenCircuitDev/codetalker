@@ -91,3 +91,27 @@ def test_buddy_includes_transcript_context_in_system(tmp_path):
     sys_prompt = b._build_system_prompt()
     assert "AR voice companion" in sys_prompt
     assert str(p) in sys_prompt or "transcript" in sys_prompt
+
+
+def test_buddy_manager_creates_one_buddy_per_session(tmp_path):
+    from claude_code_talker.companion.buddy import BuddyManager
+    mgr = BuddyManager(api_key="sk", transcript_dir=tmp_path)
+    b1 = mgr.start("sid-1")
+    b2 = mgr.start("sid-1")
+    assert b1 is b2  # same session reuses
+
+
+def test_buddy_manager_independent_per_session(tmp_path):
+    from claude_code_talker.companion.buddy import BuddyManager
+    mgr = BuddyManager(api_key="sk", transcript_dir=tmp_path)
+    b1 = mgr.start("sid-1")
+    b2 = mgr.start("sid-2")
+    assert b1 is not b2
+
+
+def test_buddy_manager_stop_removes_buddy(tmp_path):
+    from claude_code_talker.companion.buddy import BuddyManager
+    mgr = BuddyManager(api_key="sk", transcript_dir=tmp_path)
+    mgr.start("sid-1")
+    mgr.stop("sid-1")
+    assert "sid-1" not in mgr._buddies

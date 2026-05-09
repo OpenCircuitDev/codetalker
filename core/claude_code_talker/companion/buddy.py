@@ -126,6 +126,40 @@ class BuddyClaude:
             yield BuddyEvent(kind="error", error=str(e))
 
 
+class BuddyManager:
+    def __init__(self, *, api_key: str, transcript_dir: Path, model: str = "claude-sonnet-4-5"):
+        self.api_key = api_key
+        self.transcript_dir = Path(transcript_dir)
+        self.model = model
+        self._buddies: dict[str, BuddyClaude] = {}
+
+    def start(self, user_session_id: str) -> BuddyClaude:
+        existing = self._buddies.get(user_session_id)
+        if existing:
+            return existing
+        # Convention: Claude Code stores session transcripts at
+        # transcript_dir / <session_id>.jsonl. Production codebases use the
+        # SessionCatalog for resolution; we mirror that contract here.
+        path = self.transcript_dir / f"{user_session_id}.jsonl"
+        b = BuddyClaude(
+            user_session_id=user_session_id,
+            transcript_path=path,
+            anthropic_api_key=self.api_key,
+            model=self.model,
+        )
+        self._buddies[user_session_id] = b
+        return b
+
+    def get(self, user_session_id: str) -> BuddyClaude | None:
+        return self._buddies.get(user_session_id)
+
+    def stop(self, user_session_id: str) -> None:
+        self._buddies.pop(user_session_id, None)
+
+    def list_active(self) -> list[str]:
+        return list(self._buddies.keys())
+
+
 async def _iter_compat(stream):
     """Iterate over a stream that may be an async iterator or a sync one.
 
