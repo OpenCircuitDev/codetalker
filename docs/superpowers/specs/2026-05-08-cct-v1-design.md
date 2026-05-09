@@ -275,6 +275,27 @@ The following are tracked here as roadmap entries; each warrants its own brainst
 - Async/long-running generation: poll vs SSE for in-progress 3D jobs?
 - Cost/usage tracking per provider (API calls aren't free).
 
+## Phase 26 — Claude Code markup awareness
+
+**Goal**: the narrator recognizes Claude Code's specific response *structures* — code fences, TodoWrite tables, plan blocks, system reminders, tool-output blocks, audible blocks, inline code spans — and treats each one differently per the user's verbosity settings. Today the narrator parses Claude Code prose as generic markdown; it doesn't know to skip a code fence, summarize a TodoWrite update, or describe a tool-output block.
+
+**Why this matters**: Phase 21's CC-tuned trigger pack put a foothold on the *trigger* side — Claude knows when to write `## Audible Plan Entry` etc. But the *content* side is still generic — when the narrator processes Claude's prose, it doesn't recognize Claude Code's idiomatic structures. The narration sounds the same whether Claude wrote a paragraph or pasted a TodoWrite table. Settings like `mode: brief` only have meaningful effect over a structure-aware narrator.
+
+**Key sub-tasks (rough decomposition, subject to brainstorming)**:
+- **26.1 — Markup recognizers**: extend `core/claude_code_talker/triggers/parser.py` (or add a sibling `markup.py`) to identify and tag spans for: code fences, TodoWrite tables (matched by structure), plan-mode blocks, system reminders, tool-output blocks, inline code spans, file paths, long numerals. Each gets a category tag the narrator can route on.
+- **26.2 — Verbosity profiles**: new cfg axis `verbosity_profile: prose-only | structured | full` mapping each markup kind to a treatment ("skip", "describe in N words", "read literally"). Defaults: `brief` → `prose-only`, `direct` → `structured`, `live` → `structured`, `trigger` → tag-driven (existing behavior).
+- **26.3 — Per-tag verbosity overrides**: trigger tags (Phase 14.5 + 21) gain an optional `verbosity_profile` field that overrides the mode default. So `audible_subagent_done` could be `prose-only` while `audible_plan_entry` could be `structured`.
+- **26.4 — Web UI surfaces**: dashboard's mode/cadence picker grows a verbosity toggle; legacy UI's trigger-tag editor gets the per-tag override field.
+- **26.5 — Tests**: snapshot tests of narrator output for representative Claude Code response shapes (code-heavy, todo-heavy, plan-heavy, prose-heavy) under each verbosity profile.
+
+**Tied to existing architecture**: extends the existing parser layer in `core/claude_code_talker/triggers/parser.py` and the text-filter pipeline in `core/claude_code_talker/text/`. No new infra required; the audio queue, mode strategies, and SSE feed all stay unchanged.
+
+**Open questions for the brainstorm**:
+- Which markup types deliver the most narration improvement first (TodoWrite + code fences are my read)?
+- Should verbosity be settable per-session-overlay too (so a session in brief mode can opt out for one prompt)?
+- How does this interact with the trigger-mode auditor — does trigger mode ignore verbosity entirely, or do tags inherit it?
+- Long numerals vs file paths: already partially handled in `text/` filters today; the recognizer track might subsume those existing filters.
+
 ## Phase 20 — Family rename (CodeTalker / Claude Code Talker / Cursor Code Talker) *(deferred from v1)*
 
 Originally scoped as part of CCT v1 then deferred. Becomes relevant when:
