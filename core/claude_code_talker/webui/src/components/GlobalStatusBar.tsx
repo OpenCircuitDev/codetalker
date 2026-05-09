@@ -19,8 +19,17 @@ export function GlobalStatusBar() {
           title={isHealthy ? "daemon healthy" : "daemon unreachable"}
         />
       </div>
-      <div className="text-xs text-slate-400 font-mono">
-        {live} live session{live === 1 ? "" : "s"}
+      <div className="flex items-center gap-4">
+        <a
+          href="/ui/"
+          className="text-xs text-slate-500 hover:text-slate-300 underline"
+          title="Open the legacy UI for advanced editing (voices, secrets, profiles, trigger tags)"
+        >
+          Advanced
+        </a>
+        <span className="text-xs text-slate-400 font-mono">
+          {live} live session{live === 1 ? "" : "s"}
+        </span>
       </div>
     </header>
   );

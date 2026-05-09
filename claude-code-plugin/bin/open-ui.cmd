@@ -1,2 +1,2 @@
 @echo off
-start "" "http://127.0.0.1:17832/ui/"
+start "" "http://127.0.0.1:17832/ui-react/"
