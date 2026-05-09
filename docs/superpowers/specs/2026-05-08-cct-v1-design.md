@@ -242,3 +242,43 @@ A user who has never seen this repo before can, in under 2 minutes:
 6. Adjust mute/mode from the dashboard and feel the change immediately.
 
 When that's true on a clean machine, v1 is shipping-ready.
+
+---
+
+# Future phases (post-v1, not part of this design)
+
+The following are tracked here as roadmap entries; each warrants its own brainstorm + spec + plan cycle when ready to start.
+
+## Phase 25 — Characters (3D mesh + voice + session attachment)
+
+**Goal**: a `Character` is a named bundle of `(voice, 3D model, prompt history)` that attaches to a Claude Code session so its narrations come out in that character's voice and (eventually) its visual avatar.
+
+**Key sub-tasks (rough decomposition, subject to brainstorming)**:
+- **25.1 — Character data model + REST CRUD**: `Character` dataclass at `core/claude_code_talker/characters.py`, persisted overlay at `~/.claude/scripts/codetalker/characters.yaml`, REST endpoints `/api/characters` (CRUD).
+- **25.2 — 3D model API adapter layer**: unified `Mesh3DProvider` interface; concrete adapters for **Hyper3D (Rodin)**, **Meshy**, **Tripo3D** at minimum; secrets store integration for API keys; async generation tracking; model file storage at `~/.claude/scripts/codetalker/models/<character_id>/`.
+- **25.3 — Browser-based local voice cloning UX**: extend the React dashboard with `MediaRecorder` API for in-browser audio recording; video file upload + audio-track extraction; voice preview before commit; tie the resulting voice to a character record. All cloning runs on the daemon's local XTTS/WhisperX pipeline — no audio leaves the machine.
+- **25.4 — Characters tab in the dashboard**: new tab/route in `/ui-react/`; character grid; create-character wizard combining the 3D-prompt flow (25.2) and the voice-record flow (25.3) into one guided experience.
+- **25.5 — Character → session attachment**: parallel to today's profile-attach mechanism (`/api/sessions/{id}/attach-profile`); a session can have a character bound, and per-session narrations use the character's voice automatically.
+- **25.6 — Animation pipeline integration** *(deferred, separate phase)*: hooks into the existing Blender + Unreal pipelines (`BlenderForge/`, `OCR_MD_Clean/`) so the generated mesh becomes a rigged, animatable character. Probably its own design doc.
+
+**What already exists** (don't rebuild):
+- `voice-cloner/` — XTTS local voice cloning, shipped Phase 5.
+- `/api/voices/clone-from-file`, `/api/voices/clone-from-preview`, `/api/voices/preview-extract` — Phase 14 endpoints.
+- WhisperX forced-align word timestamps — Phase 14 Task 4.
+- Voice metadata sidecar — Phase 14 Task 5.
+- Profile attach/detach pattern — usable as the model for character attach.
+
+**Key open questions for the brainstorm**:
+- Which 3D services should the v1 character pack support (Hyper3D + Meshy is my initial read; Tripo3D and CSM are easy adds)?
+- Does each character have ONE voice + ONE mesh, or multi-voice (e.g., regional variants)?
+- How does the visual side surface — purely as a stored asset for downstream Blender/Unreal use, or live-rendered in the dashboard via three.js / model-viewer?
+- Async/long-running generation: poll vs SSE for in-progress 3D jobs?
+- Cost/usage tracking per provider (API calls aren't free).
+
+## Phase 20 — Family rename (CodeTalker / Claude Code Talker / Cursor Code Talker) *(deferred from v1)*
+
+Originally scoped as part of CCT v1 then deferred. Becomes relevant when:
+- Cursor demand materializes and a parallel `cursor-code-talker` package is needed
+- Or v1 hits the marketplace and the family-of-products framing becomes user-facing
+
+Light-touch first (rename the marketplace + package metadata), full Python package split later if the engine-neutral core needs to move out from under `claude_code_talker/` into its own `code_talker/` namespace.
