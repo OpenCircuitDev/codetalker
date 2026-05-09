@@ -22,6 +22,21 @@ class SessionState:
     last_hook_at: float = 0.0
     live_overlay: dict = field(default_factory=dict)
     attached_profile: str | None = None
+    attached_character: str | None = None
+    cached_cfg: dict | None = None
+    enabled: bool = True
+
+
+@dataclass
+class LiveSession:
+    """Active session with character attachment. Phase 25a."""
+    session_id: str
+    cwd: str = ""
+    transcript_path: str = ""
+    last_hook_at: float = 0.0
+    live_overlay: dict = field(default_factory=dict)
+    attached_profile: str | None = None
+    attached_character: str | None = None
     cached_cfg: dict | None = None
     enabled: bool = True
 
@@ -95,6 +110,7 @@ class SessionRegistry:
                     if payload is not None:
                         s.live_overlay = dict(payload.get("live_overlay") or {})
                         s.attached_profile = payload.get("attached_profile")
+                        s.attached_character = payload.get("attached_character")
                         s.enabled = bool(payload.get("enabled", True))
                         s.cached_cfg = None
                         loaded_persistent = True
