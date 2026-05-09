@@ -2026,7 +2026,8 @@ def build_routes(state) -> list[Route]:
             )
             char_dir = Path(models_root) / job.character_id
             char_dir.mkdir(parents=True, exist_ok=True)
-            ext = (status.model_url or "").rsplit(".", 1)[-1].lower() or "glb"
+            from claude_code_talker.mesh.provider import extension_from_url
+            ext = extension_from_url(status.model_url)
             dest = char_dir / f"{job.job_id}.{ext}"
             try:
                 final_path = provider.download(job.provider_job_id, dest)

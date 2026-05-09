@@ -77,7 +77,7 @@ class MeshyProvider(Mesh3DProvider):
         s = self.poll(job_id)
         if s.status != "succeeded" or not s.model_url:
             raise RuntimeError(f"meshy job {job_id} not ready ({s.status})")
-        suffix = s.model_url.rsplit(".", 1)[-1].lower()
-        if not dest.suffix:
-            dest = dest.with_suffix(f".{suffix}")
+        from .provider import extension_from_url
+        if not dest.suffix or "?" in dest.name:
+            dest = dest.with_name(f"{dest.stem}.{extension_from_url(s.model_url)}")
         return self._fetch_url(s.model_url, dest)

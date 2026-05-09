@@ -5,8 +5,29 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 JobStatus = str  # "queued" | "running" | "succeeded" | "failed"
+
+_KNOWN_MESH_EXTS = {"glb", "gltf", "fbx", "obj", "usdz", "stl", "ply"}
+
+
+def extension_from_url(url: str | None, default: str = "glb") -> str:
+    """Return the model file extension for ``url``, ignoring query/fragment.
+
+    Real CDN URLs are signed (``?expires=...&signature=...``), so a naive
+    ``url.rsplit('.', 1)[-1]`` swallows the entire query string into the
+    suffix and produces filenames Windows refuses to open. Always parse the
+    URL first.
+    """
+    if not url:
+        return default
+    path = urlparse(url).path or ""
+    if "." in path:
+        candidate = path.rsplit(".", 1)[-1].lower()
+        if candidate in _KNOWN_MESH_EXTS:
+            return candidate
+    return default
 
 
 @dataclass
