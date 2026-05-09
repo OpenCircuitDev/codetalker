@@ -70,6 +70,10 @@ class ServerState:
     characters: object = None
     # Phase 25c — voice clone job tracker (sidecar JSON per job)
     clone_jobs: object = None
+    # Phase 25b — mesh job tracker (sidecar JSON per job at <home>/models/_jobs)
+    mesh_jobs: object = None
+    # Phase 25b — root for downloaded mesh files (<home>/models/<character_id>/<job_id>.<ext>)
+    mesh_models_root: object = None
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -301,6 +305,11 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.clone_jobs = CloneJobTracker(
         Path.home() / ".claude" / "scripts" / "codetalker" / "voice_clone_jobs"
     )
+    # Phase 25b — mesh job tracker + storage root for downloaded meshes.
+    from claude_code_talker.mesh.tracker import MeshJobTracker
+    _mesh_root = Path.home() / ".claude" / "scripts" / "codetalker" / "models"
+    state.mesh_models_root = _mesh_root
+    state.mesh_jobs = MeshJobTracker(_mesh_root / "_jobs")
     state.sessions = SessionRegistry(
         profile_store=profiles,
         persistent_session_store=persistent_sessions,

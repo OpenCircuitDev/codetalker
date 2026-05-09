@@ -14,6 +14,9 @@ from starlette.routing import Route
 from claude_code_talker.profiles import is_valid_profile_name
 from claude_code_talker.persistent_sessions import is_valid_session_id
 from claude_code_talker.secrets_store import KNOWN_KEYS as _SECRET_KEYS, SecretsStore as _SecretsStore
+# Phase 25b — mesh providers (imported at module level so tests can monkeypatch
+# claude_code_talker.api.make_provider).
+from claude_code_talker.mesh.registry import PROVIDERS as _MESH_PROVIDERS, make_provider
 
 # Voices references directory (same default as xtts engine, overridable via cfg)
 _VOICES_REFS_DEFAULT = Path.home() / ".claude" / "scripts" / "voice-cloner" / "references"
@@ -1900,6 +1903,148 @@ def build_routes(state) -> list[Route]:
             },
         )
 
+    # ---------------- Phase 25b — 3D mesh REST endpoints ----------------
+
+    async def mesh_providers_list(request: Request) -> JSONResponse:
+        out = []
+        for name in _MESH_PROVIDERS:
+            configured = bool(state.secrets.get(f"{name}_api_key")) if state.secrets else False
+            out.append({"name": name, "configured": configured})
+        return JSONResponse(out)
+
+    async def mesh_jobs_post(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        if getattr(state, "mesh_jobs", None) is None:
+            return JSONResponse({"error": "mesh job tracker unavailable"}, status_code=503)
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
+        cid = body.get("character_id") or ""
+        provider_name = body.get("provider") or ""
+        prompt = body.get("prompt") or ""
+        image_url = body.get("image_url")
+        if not cid or not provider_name or not prompt:
+            return JSONResponse(
+                {"error": "character_id, provider, prompt required"}, status_code=400
+            )
+        if provider_name not in _MESH_PROVIDERS:
+            return JSONResponse(
+                {"error": f"unknown provider: {provider_name}"}, status_code=400
+            )
+        char = state.characters.get(cid)
+        if char is None:
+            return JSONResponse({"error": "character not found"}, status_code=404)
+        api_key = state.secrets.get(f"{provider_name}_api_key") if state.secrets else None
+        if not api_key:
+            return JSONResponse(
+                {"error": f"missing {provider_name}_api_key in keychain"},
+                status_code=400,
+            )
+
+        # Use module-level make_provider so tests can monkeypatch
+        # ``claude_code_talker.api.make_provider``.
+        import claude_code_talker.api as _self
+        provider_factory = getattr(_self, "make_provider")
+
+        job = state.mesh_jobs.create(provider=provider_name, character_id=cid, prompt=prompt)
+        try:
+            provider = provider_factory(provider_name, api_key)
+            pjid = provider.start(prompt=prompt, image_url=image_url)
+            state.mesh_jobs.set_provider_job_id(job.job_id, pjid)
+            # Update prompt history on character (cap 20)
+            char.mesh_prompt = prompt
+            history = list(char.mesh_prompt_history or [])
+            history.append(
+                {"prompt": prompt, "provider": provider_name, "ts": _rate_time.time()}
+            )
+            char.mesh_prompt_history = history[-20:]
+            try:
+                state.characters.save(char)
+            except Exception:
+                pass
+        except Exception as e:
+            state.mesh_jobs.set_failed(job.job_id, error=str(e))
+            return JSONResponse({"error": str(e)}, status_code=502)
+        return JSONResponse(
+            {"job_id": job.job_id, "status": "queued"}, status_code=202
+        )
+
+    async def mesh_jobs_list(request: Request) -> JSONResponse:
+        if getattr(state, "mesh_jobs", None) is None:
+            return JSONResponse([])
+        from dataclasses import asdict as _asdict
+        return JSONResponse([_asdict(j) for j in state.mesh_jobs.list()])
+
+    async def mesh_jobs_get(request: Request) -> JSONResponse:
+        if getattr(state, "mesh_jobs", None) is None:
+            return JSONResponse({"error": "mesh job tracker unavailable"}, status_code=503)
+        job_id = request.path_params["job_id"]
+        job = state.mesh_jobs.get(job_id)
+        if job is None:
+            return JSONResponse({"error": "job not found"}, status_code=404)
+        from dataclasses import asdict as _asdict
+        return JSONResponse(_asdict(job))
+
+    async def mesh_jobs_poll(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        if getattr(state, "mesh_jobs", None) is None:
+            return JSONResponse({"error": "mesh job tracker unavailable"}, status_code=503)
+        job_id = request.path_params["job_id"]
+        job = state.mesh_jobs.get(job_id)
+        if job is None or not job.provider_job_id:
+            return JSONResponse({"error": "job not ready to poll"}, status_code=404)
+        api_key = state.secrets.get(f"{job.provider}_api_key") if state.secrets else None
+        if not api_key:
+            return JSONResponse({"error": "missing api key"}, status_code=400)
+
+        import claude_code_talker.api as _self
+        provider_factory = getattr(_self, "make_provider")
+        try:
+            provider = provider_factory(job.provider, api_key)
+            status = provider.poll(job.provider_job_id)
+        except Exception as e:
+            state.mesh_jobs.set_failed(job.job_id, error=str(e))
+            from dataclasses import asdict as _asdict
+            return JSONResponse(_asdict(state.mesh_jobs.get(job.job_id)), status_code=502)
+
+        if status.status == "running":
+            state.mesh_jobs.set_status(job.job_id, "running", progress=status.progress)
+        elif status.status == "queued":
+            state.mesh_jobs.set_status(job.job_id, "queued", progress=status.progress)
+        elif status.status == "succeeded":
+            models_root = getattr(state, "mesh_models_root", None) or (
+                Path.home() / ".claude" / "scripts" / "codetalker" / "models"
+            )
+            char_dir = Path(models_root) / job.character_id
+            char_dir.mkdir(parents=True, exist_ok=True)
+            ext = (status.model_url or "").rsplit(".", 1)[-1].lower() or "glb"
+            dest = char_dir / f"{job.job_id}.{ext}"
+            try:
+                final_path = provider.download(job.provider_job_id, dest)
+            except Exception as e:
+                state.mesh_jobs.set_failed(job.job_id, error=str(e))
+                from dataclasses import asdict as _asdict
+                return JSONResponse(_asdict(state.mesh_jobs.get(job.job_id)), status_code=502)
+            state.mesh_jobs.set_succeeded(job.job_id, model_path=str(final_path))
+            char = state.characters.get(job.character_id)
+            if char is not None:
+                char.mesh_path = str(final_path)
+                char.mesh_provider = job.provider
+                try:
+                    state.characters.save(char)
+                except Exception:
+                    pass
+        elif status.status == "failed":
+            state.mesh_jobs.set_failed(job.job_id, error=status.error or "failed")
+
+        from dataclasses import asdict as _asdict
+        return JSONResponse(_asdict(state.mesh_jobs.get(job.job_id)))
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -1980,6 +2125,12 @@ def build_routes(state) -> list[Route]:
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
         Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),
+        # Phase 25b — 3D mesh routes
+        Route("/api/mesh-providers", mesh_providers_list, methods=["GET"]),
+        Route("/api/mesh-jobs", mesh_jobs_post, methods=["POST"]),
+        Route("/api/mesh-jobs", mesh_jobs_list, methods=["GET"]),
+        Route("/api/mesh-jobs/{job_id}", mesh_jobs_get, methods=["GET"]),
+        Route("/api/mesh-jobs/{job_id}/poll", mesh_jobs_poll, methods=["POST"]),
     ]
 
 
