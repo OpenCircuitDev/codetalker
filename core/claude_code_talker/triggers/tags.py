@@ -14,6 +14,9 @@ class Tag:
     format_template: str = ""
     example: str = ""
     freeform_text: str = ""    # populated only when editor_mode == "freeform"
+    # Phase 26: per-tag markup treatment overrides applied to the block body
+    # before TTS. Shape: {"<form>": {"kind": "...", "params": {...}}}.
+    markup_overrides: dict = field(default_factory=dict)
 
 
 # 5 starter tags installed on first run if cfg has no triggers.tags
