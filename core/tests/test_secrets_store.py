@@ -111,3 +111,31 @@ def test_gemini_env_var_takes_precedence(monkeypatch, tmp_path):
     store = SecretsStore(secrets_path=secrets_path)
     monkeypatch.setenv("GEMINI_API_KEY", "env_value")
     assert store.get("gemini_api_key") == "env_value"
+
+
+def test_known_keys_includes_mesh_provider_keys():
+    """Phase 25b — three mesh-provider API key slots."""
+    assert "hyper3d_api_key" in KNOWN_KEYS
+    assert "meshy_api_key" in KNOWN_KEYS
+    assert "tripo3d_api_key" in KNOWN_KEYS
+
+
+def test_secrets_store_accepts_mesh_provider_keys(tmp_path):
+    """Phase 25b — set/get round-trips for all three mesh provider keys."""
+    s = SecretsStore(secrets_path=tmp_path / "secrets.yaml")
+    s.save({
+        "hyper3d_api_key": "sk-1",
+        "meshy_api_key": "sk-2",
+        "tripo3d_api_key": "sk-3",
+    })
+    assert s.get("hyper3d_api_key") == "sk-1"
+    assert s.get("meshy_api_key") == "sk-2"
+    assert s.get("tripo3d_api_key") == "sk-3"
+
+
+def test_mesh_env_overrides(monkeypatch, tmp_path):
+    """Phase 25b — env vars take precedence for mesh provider keys."""
+    s = SecretsStore(secrets_path=tmp_path / "secrets.yaml")
+    s.save({"hyper3d_api_key": "from-file"})
+    monkeypatch.setenv("HYPER3D_API_KEY", "from-env")
+    assert s.get("hyper3d_api_key") == "from-env"

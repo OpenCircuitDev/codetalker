@@ -30,6 +30,10 @@ ENV_OVERRIDES: dict[str, str] = {
     "OPENROUTER_API_KEY": "openrouter_api_key",
     "ELEVENLABS_API_KEY": "elevenlabs_api_key",
     "GEMINI_API_KEY": "gemini_api_key",
+    # Phase 25b — 3D mesh provider API keys.
+    "HYPER3D_API_KEY": "hyper3d_api_key",
+    "MESHY_API_KEY": "meshy_api_key",
+    "TRIPO3D_API_KEY": "tripo3d_api_key",
 }
 
 KNOWN_KEYS = list(ENV_OVERRIDES.values())
