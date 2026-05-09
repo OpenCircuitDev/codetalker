@@ -10,6 +10,7 @@ import { SpeakingDot } from "./SpeakingDot";
 import { ProjectBadge } from "./ProjectBadge";
 import { ProfileBadge } from "./ProfileBadge";
 import { SessionControls } from "./SessionControls";
+import { SessionMarkupQuick } from "./SessionMarkupQuick";
 
 type Props = { session: Session };
 
@@ -90,8 +91,9 @@ export function SessionCard({ session }: Props) {
         </div>
       )}
 
-      {/* Zone 4: controls */}
+      {/* Zone 4: controls (mute / mode / voice) + per-session markup quick toggles */}
       <SessionControls sessionId={session.session_id} config={config} />
+      <SessionMarkupQuick sessionId={session.session_id} />
     </motion.article>
   );
 }
