@@ -277,24 +277,44 @@ The following are tracked here as roadmap entries; each warrants its own brainst
 
 ## Phase 26 — Claude Code markup awareness
 
-**Goal**: the narrator recognizes Claude Code's specific response *structures* — code fences, TodoWrite tables, plan blocks, system reminders, tool-output blocks, audible blocks, inline code spans — and treats each one differently per the user's verbosity settings. Today the narrator parses Claude Code prose as generic markdown; it doesn't know to skip a code fence, summarize a TodoWrite update, or describe a tool-output block.
+**Goal**: bind codetalker's settings UI directly to Claude Code's response *structures* — code fences, TodoWrite tables, plan blocks, system reminders, tool-output blocks, audible blocks, inline code spans, subagent dispatches — by giving each form its own dedicated treatment control in the settings panel. Today the narrator parses Claude Code prose as generic markdown; it doesn't know to skip a code fence, summarize a TodoWrite update, or describe a tool-output block. After Phase 26, every recognized markup form is a row in the settings UI that the user can independently tune.
 
-**Why this matters**: Phase 21's CC-tuned trigger pack put a foothold on the *trigger* side — Claude knows when to write `## Audible Plan Entry` etc. But the *content* side is still generic — when the narrator processes Claude's prose, it doesn't recognize Claude Code's idiomatic structures. The narration sounds the same whether Claude wrote a paragraph or pasted a TodoWrite table. Settings like `mode: brief` only have meaningful effect over a structure-aware narrator.
+**Why this matters**: Phase 21's CC-tuned trigger pack put a foothold on the *trigger* side — Claude knows when to write `## Audible Plan Entry` etc. Phase 26 puts the matching foothold on the *content* side — and crucially makes that content awareness **user-tunable per markup form**, not a single global verbosity dial. The settings UI becomes a literal map of Claude Code's response vocabulary, which means adding a new recognizer (say, a future Skill-invocation block) is mechanically the same as adding a new row to the panel.
 
 **Key sub-tasks (rough decomposition, subject to brainstorming)**:
-- **26.1 — Markup recognizers**: extend `core/claude_code_talker/triggers/parser.py` (or add a sibling `markup.py`) to identify and tag spans for: code fences, TodoWrite tables (matched by structure), plan-mode blocks, system reminders, tool-output blocks, inline code spans, file paths, long numerals. Each gets a category tag the narrator can route on.
-- **26.2 — Verbosity profiles**: new cfg axis `verbosity_profile: prose-only | structured | full` mapping each markup kind to a treatment ("skip", "describe in N words", "read literally"). Defaults: `brief` → `prose-only`, `direct` → `structured`, `live` → `structured`, `trigger` → tag-driven (existing behavior).
-- **26.3 — Per-tag verbosity overrides**: trigger tags (Phase 14.5 + 21) gain an optional `verbosity_profile` field that overrides the mode default. So `audible_subagent_done` could be `prose-only` while `audible_plan_entry` could be `structured`.
-- **26.4 — Web UI surfaces**: dashboard's mode/cadence picker grows a verbosity toggle; legacy UI's trigger-tag editor gets the per-tag override field.
-- **26.5 — Tests**: snapshot tests of narrator output for representative Claude Code response shapes (code-heavy, todo-heavy, plan-heavy, prose-heavy) under each verbosity profile.
 
-**Tied to existing architecture**: extends the existing parser layer in `core/claude_code_talker/triggers/parser.py` and the text-filter pipeline in `core/claude_code_talker/text/`. No new infra required; the audio queue, mode strategies, and SSE feed all stay unchanged.
+- **26.1 — Markup recognizers**: extend `core/claude_code_talker/triggers/parser.py` (or add a sibling `markup.py`) to identify and tag spans for the recognized forms below. Each gets a stable category tag the narrator routes on.
+
+- **26.2 — Per-form treatment cfg**: new cfg subtree `markup.<form>.treatment` where `<form>` enumerates the recognized Claude Code structures. Each form has its own option set — there is **no single verbosity axis**. Initial form catalog:
+
+  | Markup form | Treatment options |
+  |---|---|
+  | `code_fence` | skip / describe ("a code block of about N lines") / read literally |
+  | `inline_code` | skip / read identifier only / read literally |
+  | `todo_update` | skip / count-only ("two todos updated") / itemize up to N / read full |
+  | `plan_block` | skip / summarize / read full |
+  | `audible_block` | always speak (existing trigger-mode behavior) |
+  | `system_reminder` | always skip / log silently |
+  | `tool_output` | skip / describe ("Bash output, exit code 0") / read |
+  | `subagent_dispatch` | skip / announce only / describe outcome |
+  | `file_path` | already filtered today via `text/` — fold into this panel |
+  | `long_numeral` | already filtered today via `text/` — fold into this panel |
+
+- **26.3 — Modes as presets**: existing modes (`brief`, `direct`, `live`, `trigger`) become **presets** that pre-populate the per-form treatments rather than acting as opaque verbosity buckets. `brief` ships with code-fence=skip, tool-output=describe, subagent=announce; `direct` ships with code-fence=describe, tool-output=read; etc. Picking a mode applies the preset; each row is then individually overridable.
+
+- **26.4 — Settings UI ("Markup" tab)**: new tab in the React dashboard (and parity entry in the legacy `/ui/`) that renders the per-form panel. Each row shows the form name, the active treatment, a dropdown to change it, and a "preset default" badge when the row matches the current mode's preset. Per-session overrides live in the existing session-config overlay.
+
+- **26.5 — Per-trigger-tag overrides**: trigger tags (Phase 14.5 + 21) gain an optional `markup_overrides` field — a dict mapping form → treatment that takes effect when that tag's `## Audible <Tag>` block is emitted. Lets a single tag like `audible_plan_entry` ship its own opinion (e.g., always-read plan blocks) without touching the global mode preset.
+
+- **26.6 — Tests**: snapshot tests of narrator output for representative Claude Code response shapes (code-heavy, todo-heavy, plan-heavy, prose-heavy, subagent-heavy) under each preset *and* under user-overridden per-form combinations. Tests pin the exact behavior of each treatment so future preset additions don't drift.
+
+**Tied to existing architecture**: extends the existing parser layer in `core/claude_code_talker/triggers/parser.py` and the text-filter pipeline in `core/claude_code_talker/text/` (which gets refactored to read its config from the new `markup.<form>` cfg tree instead of hardcoded `paths.handling` etc.). The audio queue, mode strategies, SSE feed, and trigger parser all stay unchanged at the architectural level.
 
 **Open questions for the brainstorm**:
-- Which markup types deliver the most narration improvement first (TodoWrite + code fences are my read)?
-- Should verbosity be settable per-session-overlay too (so a session in brief mode can opt out for one prompt)?
-- How does this interact with the trigger-mode auditor — does trigger mode ignore verbosity entirely, or do tags inherit it?
-- Long numerals vs file paths: already partially handled in `text/` filters today; the recognizer track might subsume those existing filters.
+- Which forms deliver the most narration improvement first? TodoWrite + code fences are the obvious starting pair; subagent_dispatch matters for users running heavy agentic flows.
+- Recognizer order of operations: parser-only (cheap regex/structural match) vs LLM-classifier (more flexible but expensive)? Default is parser; LLM-classifier could be a per-form opt-in for hard-to-recognize forms.
+- Migration: today's `text/paths.handling` and `text/numeral` filters move into this framework. Backwards-compat path for users with explicit cfg for those.
+- UI ordering: alphabetical or grouped by impact (high-frequency forms at top)? Probably grouped, with a "what is this?" tooltip per row.
 
 ## Phase 20 — Family rename (CodeTalker / Claude Code Talker / Cursor Code Talker) *(deferred from v1)*
 
