@@ -111,6 +111,11 @@ def build_routes(state) -> list[Route]:
                         persistent.get("attached_profile") if persistent else None
                     )
                 ),
+                "attached_character": (
+                    live_match.attached_character if live_match else (
+                        persistent.get("attached_character") if persistent else None
+                    )
+                ),
                 "has_persistent_settings": persistent is not None,
             })
         # Live sessions not in the catalog (newly created since last scan)
@@ -127,6 +132,7 @@ def build_routes(state) -> list[Route]:
                 "is_live": True,
                 "enabled": (persistent.get("enabled", True) if persistent else True),
                 "attached_profile": live_match.attached_profile,
+                "attached_character": live_match.attached_character,
                 "has_persistent_settings": persistent is not None,
             })
         merged.sort(key=lambda e: e["last_modified"], reverse=True)
@@ -146,6 +152,7 @@ def build_routes(state) -> list[Route]:
                 "last_hook_at": s.last_hook_at,
                 "live_overlay": s.live_overlay,
                 "attached_profile": s.attached_profile,
+                "attached_character": s.attached_character,
             },
             "resolved_cfg": cfg,
         })

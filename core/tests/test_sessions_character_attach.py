@@ -167,3 +167,23 @@ async def test_detach_character_idempotent(tmp_path):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.delete("/api/sessions/test-sid/character")
         assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_api_sessions_response_includes_attached_character(tmp_path):
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    state.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    s = state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    s.attached_character = "alice"
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.get("/api/sessions")
+        assert r.status_code == 200
+        data = r.json()
+        match = next((row for row in data if row["session_id"] == "test-sid"), None)
+        assert match is not None
+        assert match.get("attached_character") == "alice"
