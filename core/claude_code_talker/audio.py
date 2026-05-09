@@ -172,6 +172,10 @@ class AudioJob:
     priority: str = "normal"  # alert | normal | routine
     enqueued_at: float = 0.0
     audio_format: str = "wav"  # wav (Piper) or mp3 (cloud engines)
+    # CCT-31 — session that produced this audio. Used for AudioStreamHub fan-out
+    # so paired AR companions on a specific session receive only their session's
+    # narration.  Empty string means "no specific session" (legacy callers).
+    session_id: str = ""
 
 
 _PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
@@ -299,8 +303,42 @@ class AudioQueue:
             try:
                 engine = self._state.engines[job.engine_name]
                 wav = engine.synthesize(job.text, job.voice, job.rate)
+                # CCT-31 — fan synthesized audio to AR companions subscribed to
+                # this session.  Local playback is unchanged; this is parallel.
+                self._publish_to_audio_hub(job, wav)
                 play_audio_bytes(wav, audio_format=job.audio_format, handle=self._handle)
                 self._publish_event(job, "done")
             except Exception as e:
                 logging.warning("audio job failed: %s", e)
                 self._publish_event(job, "skipped")
+
+    def _publish_to_audio_hub(self, job, wav: bytes) -> None:
+        """CCT-31 — best-effort fan-out of synthesized audio to AudioStreamHub.
+
+        Runs in the worker thread; uses run_coroutine_threadsafe to dispatch
+        publish() onto the hub's owning event loop. Silent on any error so
+        local playback is never disturbed by companion glitches.
+        """
+        if not wav:
+            return
+        hub = getattr(self._state, "audio_hub", None)
+        if hub is None:
+            return
+        sid = getattr(job, "session_id", "") or ""
+        if not sid:
+            return
+        # Prefer an explicit loop reference on state (set by daemon at startup);
+        # fall back to the running loop if available.
+        loop = getattr(self._state, "audio_hub_loop", None)
+        if loop is None:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop_policy().get_event_loop()
+            except Exception:
+                return
+        try:
+            import asyncio
+            asyncio.run_coroutine_threadsafe(hub.publish(sid, wav), loop)
+        except Exception:
+            # Never let companion fan-out break local playback.
+            pass
