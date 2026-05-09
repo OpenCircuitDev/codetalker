@@ -404,6 +404,22 @@ def build_routes(state) -> list[Route]:
             return JSONResponse({"error": str(e)}, status_code=400)
         return JSONResponse(state.characters.get(cid).to_dict())
 
+    async def delete_character(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        cid = request.path_params.get("char_id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        if state.characters.get(cid) is None:
+            return JSONResponse({"error": "character not found"}, status_code=404)
+        # Cascade: detach this character from any session that has it attached.
+        if state.sessions is not None:
+            for s in state.sessions.list_active():
+                if getattr(s, "attached_character", None) == cid:
+                    s.attached_character = None
+        state.characters.delete(cid)
+        return JSONResponse({"deleted": True})
+
     async def get_profile(request: Request) -> JSONResponse:
         name = request.path_params["name"]
         if not is_valid_profile_name(name):
@@ -1720,6 +1736,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/characters/{char_id}", get_character, methods=["GET"]),
         Route("/api/characters", create_character, methods=["POST"]),
         Route("/api/characters/{char_id}", put_character, methods=["PUT"]),
+        Route("/api/characters/{char_id}", delete_character, methods=["DELETE"]),
         Route("/api/voices", list_voices, methods=["GET"]),
         # Phase 14 v0.4.0 — voice clone CRUD (order matters: specific before wildcard)
         Route("/api/voices/list", voices_list, methods=["GET"]),

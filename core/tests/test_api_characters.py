@@ -136,3 +136,38 @@ async def test_put_character_400_on_id_mismatch(state_with_chars, app):
         body = {"id": "different", "display_name": "X", "voice_ref": "v"}
         r = await client.put("/api/characters/alice", json=body)
         assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_delete_character_returns_deleted_true(state_with_chars, app):
+    state_with_chars.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.delete("/api/characters/alice")
+        assert r.status_code == 200
+        assert r.json() == {"deleted": True}
+        # And the character is actually gone
+        r2 = await client.get("/api/characters/alice")
+        assert r2.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_character_404_when_missing(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.delete("/api/characters/nope")
+        assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_character_cascades_session_detach(state_with_chars, app):
+    """Deleting a character should null out attached_character on any live sessions."""
+    state_with_chars.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    s = state_with_chars.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    s.attached_character = "alice"
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.delete("/api/characters/alice")
+        assert r.status_code == 200
+    # After delete, the session's attached_character should be None
+    assert state_with_chars.sessions.get("test-sid").attached_character is None
