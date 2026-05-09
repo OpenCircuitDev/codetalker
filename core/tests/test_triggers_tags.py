@@ -15,14 +15,15 @@ def test_tag_dataclass_defaults():
     assert t.freeform_text == ""
 
 
-def test_starter_tags_includes_five_audible():
+def test_starter_tags_includes_ten_audible():
+    """Phase 21: starter set is 5 generic + 5 Claude-Code-tuned = 10 total."""
     ids = {t.id for t in STARTER_TAGS}
     assert "audible_summary" in ids
     assert "audible_synopsis" in ids
     assert "audible_briefs" in ids
     assert "audible_listings" in ids
     assert "audible_details" in ids
-    assert len(STARTER_TAGS) == 5
+    assert len(STARTER_TAGS) == 10
 
 
 def test_starter_only_summary_enabled_by_default():
@@ -53,14 +54,14 @@ def test_library_bootstrap_loads_starter_when_missing():
     lib = TagLibrary()
     assert len(lib.list()) == 0
     lib.bootstrap_starters()
-    assert len(lib.list()) == 5
+    assert len(lib.list()) == 10
 
 
 def test_library_bootstrap_idempotent():
     lib = TagLibrary()
     lib.bootstrap_starters()
     lib.bootstrap_starters()
-    assert len(lib.list()) == 5
+    assert len(lib.list()) == 10
 
 
 def test_compose_skill_includes_enabled_only():
@@ -94,3 +95,25 @@ def test_compose_skill_structured_uses_fields():
     assert "when foo" in out
     assert "Foo example" in out
     assert "energetic" in out.lower()
+
+
+def test_starter_tags_includes_claude_code_tuned_starters():
+    """Phase 21: 5 new starters tuned to Claude Code's response shapes, all disabled-by-default."""
+    cc_starter_ids = {
+        "audible_plan_entry",
+        "audible_subagent_done",
+        "audible_todo_advance",
+        "audible_skill_invoked",
+        "audible_permission_request",
+    }
+    starter_ids = {t.id for t in STARTER_TAGS}
+    assert cc_starter_ids.issubset(starter_ids), (
+        f"missing CC-tuned starters: {cc_starter_ids - starter_ids}"
+    )
+    cc_starters = [t for t in STARTER_TAGS if t.id in cc_starter_ids]
+    for tag in cc_starters:
+        assert tag.enabled is False, f"{tag.id} must ship disabled-by-default"
+        assert tag.editor_mode == "structured"
+        assert tag.when_to_trigger, f"{tag.id} missing when_to_trigger"
+        assert tag.format_template, f"{tag.id} missing format_template"
+        assert tag.example, f"{tag.id} missing example"
