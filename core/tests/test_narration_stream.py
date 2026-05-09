@@ -55,3 +55,18 @@ async def test_overflow_emits_sentinel():
             break
     statuses = {e.status for e in events}
     assert "overflow" in statuses
+
+
+@pytest.mark.asyncio
+async def test_narration_stream_available_on_api():
+    """Verify the /api/narration-stream endpoint is registered and accessible."""
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    from claude_code_talker.api import build_routes
+
+    state = build_server_state()
+    routes = build_routes(state)
+
+    # Check that the narration-stream route exists
+    narration_routes = [r for r in routes if hasattr(r, 'path') and '/narration-stream' in r.path]
+    assert len(narration_routes) > 0, "narration-stream route not found in routes"
+    assert narration_routes[0].path == "/api/narration-stream"

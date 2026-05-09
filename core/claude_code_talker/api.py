@@ -1,6 +1,7 @@
 """REST API routes mounted alongside the FastMCP SSE app."""
 from __future__ import annotations
 
+import asyncio
 import json
 import json as _json_lib
 import re
@@ -1571,6 +1572,36 @@ def build_routes(state) -> list[Route]:
         )
         return Response(content=content, media_type="text/plain")
 
+    async def narration_stream_route(request: Request) -> Response:
+        """GET /api/narration-stream — Server-Sent Events feed of narrations."""
+        from starlette.responses import StreamingResponse
+
+        async def _gen():
+            sub = state.narration_stream.subscribe()
+            try:
+                yield ": connected\n\n"
+                async for ev in sub:
+                    payload = json.dumps({
+                        "session_id": ev.session_id,
+                        "timestamp": ev.timestamp,
+                        "text": ev.text,
+                        "voice": ev.voice,
+                        "mode": ev.mode,
+                        "status": ev.status,
+                    })
+                    yield f"data: {payload}\n\n"
+            except (asyncio.CancelledError, GeneratorExit):
+                return
+
+        return StreamingResponse(
+            _gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -1634,6 +1665,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/triggers/skill-install", triggers_skill_install, methods=["POST"]),
         Route("/api/triggers/skill-preview", triggers_skill_preview, methods=["GET"]),
         Route("/api/triggers/skill-body", triggers_skill_body, methods=["GET"]),
+        Route("/api/narration-stream", narration_stream_route, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
         Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),
