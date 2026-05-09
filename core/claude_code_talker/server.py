@@ -486,6 +486,31 @@ def register_tools(server, state) -> None:
             state.uvicorn_server.should_exit = True
         return "shutting down"
 
+    async def tts_set_voice(args):
+        voice = args.get("voice")
+        if not voice:
+            raise ValueError("voice is required")
+        engine_name = args.get("engine")
+        voice_cfg = state.cfg.setdefault("voice", {})
+        voice_cfg["model"] = voice
+        if engine_name:
+            if engine_name not in state.engines:
+                raise ValueError(f"unknown engine: {engine_name}; available: {list(state.engines)}")
+            voice_cfg["engine"] = engine_name
+        return f"voice set to {voice}" + (f" on {engine_name}" if engine_name else "")
+
+    async def tts_set_cadence(args):
+        cadence = args.get("cadence")
+        valid = ["periodic", "per_tool_call", "per_cluster", "significant_only", "hybrid"]
+        if cadence not in valid:
+            raise ValueError(f"unknown cadence: {cadence}; valid: {valid}")
+        live_cfg = state.cfg.setdefault("live", {})
+        live_cfg["cadence"] = cadence
+        live = state.modes.get("live")
+        if isinstance(live, LiveMode):
+            live.cadence = make_cadence(cadence, live_cfg)
+        return f"cadence set to {cadence}"
+
     async def tts_handle_stop(args):
         from claude_code_talker.hooks import handle_stop
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
@@ -687,6 +712,8 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_mute", "Mute TTS without changing config.", tts_mute))
     server.register(MCPTool("tts_unmute", "Unmute TTS.", tts_unmute))
     server.register(MCPTool("tts_list_voices", "List available voices for an engine.", tts_list_voices))
+    server.register(MCPTool("tts_set_voice", "Set the active voice (model). Optional engine arg switches engine too.", tts_set_voice))
+    server.register(MCPTool("tts_set_cadence", "Set the live-mode cadence (periodic, per_tool_call, per_cluster, significant_only, hybrid).", tts_set_cadence))
     server.register(MCPTool("tts_shutdown", "Gracefully shut down the daemon.", tts_shutdown))
     server.register(MCPTool("tts_handle_stop", "Handle a Stop hook event.", tts_handle_stop))
     server.register(MCPTool("tts_handle_notification", "Handle a Notification hook event.", tts_handle_notification))

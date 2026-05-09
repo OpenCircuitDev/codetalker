@@ -15,3 +15,4 @@ htmlcov/
 .superpowers/
 core/claude_code_talker/webui/node_modules/
 core/claude_code_talker/webui/dist/
+*.tsbuildinfo

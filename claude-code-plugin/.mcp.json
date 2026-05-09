@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codetalker": {
+      "command": "claude-code-talker-mcp-stdio",
+      "args": [],
+      "env": {}
+    }
+  }
+}

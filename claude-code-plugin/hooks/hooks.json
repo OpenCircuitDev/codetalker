@@ -1,0 +1,37 @@
+{
+  "Stop": [
+    {
+      "hooks": [
+        { "type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true }
+      ]
+    }
+  ],
+  "Notification": [
+    {
+      "hooks": [
+        { "type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "hooks": [
+        { "type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "hooks": [
+        { "type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true }
+      ]
+    }
+  ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        { "type": "command", "shell": "powershell", "command": "claude-code-talker-hook", "async": true }
+      ]
+    }
+  ]
+}

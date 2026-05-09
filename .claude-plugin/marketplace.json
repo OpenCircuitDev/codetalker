@@ -1,0 +1,20 @@
+{
+  "name": "codetalker",
+  "owner": {
+    "name": "Open Circuit Dev",
+    "email": "becky@nativeteachingaids.com"
+  },
+  "description": "Voice companion for Claude Code — TTS narration of assistant turns and tool activity, with /codetalker:* slash commands and a daemon-aware narration skill.",
+  "plugins": [
+    {
+      "name": "codetalker",
+      "source": "./claude-code-plugin",
+      "description": "Voice companion: hooks-driven TTS narration, /codetalker:* slash commands, MCP-spawned daemon, daemon-aware skill.",
+      "homepage": "https://github.com/OpenCircuitDev/codetalker",
+      "repository": "https://github.com/OpenCircuitDev/codetalker",
+      "license": "MIT",
+      "keywords": ["tts", "voice", "narration", "audio", "accessibility"],
+      "category": "productivity"
+    }
+  ]
+}

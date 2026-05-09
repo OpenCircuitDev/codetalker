@@ -1555,6 +1555,22 @@ def build_routes(state) -> list[Route]:
         )
         return Response(content=content, media_type="text/plain")
 
+    async def triggers_skill_body(request: Request) -> Response:
+        """GET /api/triggers/skill-body — dynamic body only (trigger blocks + style guidance).
+
+        Consumed by the Claude Code plugin's SKILL.md bash injection so the
+        skill always reflects current cfg without a file write.
+        """
+        from claude_code_talker.triggers.tags import TagLibrary, compose_skill_body
+        trig = state.cfg.get("triggers") or {}
+        lib = TagLibrary.from_cfg(trig.get("tags") or {})
+        content = compose_skill_body(
+            lib,
+            teacher_level=trig.get("teacher_level", "standard"),
+            persona=trig.get("persona", "methodical"),
+        )
+        return Response(content=content, media_type="text/plain")
+
     return [
         Route("/api/health", health, methods=["GET"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
@@ -1617,6 +1633,7 @@ def build_routes(state) -> list[Route]:
         Route("/api/triggers/tags", triggers_create_tag, methods=["POST"]),
         Route("/api/triggers/skill-install", triggers_skill_install, methods=["POST"]),
         Route("/api/triggers/skill-preview", triggers_skill_preview, methods=["GET"]),
+        Route("/api/triggers/skill-body", triggers_skill_body, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
         Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),

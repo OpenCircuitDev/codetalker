@@ -129,16 +129,13 @@ class TagLibrary:
                 for tid, t in self._tags.items()}
 
 
-def compose_skill_content(
-    lib: TagLibrary,
-    *,
-    teacher_level: str = "standard",
-    persona: str = "methodical",
-) -> str:
-    """Compose the SKILL.md content from enabled tags + style settings."""
-    teacher_directive = _TEACHER_PROMPTS.get(teacher_level, _TEACHER_PROMPTS["standard"])
-    enabled = [t for t in lib.list() if t.enabled]
+def compose_skill_static_shell() -> str:
+    """Frontmatter + intro paragraph. Static, plugin-shipped portion of SKILL.md.
 
+    The dynamic body (trigger blocks + style guidance) comes from
+    `compose_skill_body()` and is served by `/api/triggers/skill-body` so the
+    plugin's SKILL.md can pull live state at every activation.
+    """
     lines: list[str] = []
     lines.append("---")
     lines.append("name: codetalker-narration")
@@ -159,6 +156,24 @@ def compose_skill_content(
         "forcing them to read the chat."
     )
     lines.append("")
+    return "\n".join(lines)
+
+
+def compose_skill_body(
+    lib: TagLibrary,
+    *,
+    teacher_level: str = "standard",
+    persona: str = "methodical",
+) -> str:
+    """Dynamic body: trigger blocks + style guidance. Depends on cfg.
+
+    Served by `/api/triggers/skill-body` and injected into the plugin's
+    SKILL.md at activation time.
+    """
+    teacher_directive = _TEACHER_PROMPTS.get(teacher_level, _TEACHER_PROMPTS["standard"])
+    enabled = [t for t in lib.list() if t.enabled]
+
+    lines: list[str] = []
     if not enabled:
         lines.append("(No tags enabled — codetalker won't speak anything until at least one tag is enabled in the Web UI.)")
         return "\n".join(lines)
@@ -196,3 +211,21 @@ def compose_skill_content(
     lines.append("")
 
     return "\n".join(lines)
+
+
+def compose_skill_content(
+    lib: TagLibrary,
+    *,
+    teacher_level: str = "standard",
+    persona: str = "methodical",
+) -> str:
+    """Compose the full SKILL.md content. Used by the legacy non-plugin write path.
+
+    Plugin users get the static shell from `compose_skill_static_shell()` plus
+    a live `!`curl /api/triggers/skill-body`` injection, so this full-content
+    function is only used when writing `~/.claude/skills/codetalker-narration/`
+    directly (the pre-Phase-18 install).
+    """
+    return compose_skill_static_shell() + "\n" + compose_skill_body(
+        lib, teacher_level=teacher_level, persona=persona,
+    )

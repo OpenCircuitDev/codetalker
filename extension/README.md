@@ -4,6 +4,8 @@ Voice companion for Claude Code. The extension launches the Python daemon, regis
 
 Multiple concurrent Claude Code sessions are properly isolated — narrations never bleed across folders (fixed in v0.3.0).
 
+> If you're not using VS Code, install the Claude Code plugin instead — `/plugin marketplace add OpenCircuitDev/codetalker` then `/plugin install codetalker@codetalker`. It gives you `/codetalker:*` slash commands inside the TUI. The two coexist; they share one daemon.
+
 ## Requirements
 
 - VS Code 1.85+
