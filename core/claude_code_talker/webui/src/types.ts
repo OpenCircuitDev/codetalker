@@ -1,3 +1,20 @@
+// Phase 27 — character info embedded in a session, when attached.
+export type AttachedCharacter = {
+  id?: string;
+  display_name: string;
+  persona?: string | null;
+  voice_ref?: string | null;
+  mesh_path?: string | null;
+};
+
+// Phase 27 — ticker event embedded in a session.
+export type SessionTickerEvent = {
+  id: string;
+  kind: string;
+  text: string;
+  ts: number;
+};
+
 // Mirror of the JSON shape returned by GET /api/sessions
 export type Session = {
   session_id: string;
@@ -10,6 +27,12 @@ export type Session = {
   enabled: boolean;
   attached_profile: string | null;
   has_persistent_settings: boolean;
+  // Phase 27 — optional fields populated when known.
+  attached_character?: AttachedCharacter | null;
+  is_speaking?: boolean;
+  is_muted?: boolean;
+  mode?: string;
+  events?: SessionTickerEvent[];
 };
 
 // Mirror of GET /api/sessions/{id} — per-session config overlay
