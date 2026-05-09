@@ -75,3 +75,64 @@ async def test_get_character_400_on_invalid_id(app):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/characters/UPPER-CASE")
         assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_post_character_creates(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        body = {"id": "alice", "display_name": "Alice", "voice_ref": "alice-voice"}
+        r = await client.post("/api/characters", json=body)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["id"] == "alice"
+        assert data["created_at"] > 0
+        assert data["updated_at"] > 0
+
+
+@pytest.mark.asyncio
+async def test_post_character_400_on_invalid_body(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post("/api/characters", json={"id": "BAD", "display_name": "X", "voice_ref": "v"})
+        assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_post_character_409_when_exists(state_with_chars, app):
+    state_with_chars.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        body = {"id": "alice", "display_name": "Alice", "voice_ref": "v"}
+        r = await client.post("/api/characters", json=body)
+        assert r.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_put_character_updates(state_with_chars, app):
+    state_with_chars.characters.save(Character(id="alice", display_name="Old Name", voice_ref="v"))
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        body = {"id": "alice", "display_name": "New Name", "voice_ref": "v"}
+        r = await client.put("/api/characters/alice", json=body)
+        assert r.status_code == 200
+        assert r.json()["display_name"] == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_put_character_404_when_missing(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        body = {"id": "nope", "display_name": "X", "voice_ref": "v"}
+        r = await client.put("/api/characters/nope", json=body)
+        assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_character_400_on_id_mismatch(state_with_chars, app):
+    state_with_chars.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        body = {"id": "different", "display_name": "X", "voice_ref": "v"}
+        r = await client.put("/api/characters/alice", json=body)
+        assert r.status_code == 400

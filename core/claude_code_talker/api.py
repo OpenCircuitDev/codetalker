@@ -355,6 +355,55 @@ def build_routes(state) -> list[Route]:
             return JSONResponse({"error": "character not found"}, status_code=404)
         return JSONResponse(c.to_dict())
 
+    async def create_character(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
+        cid = body.get("id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        if state.characters.get(cid) is not None:
+            return JSONResponse({"error": f"character {cid!r} already exists"}, status_code=409)
+        from claude_code_talker.characters import Character, CharacterValidationError
+        try:
+            c = Character.from_dict(body)
+            state.characters.save(c)
+        except CharacterValidationError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return JSONResponse(state.characters.get(cid).to_dict())
+
+    async def put_character(request: Request) -> JSONResponse:
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        cid = request.path_params.get("char_id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        if state.characters.get(cid) is None:
+            return JSONResponse({"error": "character not found"}, status_code=404)
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
+        if body.get("id") != cid:
+            return JSONResponse(
+                {"error": f"id in body ({body.get('id')!r}) must match URL ({cid!r})"},
+                status_code=400,
+            )
+        from claude_code_talker.characters import Character, CharacterValidationError
+        try:
+            c = Character.from_dict(body)
+            state.characters.save(c)
+        except CharacterValidationError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return JSONResponse(state.characters.get(cid).to_dict())
+
     async def get_profile(request: Request) -> JSONResponse:
         name = request.path_params["name"]
         if not is_valid_profile_name(name):
@@ -1669,6 +1718,8 @@ def build_routes(state) -> list[Route]:
         Route("/api/profiles/{name}", delete_profile, methods=["DELETE"]),
         Route("/api/characters", list_characters, methods=["GET"]),
         Route("/api/characters/{char_id}", get_character, methods=["GET"]),
+        Route("/api/characters", create_character, methods=["POST"]),
+        Route("/api/characters/{char_id}", put_character, methods=["PUT"]),
         Route("/api/voices", list_voices, methods=["GET"]),
         # Phase 14 v0.4.0 — voice clone CRUD (order matters: specific before wildcard)
         Route("/api/voices/list", voices_list, methods=["GET"]),
