@@ -1063,6 +1063,70 @@
     pane.appendChild(resetRow);
   };
 
+  // Phase 26 — markup form catalog (mirrors backend FORM_KINDS).
+  const MARKUP_FORM_KINDS = {
+    code_fence: ["skip", "describe", "read"],
+    inline_code: ["skip", "identifier_only", "read"],
+    todo_update: ["skip", "count_only", "itemize", "read"],
+    plan_block: ["skip", "summarize", "read"],
+    audible_block: ["speak"],
+    system_reminder: ["skip", "log_silently"],
+    tool_output: ["skip", "describe", "read"],
+    subagent_dispatch: ["skip", "announce", "describe"],
+    file_path: ["skip", "filename", "describe", "read"],
+    long_numeral: ["skip", "describe", "read"],
+  };
+
+  TAB_RENDERERS.markup = async function(pane, s, cfg) {
+    pane.innerHTML = `
+      <p class="muted">Per-form treatment for ten Claude Code markup forms. Each row maps a structure (code fences, file paths, tool output, etc.) to how the narrator handles it. Mode presets pre-populate; user values overlay.</p>
+      <div id="markup-rows"></div>
+    `;
+    const container = pane.querySelector("#markup-rows");
+    container.textContent = "Loading…";
+
+    let data;
+    try {
+      data = await api("/markup/config");
+    } catch (e) {
+      container.textContent = "Failed to load markup config: " + e.message;
+      return;
+    }
+    container.innerHTML = "";
+
+    Object.keys(MARKUP_FORM_KINDS).forEach(form => {
+      const current = data[form] || { kind: MARKUP_FORM_KINDS[form][0] };
+      const row = makeFieldRow(form);
+      const allowed = MARKUP_FORM_KINDS[form];
+      const select = document.createElement("select");
+      allowed.forEach(k => {
+        const opt = document.createElement("option");
+        opt.value = k;
+        opt.textContent = k;
+        if (k === current.kind) opt.selected = true;
+        select.appendChild(opt);
+      });
+      // Audible block is locked to "speak" (Triggers tab owns dispatch).
+      if (form === "audible_block") {
+        select.disabled = true;
+        select.title = "Locked to 'speak' — manage in the Triggers tab";
+      }
+      select.addEventListener("change", async () => {
+        try {
+          await api("/markup/config", {
+            method: "PUT",
+            body: { [form]: { kind: select.value } },
+          });
+          toast(`${form} → ${select.value}`, "success");
+        } catch (e) {
+          toast("Save failed: " + e.message, "error");
+        }
+      });
+      row.querySelector(".field-control").appendChild(select);
+      container.appendChild(row);
+    });
+  };
+
   function collectKeypaths(obj, prefix = "") {
     const out = [];
     for (const k in obj) {

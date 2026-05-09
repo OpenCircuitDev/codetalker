@@ -71,6 +71,7 @@
           <button class="tab" data-tab="behavior">Behavior</button>
           <button class="tab" data-tab="teacher">Teacher</button>
           <button class="tab" data-tab="chat">Chat</button>
+          <button class="tab" data-tab="markup">Markup</button>
           <button class="tab" data-tab="advanced">Advanced</button>
         </nav>
 
@@ -79,6 +80,10 @@
         <div class="tab-pane" data-pane="behavior"></div>
         <div class="tab-pane" data-pane="teacher"></div>
         <div class="tab-pane" data-pane="chat"></div>
+        <div class="tab-pane" data-pane="markup">
+          <p class="muted">Per-form treatment for ten Claude Code markup forms. Each row maps a structure (code fences, file paths, tool output, etc.) to how the narrator handles it. Mode presets pre-populate; user values overlay.</p>
+          <div id="markup-rows"></div>
+        </div>
         <div class="tab-pane" data-pane="advanced"></div>
       </div>
     </main>
