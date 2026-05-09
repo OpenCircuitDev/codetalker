@@ -183,32 +183,37 @@ def _read_transcript_title(transcript: Path) -> str:
     return first_user
 
 
-def _read_transcript_latest_slug(transcript: Path) -> str:
-    """Best-effort: read the last `slug` value Claude Code wrote to this transcript.
+def _read_transcript_tail_names(transcript: Path) -> tuple[str, str]:
+    """Best-effort: read the latest `customTitle` and `slug` from a transcript.
 
-    Claude Code records its session slug on every JSONL line. The slug updates
-    when the user runs `/title` or Claude Code re-derives it. We want the
-    LATEST one, so we read a tail chunk of the file and pick the last `slug`.
-    Returns "" if not found.
+    Claude Code records the session slug on every JSONL line, and emits
+    `type: "custom-title"` events with a `customTitle` field when the user
+    runs `/title <name>`. We want the LATEST values for both, so we read a
+    tail chunk of the file and walk lines from end to start.
+
+    Returns (custom_title, slug). Either or both may be "" if not found.
+    custom_title is the user's explicit rename (highest precedence for
+    display); slug is Claude Code's auto-derived kebab-case identifier.
     """
     try:
         size = transcript.stat().st_size
     except OSError:
-        return ""
+        return "", ""
     if size == 0:
-        return ""
-    chunk_size = min(size, 8192)
+        return "", ""
+    chunk_size = min(size, 16384)
     try:
         with transcript.open("rb") as f:
             f.seek(size - chunk_size)
             tail = f.read(chunk_size)
     except OSError:
-        return ""
+        return "", ""
     try:
         text = tail.decode("utf-8", errors="ignore")
     except UnicodeDecodeError:
-        return ""
-    # Walk lines from last to first, return first non-empty slug found.
+        return "", ""
+    custom_title = ""
+    slug = ""
     for line in reversed(text.split("\n")):
         line = line.strip()
         if not line.startswith("{"):
@@ -217,10 +222,27 @@ def _read_transcript_latest_slug(transcript: Path) -> str:
             d = json.loads(line)
         except (json.JSONDecodeError, ValueError):
             continue
-        slug = d.get("slug")
-        if isinstance(slug, str) and slug.strip():
-            return slug.strip()
-    return ""
+        if not custom_title:
+            ct = d.get("customTitle")
+            if isinstance(ct, str) and ct.strip():
+                custom_title = ct.strip()
+            elif d.get("type") == "custom-title":
+                ct = d.get("title") or d.get("customTitle")
+                if isinstance(ct, str) and ct.strip():
+                    custom_title = ct.strip()
+        if not slug:
+            s = d.get("slug")
+            if isinstance(s, str) and s.strip():
+                slug = s.strip()
+        if custom_title and slug:
+            break
+    return custom_title, slug
+
+
+def _read_transcript_latest_slug(transcript: Path) -> str:
+    """Backwards-compat shim: returns just the slug from _read_transcript_tail_names."""
+    _, slug = _read_transcript_tail_names(transcript)
+    return slug
 
 
 def _slug_to_display_name(slug: str) -> str:
@@ -244,6 +266,7 @@ class CatalogEntry:
     title: str = ""
     vscode_label: str = ""  # user-set label from Claude Code's VS Code panel
     slug: str = ""           # latest slug Claude Code wrote (kebab-case)
+    custom_title: str = ""   # latest user-set title from Claude Code /title command
 
 
 class SessionCatalog:
@@ -297,8 +320,9 @@ class SessionCatalog:
                     continue
                 sid = transcript.stem
                 title = prior_titles.get(sid) or _read_transcript_title(transcript)
-                # slug is always re-read since users rename sessions during their lifetime
-                slug = _read_transcript_latest_slug(transcript)
+                # custom_title and slug are always re-read — users rename sessions
+                # during their lifetime via /title, and slug also updates.
+                custom_title, slug = _read_transcript_tail_names(transcript)
                 new_entries[sid] = CatalogEntry(
                     session_id=sid,
                     project_slug=project_slug,
@@ -307,6 +331,7 @@ class SessionCatalog:
                     title=title,
                     vscode_label=vscode_labels.get(sid, ""),
                     slug=slug,
+                    custom_title=custom_title,
                 )
         # Apply max_entries cap by keeping the most-recent-mtime entries.
         if len(new_entries) > self._max_entries:
