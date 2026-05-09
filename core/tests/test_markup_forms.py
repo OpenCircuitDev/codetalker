@@ -61,3 +61,47 @@ def test_load_treatments_invalid_user_kind_falls_back_to_preset():
     cfg = {"mode": "direct", "markup": {"code_fence": {"kind": "bogus"}}}
     out = load_treatments(cfg)
     assert out["code_fence"].kind == "describe"  # direct preset for code_fence
+
+
+# ---------------------------------------------------------------------------
+# Phase 26 Task 13 — legacy cfg key compat shim
+# ---------------------------------------------------------------------------
+
+def test_load_treatments_honors_legacy_paths_handling():
+    cfg = {"mode": "direct", "text": {"paths": {"handling": "describe"}}}
+    out = load_treatments(cfg)
+    assert out["file_path"].kind == "describe"
+
+
+def test_load_treatments_legacy_paths_handling_overridden_by_markup():
+    """When both legacy and new keys exist, the explicit markup.* wins."""
+    cfg = {
+        "mode": "direct",
+        "text": {"paths": {"handling": "describe"}},
+        "markup": {"file_path": {"kind": "read"}},
+    }
+    out = load_treatments(cfg)
+    assert out["file_path"].kind == "read"
+
+
+def test_load_treatments_honors_legacy_elements_code_block():
+    cfg = {"mode": "direct", "elements": {"code_block": "skip"}}
+    out = load_treatments(cfg)
+    assert out["code_fence"].kind == "skip"
+
+
+def test_load_treatments_legacy_elements_code_block_overridden_by_markup():
+    cfg = {
+        "mode": "direct",
+        "elements": {"code_block": "skip"},
+        "markup": {"code_fence": {"kind": "read"}},
+    }
+    out = load_treatments(cfg)
+    assert out["code_fence"].kind == "read"
+
+
+def test_load_treatments_invalid_legacy_value_ignored():
+    cfg = {"mode": "direct", "text": {"paths": {"handling": "bogus"}}}
+    out = load_treatments(cfg)
+    # Falls back to the direct preset's file_path → filename
+    assert out["file_path"].kind == "filename"

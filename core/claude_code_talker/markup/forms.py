@@ -106,4 +106,23 @@ def load_treatments(cfg: dict[str, Any]) -> dict[str, Treatment]:
         except ValueError:
             continue  # silently fall back to preset
         base[form] = candidate
+
+    # Phase 26 Task 13 — legacy cfg compat shim. Only consulted when the
+    # explicit `markup.<form>` key is *not* present in the user cfg.
+    text_cfg = cfg.get("text") or {}
+    elements_cfg = cfg.get("elements") or {}
+
+    legacy_path = (text_cfg.get("paths") or {}).get("handling")
+    if legacy_path and "file_path" not in user:
+        if legacy_path in FORM_KINDS["file_path"]:
+            base["file_path"] = Treatment(legacy_path)
+
+    legacy_code = elements_cfg.get("code_block")
+    if legacy_code and "code_fence" not in user:
+        # Map legacy bool/str values onto FORM_KINDS["code_fence"]
+        if isinstance(legacy_code, bool):
+            legacy_code = "read" if legacy_code else "skip"
+        if legacy_code in FORM_KINDS["code_fence"]:
+            base["code_fence"] = Treatment(legacy_code)
+
     return base
