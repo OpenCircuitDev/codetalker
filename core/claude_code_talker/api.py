@@ -1729,6 +1729,79 @@ def build_routes(state) -> list[Route]:
         )
         return Response(content=content, media_type="text/plain")
 
+    # ------------------------------------------------------------------
+    # Phase 26 — markup config endpoints
+    # ------------------------------------------------------------------
+
+    async def markup_config_get(request: Request) -> JSONResponse:
+        """GET /api/markup/config — current per-form treatments.
+
+        Returns the resolved treatment table for the active mode (preset
+        overlaid with user values), keyed by form name with ``{kind, params}``.
+        """
+        from claude_code_talker.markup.forms import load_treatments
+        treatments = load_treatments(state.cfg)
+        body = {
+            form: {"kind": t.kind, "params": dict(t.params)}
+            for form, t in treatments.items()
+        }
+        return JSONResponse(body)
+
+    async def markup_config_put(request: Request) -> JSONResponse:
+        """PUT /api/markup/config — overlay per-form treatment overrides.
+
+        Body shape: ``{<form>: {kind: <kind>, params: {...}}, ...}``.
+        Validates each (form, kind) pair before persisting.
+        """
+        from claude_code_talker.markup.forms import (
+            FORM_KINDS,
+            Treatment,
+            validate_treatment,
+        )
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        if not isinstance(body, dict):
+            return _bad_request("expected a JSON object")
+        # Validate every form/kind before any persistence happens
+        for form, node in body.items():
+            if form not in FORM_KINDS:
+                return _bad_request(f"unknown form: {form}")
+            if not isinstance(node, dict):
+                return _bad_request(f"{form}: expected object")
+            kind = node.get("kind")
+            if kind is None:
+                continue
+            params = node.get("params") or {}
+            if not isinstance(params, dict):
+                return _bad_request(f"{form}.params must be an object")
+            try:
+                validate_treatment(form, Treatment(kind=str(kind), params=dict(params)))
+            except ValueError as e:
+                return _bad_request(str(e))
+        # Persist to overlay so it survives restart
+        overlay = _read_overlay()
+        markup_block = overlay.setdefault("markup", {})
+        for form, node in body.items():
+            entry = dict(markup_block.get(form) or {})
+            if "kind" in node:
+                entry["kind"] = node["kind"]
+            if "params" in node:
+                entry["params"] = dict(node.get("params") or {})
+            markup_block[form] = entry
+        _write_overlay(overlay)
+        # Mirror into in-memory cfg so subsequent transforms see the change
+        cfg_markup = state.cfg.setdefault("markup", {})
+        for form, node in body.items():
+            entry = dict(cfg_markup.get(form) or {})
+            if "kind" in node:
+                entry["kind"] = node["kind"]
+            if "params" in node:
+                entry["params"] = dict(node.get("params") or {})
+            cfg_markup[form] = entry
+        return JSONResponse({"ok": True})
+
     async def narration_stream_route(request: Request) -> Response:
         """GET /api/narration-stream — Server-Sent Events feed of narrations."""
         from starlette.responses import StreamingResponse
@@ -1829,6 +1902,9 @@ def build_routes(state) -> list[Route]:
         Route("/api/triggers/skill-install", triggers_skill_install, methods=["POST"]),
         Route("/api/triggers/skill-preview", triggers_skill_preview, methods=["GET"]),
         Route("/api/triggers/skill-body", triggers_skill_body, methods=["GET"]),
+        # Phase 26 — markup config
+        Route("/api/markup/config", markup_config_get, methods=["GET"]),
+        Route("/api/markup/config", markup_config_put, methods=["PUT"]),
         Route("/api/narration-stream", narration_stream_route, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
