@@ -17,10 +17,15 @@ const fixture: Session = {
 };
 
 describe("SessionCard", () => {
-  it("renders project, profile, mode, and mute state", () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ enabled: true, active_mode: "brief" }),
+  it("renders project, profile, and display name with controls", () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      if (url.endsWith("/overlay")) {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ enabled: true, active_mode: "brief" }),
+      });
     }));
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
