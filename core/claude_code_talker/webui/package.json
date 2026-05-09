@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.9",
+    "framer-motion": "^12.38.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-resizable-panels": "^2.1.0"

@@ -1,0 +1,23 @@
+/* Phase 27 — surface palette + accent tokens (Tailwind v4 @theme block).
+ * These names become utilities (bg-surface-1, text-text-2, etc.) automatically. */
+@theme {
+  --color-surface-0: #0a0b10;
+  --color-surface-1: #11141c;
+  --color-surface-2: #171b26;
+  --color-surface-3: #1f2533;
+  --color-text-1: #e6e8ee;
+  --color-text-2: #aab1c0;
+  --color-text-3: #6e7585;
+  --color-accent-live: #34d399;
+  --color-accent-muted: #fb7185;
+  --color-accent-activity: #a78bfa;
+  --color-accent-brand: #22d3ee;
+  --color-accent-warn: #fbbf24;
+  --shadow-soft-1: 0 4px 12px -4px rgba(0, 0, 0, 0.3);
+  --shadow-soft-2: 0 8px 28px -8px rgba(0, 0, 0, 0.4);
+}
+
+body {
+  background: var(--color-surface-0);
+  color: var(--color-text-1);
+}
