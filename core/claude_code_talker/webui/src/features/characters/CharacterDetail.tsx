@@ -4,7 +4,12 @@ import { PersonaBadge } from "./PersonaBadge";
 import { attachCharacter } from "./characters.api";
 import { MeshGenerator } from "./MeshGenerator";
 
-interface SessionLite { session_id: string; title?: string }
+interface SessionLite {
+  session_id: string;
+  display_name?: string;
+  /** @deprecated CCT-28 — falling through to title showed raw user-message text. Use display_name. */
+  title?: string;
+}
 
 async function fetchSessions(): Promise<SessionLite[]> {
   const r = await fetch("/api/sessions");
@@ -52,11 +57,18 @@ export function CharacterDetail({ character }: { character: Character | null }) 
           }}
         >
           <option value="">- pick session -</option>
-          {sessions.map((s) => (
-            <option key={s.session_id} value={s.session_id}>
-              {s.title || s.session_id.slice(0, 8)}
-            </option>
-          ))}
+          {sessions.map((s) => {
+            // CCT-28 fix (extends commit f77078f to all session-label sites):
+            // trust the backend's display_name. Falling through to s.title
+            // here had been showing raw first-user-message text instead of
+            // the slug/customTitle.
+            const label = (s.display_name || s.session_id.slice(0, 8)).slice(0, 60);
+            return (
+              <option key={s.session_id} value={s.session_id}>
+                {label}
+              </option>
+            );
+          })}
         </select>
         {attach.isError && (
           <p className="text-rose-400 text-xs">{(attach.error as Error)?.message}</p>
