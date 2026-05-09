@@ -698,6 +698,10 @@ def build_routes(state) -> list[Route]:
             ("OPENAI_API_KEY", "openai_api_key"),
             ("OPENROUTER_API_KEY", "openrouter_api_key"),
             ("ELEVENLABS_API_KEY", "elevenlabs_api_key"),
+            # Phase 25b — 3D mesh provider API keys.
+            ("HYPER3D_API_KEY", "hyper3d_api_key"),
+            ("MESHY_API_KEY", "meshy_api_key"),
+            ("TRIPO3D_API_KEY", "tripo3d_api_key"),
         ]:
             env_val = _os.environ.get(env_name)
             if env_val:
