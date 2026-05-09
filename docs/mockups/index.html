@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>codetalker — AR Companion Mockups</title>
+<meta name="description" content="Codetalker AR companion app + XREAL Air 2 Pro display mockups. Forge-style review surface for Beam Pro side button, double-click menu, rocker session switcher, screen mirror, and audio-streaming HUD." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+// CCT-31 mockup webpage — Blueprint Forge styling adapted (copied, not linked)
+// from BF_Plugins / Blueprint-Forge-Website. Tailwind config inlined so this
+// file works standalone offline.
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        'neon-blue': '#00D4FF', 'neon-purple': '#A855F7', 'neon-pink': '#EC4899',
+        'neon-green': '#10B981', 'neon-orange': '#F97316', 'neon-cyan': '#06B6D4',
+        'neon-amber': '#FBBF24', 'neon-red': '#EF4444',
+        'forge-dark': '#0A0A0F', 'forge-surface': '#12121A',
+        'forge-border': '#1E1E2E', 'forge-glow': '#1A1A2E',
+        // codetalker-specific persona colors
+        'persona-methodical': '#334155', 'persona-warm': '#B45309',
+        'persona-technical': '#0E7490', 'persona-plain': '#52525B',
+        'persona-sarcastic': '#A21CAF', 'persona-energetic': '#E11D48',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+        cyber: ['Orbitron', 'Inter', 'system-ui', 'sans-serif'],
+      },
+      letterSpacing: { 'deco': '0.15em', 'deco-wide': '0.25em' },
+      animation: {
+        'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
+        'shimmer': 'shimmer 2s linear infinite',
+        'float': 'float 6s ease-in-out infinite',
+        'breathe': 'breathe 1.6s ease-in-out infinite',
+      },
+      keyframes: {
+        'glow-pulse': { '0%,100%': { opacity: '0.6' }, '50%': { opacity: '1' } },
+        'shimmer': { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+        'float': { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
+        'breathe': { '0%,100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.08)' } },
+      },
+    },
+  },
+};
+</script>
+
+<style>
+/* ─── Blueprint Forge style adapter (copied from BF site, condensed) ─── */
+::selection { background-color: rgba(0, 212, 255, 0.25); color: #fff; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0A0A0F; }
+::-webkit-scrollbar-thumb { background: #1E1E2E; border-radius: 4px; border: 2px solid #0A0A0F; }
+::-webkit-scrollbar-thumb:hover { background: #00D4FF; }
+* { scrollbar-width: thin; scrollbar-color: #1E1E2E #0A0A0F; }
+
+.neon-logo-text {
+  background: linear-gradient(90deg, #00D4FF 0%, #A855F7 33%, #F97316 66%, #00D4FF 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: logo-grad 6s ease-in-out infinite;
+}
+@keyframes logo-grad { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+.neon-text-blue { text-shadow: 0 0 7px rgba(0,212,255,0.5), 0 0 20px rgba(0,212,255,0.2); }
+.neon-text-purple { text-shadow: 0 0 7px rgba(168,85,247,0.5), 0 0 20px rgba(168,85,247,0.2); }
+.neon-text-cyan { text-shadow: 0 0 7px rgba(6,182,212,0.5), 0 0 20px rgba(6,182,212,0.2); }
+.neon-text-amber { text-shadow: 0 0 7px rgba(251,191,36,0.5), 0 0 20px rgba(251,191,36,0.2); }
+.neon-text-green { text-shadow: 0 0 7px rgba(16,185,129,0.5), 0 0 20px rgba(16,185,129,0.2); }
+
+.neon-card {
+  background: #12121A; border: 1px solid #1E1E2E; border-radius: 0.75rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; overflow: hidden;
+}
+.neon-card:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0,212,255,0.1), 0 0 40px rgba(0,212,255,0.05);
+  transform: translateY(-2px);
+}
+.neon-card-purple:hover { border-color: rgba(168,85,247,0.3); box-shadow: 0 0 20px rgba(168,85,247,0.1); }
+.neon-card-amber:hover { border-color: rgba(251,191,36,0.3); box-shadow: 0 0 20px rgba(251,191,36,0.1); }
+.neon-card-green:hover { border-color: rgba(16,185,129,0.3); box-shadow: 0 0 20px rgba(16,185,129,0.1); }
+.neon-card-pink:hover { border-color: rgba(236,72,153,0.3); box-shadow: 0 0 20px rgba(236,72,153,0.1); }
+
+.glass-panel {
+  background: rgba(18, 18, 26, 0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+
+.neon-line {
+  background: linear-gradient(90deg, #00D4FF, #A855F7, #F97316, #00D4FF);
+  background-size: 200% 100%;
+  animation: shimmer-line 3s linear infinite; opacity: 0.7;
+}
+@keyframes shimmer-line {
+  0% { background-position: -200% 0; } 100% { background-position: 200% 0; }
+}
+
+.cyber-grid::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+/* ─── Phone mockup chassis ─── */
+.phone-frame {
+  width: 280px; height: 580px;
+  background: linear-gradient(160deg, #1a1a25, #0e0e15);
+  border: 2px solid #2a2a3a;
+  border-radius: 32px;
+  padding: 14px 8px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+}
+.phone-frame::before {
+  content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  width: 86px; height: 22px; background: #000; border-radius: 11px;
+  z-index: 5;
+}
+.phone-screen {
+  width: 100%; height: 100%; border-radius: 22px;
+  background: #0A0A0F; overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
+}
+.phone-status-bar {
+  height: 30px; padding: 0 18px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; color: #aaa; flex-shrink: 0;
+}
+
+/* ─── Glasses display mockup chassis (rectangular FOV) ─── */
+.glasses-frame {
+  width: 100%; max-width: 720px; aspect-ratio: 16 / 9;
+  background: radial-gradient(ellipse at center, #050810 0%, #000 80%);
+  border: 1px solid #1a2030; border-radius: 18px;
+  padding: 6px; position: relative; overflow: hidden;
+  box-shadow: inset 0 0 60px rgba(0,212,255,0.05);
+}
+.glasses-screen {
+  width: 100%; height: 100%; border-radius: 12px; position: relative;
+  background-image:
+    radial-gradient(ellipse at top, rgba(0,212,255,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(168,85,247,0.03) 0%, transparent 50%);
+  overflow: hidden;
+}
+.glasses-vignette::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+}
+
+/* ─── Persona badges ─── */
+.persona-pill {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 600; text-transform: lowercase;
+  letter-spacing: 0.05em;
+}
+.persona-methodical { background: #334155; color: #E2E8F0; }
+.persona-warm { background: #B45309; color: #FEF3C7; }
+.persona-technical { background: #0E7490; color: #CFFAFE; }
+.persona-plain { background: #52525B; color: #E4E4E7; }
+.persona-sarcastic { background: #A21CAF; color: #FAE8FF; }
+.persona-energetic { background: #E11D48; color: #FEE2E2; }
+
+/* ─── Live dot ─── */
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #34D399;
+  box-shadow: 0 0 8px rgba(52,211,153,0.6);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ─── Beam Pro controller mockup ─── */
+.beam-controller {
+  width: 220px; height: 100px;
+  background: linear-gradient(160deg, #1a1a25, #0a0a0f);
+  border: 1px solid #2a2a3a; border-radius: 14px;
+  padding: 12px; position: relative;
+}
+.beam-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #1E1E2E; color: #aab1c0;
+  border: 1px solid #2a2a3a; border-radius: 6px;
+  padding: 4px 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+  margin: 2px;
+}
+</style>
+</head>
+
+<body class="bg-forge-dark text-gray-300 font-sans antialiased">
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- NAVIGATION                                              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<nav class="fixed top-0 w-full z-50 glass-panel border-b border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <a href="#top" class="flex items-center gap-2">
+        <span class="text-xl font-cyber font-bold tracking-wider neon-logo-text">CODETALKER</span>
+        <span class="text-xs font-cyber tracking-widest text-gray-500 hidden sm:inline">/ AR COMPANION</span>
+      </a>
+      <div class="hidden md:flex items-center gap-5 text-sm">
+        <a href="#android" class="text-gray-400 hover:text-neon-blue transition">Android</a>
+        <a href="#xreal" class="text-gray-400 hover:text-neon-purple transition">XREAL HUD</a>
+        <a href="#controls" class="text-gray-400 hover:text-neon-amber transition">Controls</a>
+        <a href="#flow" class="text-gray-400 hover:text-neon-green transition">Flow</a>
+        <a href="#settings" class="text-gray-400 hover:text-neon-cyan transition">Settings</a>
+        <a href="#status" class="text-gray-400 hover:text-neon-pink transition">Status</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- HERO                                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="top" class="relative pt-32 pb-20 cyber-grid overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+    <div class="text-center max-w-3xl mx-auto">
+      <div class="inline-block mb-4">
+        <span class="text-xs font-cyber tracking-widest text-neon-cyan uppercase">CCT-31 · Mockup Review</span>
+      </div>
+      <h1 class="text-5xl sm:text-6xl font-cyber font-bold tracking-wider mb-6">
+        <span class="neon-logo-text">codetalker AR</span>
+      </h1>
+      <p class="text-lg text-gray-400 mb-8 leading-relaxed">
+        XREAL Air 2 Pro + Beam Pro companion. Voice-driven Claude Code control through AR glasses.
+        <span class="text-neon-blue">Click to speak.</span>
+        <span class="text-neon-purple">Double-click to switch sessions.</span>
+        <span class="text-neon-amber">Rocker for menu navigation.</span>
+      </p>
+      <div class="h-px w-32 mx-auto neon-line"></div>
+      <div class="mt-6 text-xs text-gray-500 font-mono">
+        Phases 1–9 daemon shipped · Phases 5–7+polish Android shipped · MJPEG parser ready · Phase 8 awaiting Nebula SDK
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1: ANDROID APP SCREENS                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="android" class="py-16 border-t border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-blue uppercase neon-text-blue">Section 1</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">Android App — Pre-glasses surfaces</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">Compose-rendered screens for setup + before-glasses configuration. Phase 27 surface palette ports verbatim so HUD overlays look continuous with the desktop dashboard.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+      <!-- Screen: Pairing Choose -->
+      <div class="neon-card neon-card-purple p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar">
+              <span class="font-mono">9:41</span>
+              <span class="font-mono">●●● 5G ⌁</span>
+            </div>
+            <div class="flex-1 flex flex-col justify-center px-6 gap-4">
+              <div class="text-lg font-bold text-gray-100" style="font-size: 16px;">Pair with codetalker daemon</div>
+              <div class="text-xs text-gray-400" style="line-height: 1.4;">Open the dashboard's Preferences → AR Companion panel and use the QR code or copy the daemon URL + token.</div>
+              <button class="bg-neon-cyan/90 text-forge-dark font-semibold py-2.5 rounded text-sm">📷 Scan QR code</button>
+              <button class="border border-neon-purple/50 text-neon-purple py-2.5 rounded text-sm">Enter manually</button>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-purple uppercase">Choose Path</div>
+          <div class="text-xs text-gray-500 mt-1">First-launch state · ChooseModeScreen.kt</div>
+        </div>
+      </div>
+
+      <!-- Screen: QR Scan -->
+      <div class="neon-card neon-card-pink p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
+            <div class="flex-1 relative">
+              <!-- Camera preview placeholder -->
+              <div class="absolute inset-4 rounded-lg border-2 border-dashed border-neon-cyan/40 bg-gradient-to-br from-gray-900 to-black flex items-center justify-center">
+                <!-- QR target reticle -->
+                <div class="w-32 h-32 relative">
+                  <div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-neon-cyan"></div>
+                  <div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-neon-cyan"></div>
+                  <div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-neon-cyan"></div>
+                  <div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-neon-cyan"></div>
+                  <div class="absolute inset-2 grid grid-cols-7 grid-rows-7 gap-px opacity-60">
+                    <!-- Faux QR pattern -->
+                    <div class="bg-white"></div><div class="bg-white"></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div></div><div class="bg-white"></div>
+                    <div class="bg-white"></div><div></div><div class="bg-white"></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div class="bg-white"></div>
+                    <div></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div class="bg-white"></div><div></div><div></div>
+                    <div class="bg-white"></div><div></div><div class="bg-white"></div><div></div><div></div><div class="bg-white"></div><div class="bg-white"></div>
+                    <div></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div class="bg-white"></div><div></div><div class="bg-white"></div>
+                    <div class="bg-white"></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div></div>
+                    <div></div><div class="bg-white"></div><div class="bg-white"></div><div></div><div class="bg-white"></div><div class="bg-white"></div><div class="bg-white"></div>
+                  </div>
+                </div>
+              </div>
+              <button class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-forge-surface border border-forge-border text-gray-300 text-xs px-4 py-2 rounded">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-pink uppercase">QR Scanner</div>
+          <div class="text-xs text-gray-500 mt-1">CameraX + ZXing · QrScannerScreen.kt</div>
+        </div>
+      </div>
+
+      <!-- Screen: Manual Entry -->
+      <div class="neon-card neon-card-green p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
+            <div class="flex-1 flex flex-col justify-center px-6 gap-3">
+              <div class="text-lg font-bold text-gray-100" style="font-size: 14px;">Manual pairing</div>
+              <div class="text-[10px] text-gray-400">Paste the daemon URL + token from the dashboard.</div>
+              <div>
+                <div class="text-[9px] text-gray-500 mb-1 uppercase tracking-wide">Daemon URL</div>
+                <div class="bg-forge-surface border border-forge-border rounded px-2 py-2 font-mono text-[10px] text-gray-300">http://192.168.1.42:17832</div>
+              </div>
+              <div>
+                <div class="text-[9px] text-gray-500 mb-1 uppercase tracking-wide">Pairing token</div>
+                <div class="bg-forge-surface border border-forge-border rounded px-2 py-2 font-mono text-[10px] text-gray-400">_5simxU8jOwHyVTxIqllG…</div>
+              </div>
+              <div class="flex gap-2 mt-2">
+                <button class="flex-1 bg-neon-green/90 text-forge-dark font-semibold py-2 rounded text-xs">Save</button>
+                <button class="border border-neon-cyan/40 text-neon-cyan py-2 px-3 rounded text-[10px]">QR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-green uppercase">Manual Entry</div>
+          <div class="text-xs text-gray-500 mt-1">Fallback for permission-denied or remote use</div>
+        </div>
+      </div>
+
+      <!-- Screen: Session List (with characters) -->
+      <div class="neon-card p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
+            <div class="flex-1 flex flex-col px-4 pt-4 gap-3 overflow-hidden">
+              <div class="flex items-center justify-between">
+                <div class="text-base font-bold text-gray-100">Sessions</div>
+                <button class="text-[10px] border border-forge-border rounded px-2 py-0.5 text-gray-400">Unpair</button>
+              </div>
+
+              <!-- Card 1: live, character attached -->
+              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <div class="live-dot"></div>
+                  <div class="text-xs font-semibold text-gray-100">fix the auth bug</div>
+                </div>
+                <div class="text-[9px] text-gray-500 font-mono">307910d9</div>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] text-white" style="background: linear-gradient(135deg, #B45309, #7C2D12);">A</div>
+                  <div class="flex flex-col">
+                    <div class="text-[11px] text-gray-200 font-semibold">Aria</div>
+                    <span class="persona-pill persona-warm">warm</span>
+                  </div>
+                </div>
+                <button class="bg-neon-cyan text-forge-dark text-[10px] font-semibold py-1 rounded">Set active</button>
+              </div>
+
+              <!-- Card 2: offline, character attached -->
+              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-1.5 opacity-80">
+                <div class="text-xs font-semibold text-gray-300">OCR-Web</div>
+                <div class="text-[9px] text-gray-500 font-mono">2eb5c985</div>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] text-white" style="background: linear-gradient(135deg, #334155, #0F172A);">D</div>
+                  <div class="flex flex-col">
+                    <div class="text-[11px] text-gray-200 font-semibold">Dr. Crow</div>
+                    <span class="persona-pill persona-methodical">methodical</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 3: offline, no character -->
+              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-1 opacity-70">
+                <div class="text-xs font-semibold text-gray-300">DigitalWish</div>
+                <div class="text-[9px] text-gray-500 font-mono">8fbc3d10</div>
+                <div class="text-[10px] text-gray-500 italic">no character</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-blue uppercase">Session List</div>
+          <div class="text-xs text-gray-500 mt-1">Character chip carries voice + persona</div>
+        </div>
+      </div>
+
+      <!-- Screen: Active session ready -->
+      <div class="neon-card neon-card-amber p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
+            <div class="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+              <div class="w-24 h-24 rounded-full flex items-center justify-center font-bold text-3xl text-white animate-breathe" style="background: linear-gradient(135deg, #B45309, #7C2D12); box-shadow: 0 0 30px rgba(180,83,9,0.4);">A</div>
+              <div>
+                <div class="text-lg font-bold text-gray-100">Aria</div>
+                <div class="text-[10px] text-gray-400 uppercase tracking-wider">speaking</div>
+              </div>
+              <div class="flex flex-col gap-1 text-[10px] text-gray-500">
+                <div>session: fix the auth bug</div>
+                <div class="font-mono">char-aria voice · live narration</div>
+              </div>
+              <div class="text-[9px] text-gray-600 mt-4 font-mono">put on glasses to switch to AR HUD</div>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-amber uppercase">Active Speaker</div>
+          <div class="text-xs text-gray-500 mt-1">Compose surface when listening pre-AR</div>
+        </div>
+      </div>
+
+      <!-- Screen: Diagnostics -->
+      <div class="neon-card neon-card-pink p-6 flex flex-col items-center">
+        <div class="phone-frame mb-4">
+          <div class="phone-screen">
+            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
+            <div class="flex-1 flex flex-col px-4 pt-4 gap-2.5 overflow-hidden">
+              <div class="text-sm font-bold text-gray-100">Diagnostics</div>
+              <div class="flex flex-col gap-2">
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Daemon</span>
+                  <span class="text-neon-green font-mono">●&nbsp;reachable</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Pairing token</span>
+                  <span class="text-neon-cyan font-mono">valid · 28d</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Audio stream</span>
+                  <span class="text-neon-green font-mono">subscribed · 142ms</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Buddy Claude</span>
+                  <span class="text-neon-amber font-mono">idle</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Screen capture</span>
+                  <span class="text-gray-500 font-mono">unavailable (503)</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Glasses</span>
+                  <span class="text-neon-purple font-mono">XREAL Air 2 Pro</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Latency RTT</span>
+                  <span class="text-neon-cyan font-mono">23ms LAN</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-gray-400">Battery (Beam)</span>
+                  <span class="text-neon-amber font-mono">62%</span>
+                </div>
+              </div>
+              <div class="mt-auto mb-4 text-[9px] text-gray-600 font-mono text-center">⚙ tap and hold for raw logs</div>
+            </div>
+          </div>
+        </div>
+        <div class="text-center">
+          <div class="text-sm font-cyber tracking-wider text-neon-pink uppercase">Diagnostics</div>
+          <div class="text-xs text-gray-500 mt-1">Long-press anywhere → DiagnosticsScreen.kt</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2: XREAL AR HUD MODES                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="xreal" class="py-16 border-t border-forge-border bg-forge-surface/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-purple uppercase neon-text-purple">Section 2</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">XREAL Air 2 Pro — HUD Modes</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">What the listener sees through the glasses. Each frame represents the user's visual field at a moment in the controller state machine. AR overlays render over the real world; outlined regions show what's pinned where.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+      <!-- HUD: Idle -->
+      <div class="neon-card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-cyan uppercase">Mode 1 · Idle (passive listen)</div>
+          <span class="text-[10px] font-mono text-gray-500">default state</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <!-- Faint background hint -->
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">
+              ─ real world ─
+            </div>
+            <!-- HUD: head-pinned chip at bottom-center -->
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 glass-panel border border-forge-border rounded-full px-4 py-2 flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] text-white" style="background: linear-gradient(135deg, #B45309, #7C2D12);">A</div>
+              <span class="text-[11px] text-gray-200 font-semibold">Aria</span>
+              <span class="persona-pill persona-warm">warm</span>
+              <div class="w-px h-4 bg-forge-border"></div>
+              <div class="live-dot"></div>
+              <span class="text-[10px] text-gray-400 font-mono">listening</span>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">Always-on HUD chip. Shows attached character + speaking indicator. Stays head-pinned at ~6° below gaze so it doesn't block your work.</p>
+      </div>
+
+      <!-- HUD: Listening (mic on) -->
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-green uppercase">Mode 2 · Listening (mic open)</div>
+          <span class="text-[10px] font-mono text-gray-500">single-click side button</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">─ real world ─</div>
+
+            <!-- Pulsing mic ring at top-center -->
+            <div class="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+              <div class="w-16 h-16 rounded-full border-2 border-neon-green flex items-center justify-center animate-breathe" style="box-shadow: 0 0 20px rgba(16,185,129,0.4); background: rgba(16,185,129,0.1);">
+                <span class="text-2xl">🎙</span>
+              </div>
+              <div class="text-[11px] font-mono text-neon-green tracking-wider">SPEAK NOW</div>
+            </div>
+
+            <!-- Live transcript ribbon (partial result rolling) -->
+            <div class="absolute top-32 left-6 right-6 glass-panel border border-neon-green/30 rounded-lg p-3">
+              <div class="text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-1">partial transcript</div>
+              <div class="text-sm text-gray-100 font-medium">"can you summarize what failed in the last test run...</div>
+            </div>
+
+            <!-- Bottom HUD chip -->
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 glass-panel border border-neon-green/40 rounded-full px-4 py-2 flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-full" style="background: linear-gradient(135deg, #B45309, #7C2D12);"></div>
+              <span class="text-[11px] text-gray-200">Aria</span>
+              <span class="text-[10px] text-neon-green font-mono">recording</span>
+              <span class="text-[10px] text-gray-500 font-mono">2.3s</span>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">Click again to send, or 1.5s of silence auto-dispatches. Partial transcripts stream from Android SpeechRecognizer; final goes to Buddy Claude.</p>
+      </div>
+
+      <!-- HUD: Buddy responding -->
+      <div class="neon-card neon-card-purple p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-purple uppercase">Mode 3 · Buddy responding</div>
+          <span class="text-[10px] font-mono text-gray-500">audio playing through speakers</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">─ real world ─</div>
+
+            <!-- Avatar in upper-right -->
+            <div class="absolute top-6 right-6 flex flex-col items-center gap-2">
+              <div class="w-20 h-20 rounded-full flex items-center justify-center font-bold text-2xl text-white animate-breathe" style="background: linear-gradient(135deg, #B45309, #7C2D12); box-shadow: 0 0 25px rgba(180,83,9,0.4);">A</div>
+              <span class="text-[10px] text-neon-amber font-mono">SPEAKING</span>
+            </div>
+
+            <!-- Caption at bottom -->
+            <div class="absolute bottom-4 left-6 right-6 glass-panel border border-neon-purple/30 rounded-lg p-4">
+              <div class="text-[9px] text-gray-500 font-mono uppercase tracking-widest mb-1.5">aria · captions</div>
+              <div class="text-sm text-gray-100 leading-snug">Three tests failed — all in the auth module. Looks like the JWT signing key changed between builds. Want me to check git blame on the secrets file?</div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">Audio plays through phone/glasses speakers. Captions track word boundaries from buddy's SSE stream. Voice = whatever character is attached on desktop (cloned voices included).</p>
+      </div>
+
+      <!-- HUD: Menu mode -->
+      <div class="neon-card neon-card-amber p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-amber uppercase">Mode 4 · Session menu</div>
+          <span class="text-[10px] font-mono text-gray-500">double-click side button</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">─ real world ─</div>
+
+            <!-- World-pinned floating menu -->
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="glass-panel border border-neon-amber/40 rounded-xl p-4 w-72 shadow-2xl" style="box-shadow: 0 0 40px rgba(251,191,36,0.15);">
+                <div class="text-[10px] text-neon-amber font-cyber tracking-widest uppercase mb-3 text-center">↑ rocker · click to confirm</div>
+
+                <!-- Item: selected -->
+                <div class="bg-neon-amber/10 border border-neon-amber/40 rounded p-2.5 flex items-center gap-2 mb-1.5">
+                  <div class="live-dot"></div>
+                  <div class="flex-1">
+                    <div class="text-xs font-bold text-gray-100">fix the auth bug</div>
+                    <div class="text-[9px] text-gray-500 font-mono">aria · warm</div>
+                  </div>
+                  <span class="text-[9px] text-neon-amber font-mono">▶</span>
+                </div>
+
+                <!-- Item -->
+                <div class="rounded p-2.5 flex items-center gap-2 mb-1.5 opacity-70">
+                  <div class="w-2 h-2 rounded-full bg-gray-500"></div>
+                  <div class="flex-1">
+                    <div class="text-xs text-gray-300">OCR-Web</div>
+                    <div class="text-[9px] text-gray-500 font-mono">dr-crow · methodical</div>
+                  </div>
+                </div>
+
+                <!-- Item -->
+                <div class="rounded p-2.5 flex items-center gap-2 opacity-70">
+                  <div class="w-2 h-2 rounded-full bg-gray-500"></div>
+                  <div class="flex-1">
+                    <div class="text-xs text-gray-300">DigitalWish</div>
+                    <div class="text-[9px] text-gray-500 italic">no character</div>
+                  </div>
+                </div>
+
+                <div class="border-t border-forge-border mt-3 pt-2 flex justify-between text-[9px] font-mono text-gray-500">
+                  <span>long-press to exit</span>
+                  <span>3 sessions</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">World-pinned at arm's length (~50cm). Volume rocker scrolls; click confirms; long-press exits. Selecting routes audio to that session and starts buddy if not running.</p>
+      </div>
+
+      <!-- HUD: Screen Mirror -->
+      <div class="neon-card neon-card-pink p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-pink uppercase">Mode 5 · Screen mirror</div>
+          <span class="text-[10px] font-mono text-gray-500">menu → "Show screen"</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">─ real world ─</div>
+
+            <!-- Screen mirror plane at center -->
+            <div class="absolute inset-x-12 inset-y-8 bg-gradient-to-br from-gray-900 via-gray-950 to-black rounded border border-neon-pink/40 overflow-hidden" style="box-shadow: 0 0 30px rgba(236,72,153,0.15);">
+              <!-- Faux Claude Code window -->
+              <div class="bg-forge-surface px-3 py-1 border-b border-forge-border flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                <span class="text-[9px] font-mono text-gray-500 ml-2">claude code · fix the auth bug</span>
+              </div>
+              <div class="p-3 font-mono text-[8px] text-gray-300 leading-tight">
+                <div class="text-neon-cyan">$ pytest core/tests/test_auth.py</div>
+                <div class="text-gray-500">collected 14 items</div>
+                <div class="text-red-400">FAILED test_auth.py::test_jwt_signing_key</div>
+                <div class="text-red-400">FAILED test_auth.py::test_token_refresh</div>
+                <div class="text-red-400">FAILED test_auth.py::test_oauth_callback</div>
+                <div class="text-gray-400 mt-2">───────── 3 failed in 2.4s ─────────</div>
+                <div class="text-neon-amber mt-2">Claude: Found the JWT key issue.</div>
+                <div class="text-neon-amber">Reading core/auth/jwt.py:42...</div>
+              </div>
+            </div>
+
+            <!-- Bottom HUD chip persists -->
+            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 glass-panel border border-forge-border rounded-full px-3 py-1 flex items-center gap-2">
+              <div class="w-5 h-5 rounded-full" style="background: linear-gradient(135deg, #B45309, #7C2D12);"></div>
+              <span class="text-[10px] text-gray-300">Aria</span>
+              <div class="live-dot"></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">MJPEG frames from /api/companion/screen-frame, decoded by MjpegStream → rendered on a world-pinned plane. 5 fps idle, 15 fps when content changes. Auto-fades after 30s.</p>
+      </div>
+
+      <!-- HUD: Activity / Notification -->
+      <div class="neon-card neon-card-pink p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm font-cyber tracking-wider text-neon-cyan uppercase">Mode 6 · Activity flash</div>
+          <span class="text-[10px] font-mono text-gray-500">tool-use event from desktop</span>
+        </div>
+        <div class="glasses-frame mb-3">
+          <div class="glasses-screen glasses-vignette">
+            <div class="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-mono opacity-30">─ real world ─</div>
+
+            <!-- Toast at top -->
+            <div class="absolute top-6 left-1/2 -translate-x-1/2 glass-panel border border-neon-cyan/40 rounded-lg px-4 py-2.5 flex items-center gap-2.5" style="box-shadow: 0 0 20px rgba(6,182,212,0.2);">
+              <span class="text-base">🔧</span>
+              <div>
+                <div class="text-[11px] text-gray-100 font-semibold">Bash · pytest -k auth</div>
+                <div class="text-[9px] text-gray-400 font-mono">3 failed · 11 passed</div>
+              </div>
+            </div>
+
+            <!-- Standard HUD chip below -->
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 glass-panel border border-forge-border rounded-full px-4 py-2 flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-full" style="background: linear-gradient(135deg, #B45309, #7C2D12);"></div>
+              <span class="text-[11px] text-gray-200">Aria</span>
+              <div class="live-dot"></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 leading-relaxed">Tool-use events arrive via the audio stream's metadata channel. Toast fades in for 4s, fades out. Color-coded by tool type (cyan = bash, purple = Task subagent, pink = error).</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3: CONTROLS                                     -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="controls" class="py-16 border-t border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-amber uppercase neon-text-amber">Section 3</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">Beam Pro Controls</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">Side button + volume rocker. Same hardware drives every flow; the state machine in <code class="text-neon-cyan font-mono">ButtonRouter.kt</code> resolves which intent each gesture maps to.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+
+      <!-- Beam Pro mockup -->
+      <div class="neon-card p-6">
+        <div class="text-xs font-cyber tracking-widest text-gray-500 uppercase mb-4">Hardware mapping</div>
+        <div class="flex flex-col items-center gap-6">
+          <div class="beam-controller">
+            <div class="text-[9px] font-mono text-gray-500 mb-2 text-center">XREAL BEAM PRO</div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <div class="flex flex-col items-center gap-1">
+                <div class="beam-button text-[8px]">VOL ▲</div>
+                <div class="beam-button text-[8px]">VOL ▼</div>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <div class="w-16 h-12 rounded bg-forge-surface border border-forge-border flex items-center justify-center text-[8px] font-mono text-gray-500">touchpad</div>
+                <div class="text-[7px] font-mono text-gray-600">screen</div>
+              </div>
+              <div class="flex flex-col items-center gap-1">
+                <div class="beam-button bg-neon-cyan/20 border-neon-cyan/40 text-neon-cyan">SIDE</div>
+                <div class="text-[7px] font-mono text-gray-600">click target</div>
+              </div>
+            </div>
+          </div>
+          <div class="text-[10px] font-mono text-gray-500 text-center max-w-xs">v1 captures KEYCODE_HEADSETHOOK / MEDIA_PLAY_PAUSE / CAMERA — Beam Pro firmware tuning to the actual code lands once we adb-logcat a real button press.</div>
+        </div>
+      </div>
+
+      <!-- Gesture matrix -->
+      <div class="neon-card neon-card-amber p-6">
+        <div class="text-xs font-cyber tracking-widest text-neon-amber uppercase mb-4">Gesture matrix</div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-forge-border">
+              <th class="text-left py-2 text-[10px] font-cyber tracking-wider text-gray-500 uppercase">Input</th>
+              <th class="text-left py-2 text-[10px] font-cyber tracking-wider text-gray-500 uppercase">Idle</th>
+              <th class="text-left py-2 text-[10px] font-cyber tracking-wider text-gray-500 uppercase">Listening</th>
+              <th class="text-left py-2 text-[10px] font-cyber tracking-wider text-gray-500 uppercase">Menu</th>
+            </tr>
+          </thead>
+          <tbody class="text-xs text-gray-400 font-mono">
+            <tr class="border-b border-forge-border/50"><td class="py-2 text-neon-cyan">click</td><td>→ Listening</td><td class="text-neon-green">dispatch</td><td class="text-neon-amber">confirm</td></tr>
+            <tr class="border-b border-forge-border/50"><td class="py-2 text-neon-purple">double-click</td><td class="text-neon-amber">→ Menu</td><td class="text-neon-amber">→ Menu</td><td>—</td></tr>
+            <tr class="border-b border-forge-border/50"><td class="py-2 text-neon-pink">long-press</td><td>—</td><td class="text-gray-500">→ Idle</td><td class="text-gray-500">→ Idle</td></tr>
+            <tr class="border-b border-forge-border/50"><td class="py-2 text-gray-300">vol ▲</td><td>—</td><td>—</td><td>scroll up</td></tr>
+            <tr class="border-b border-forge-border/50"><td class="py-2 text-gray-300">vol ▼</td><td>—</td><td>—</td><td>scroll down</td></tr>
+            <tr><td class="py-2 text-gray-500">silence 1.5s</td><td>—</td><td class="text-neon-green">dispatch</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="mt-4 text-[10px] text-gray-500 font-mono leading-relaxed">double-click window: 350ms · long-press threshold: 700ms · STT silence: 1.5s — all configurable in ButtonRouter</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4: FLOW                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="flow" class="py-16 border-t border-forge-border bg-forge-surface/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-green uppercase neon-text-green">Section 4</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">End-to-end flow</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">From "what test failed?" out loud to Aria's voice in the glasses speaker. Every arrow is real wire traffic between the phone, daemon, and Anthropic API.</p>
+    </div>
+
+    <div class="neon-card p-8 max-w-5xl mx-auto">
+      <pre class="text-xs leading-relaxed font-mono text-gray-300 overflow-x-auto"><span class="text-neon-cyan">[ user wears glasses ]</span>
+                  ↓
+<span class="text-neon-amber">click side button</span>  ───────────────────►  HardwareKeys.handle(KeyEvent)
+                  ↓
+                                       ButtonRouter: IDLE → LISTENING
+                  ↓
+<span class="text-neon-green">microphone opens</span>  ───────────────────►  AndroidSTTRecorder.start()
+                  ↓
+<span class="text-gray-400">user speaks: "what test failed?"</span>
+                  ↓
+                                       SpeechRecognizer streams partials
+                                       Captions render in HUD top-half
+                  ↓
+<span class="text-neon-amber">click again or 1.5s silence</span>
+                  ↓
+                                       ButtonRouter: LISTENING → DispatchListening
+                  ↓
+<span class="text-neon-blue">POST /api/companion/inject</span>  ──────────►  Daemon BuddyClaude.inject(text)
+{buddy_id, text}                          ↓
+                                       Reads user's session transcript
+                                       Builds Anthropic messages
+                  ↓
+                                       <span class="text-neon-purple">Anthropic API stream</span>
+                                          ↓
+                                       Yields BuddyEvent.partial_text
+                                          ↓
+<span class="text-neon-cyan">SSE /api/companion/stream/{id}</span>  ◄──────  partial_text frames
+                  ↓
+                                       Daemon TTS pipeline (Piper + cloned voice)
+                                          ↓
+                                       AudioStreamHub.publish(session, opus_frame)
+                  ↓
+<span class="text-neon-pink">GET /api/companion/audio-stream/sid</span>  ◄──  Opus/WAV frames
+                  ↓
+                                       ExoPlayer decodes + plays
+                  ↓
+<span class="text-neon-green">phone speakers / glasses speakers</span>
+"Three tests failed — auth module..."
+
+<span class="text-gray-500">total wall time: ~1.5–3s for short responses · Aria's voice throughout</span></pre>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 5: SETTINGS / DASHBOARD INTEGRATION             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="settings" class="py-16 border-t border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-cyan uppercase neon-text-cyan">Section 5</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">Dashboard integration</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">Where the desktop sets up everything that flows to AR. Pairing QR, attached character, voice, markup quick controls all surface through this same dashboard the user already runs.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+      <!-- Pair AR Companion panel -->
+      <div class="neon-card neon-card-purple p-6">
+        <div class="text-xs font-cyber tracking-widest text-neon-purple uppercase mb-4">Preferences → AR Companion</div>
+        <div class="bg-forge-surface border border-forge-border rounded-lg p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-bold text-gray-100">Pair AR Companion</div>
+            <button class="bg-neon-purple/20 border border-neon-purple/40 text-neon-purple text-[10px] font-mono px-3 py-1.5 rounded">Issue token</button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 items-center">
+            <!-- QR -->
+            <div class="bg-white p-3 rounded">
+              <div class="grid grid-cols-9 grid-rows-9 gap-px">
+                <!-- Faux QR pattern -->
+                <script>document.write(Array.from({length:81},(_,i)=>`<div class="${(i*7+i*i)%3?'bg-black':'bg-white'}"></div>`).join(''))</script>
+              </div>
+            </div>
+            <div class="text-[10px] text-gray-400 font-mono leading-relaxed">
+              <div class="mb-2">label: <span class="text-gray-200">brand-pixel-7</span></div>
+              <div class="mb-2">expires: <span class="text-gray-200">28 days</span></div>
+              <div class="text-gray-500">scan with phone</div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-4 leading-relaxed">Token persists in PairingStore, validated on every companion request via X-CCT-Pairing-Token header.</p>
+      </div>
+
+      <!-- Character attach -->
+      <div class="neon-card neon-card-amber p-6">
+        <div class="text-xs font-cyber tracking-widest text-neon-amber uppercase mb-4">Characters → Aria → Attach to session</div>
+        <div class="bg-forge-surface border border-forge-border rounded-lg p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-white" style="background: linear-gradient(135deg, #B45309, #7C2D12);">A</div>
+            <div>
+              <div class="text-base font-bold text-gray-100">Aria</div>
+              <span class="persona-pill persona-warm">warm</span>
+            </div>
+          </div>
+          <div class="space-y-2 text-[11px] font-mono">
+            <div class="flex justify-between"><span class="text-gray-500">voice_ref</span><span class="text-neon-cyan">char-aria</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">voice type</span><span class="text-neon-purple">cloned (4s sample)</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">mesh</span><span class="text-neon-green">aria.glb · 9.2 MB</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">attached to</span><span class="text-gray-200">fix the auth bug</span></div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-forge-border">
+            <div class="text-[10px] text-gray-500 mb-2">Attach to session:</div>
+            <div class="bg-forge-surface border border-forge-border rounded px-3 py-2 text-xs text-gray-200 font-mono">▼ fix the auth bug</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Markup quick toggles -->
+      <div class="neon-card neon-card-green p-6 lg:col-span-2">
+        <div class="text-xs font-cyber tracking-widest text-neon-green uppercase mb-4">Per-session Markup quick toggles (CCT-29) — flow to AR captions automatically</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-forge-surface border border-forge-border rounded-lg p-4">
+            <div class="text-[10px] font-cyber tracking-widest text-gray-500 uppercase mb-2">Listen density</div>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between items-center"><span class="text-gray-300">Code blocks</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-green text-[10px]">describe</span></div>
+              <div class="flex justify-between items-center"><span class="text-gray-300">Tool output</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-green text-[10px]">describe</span></div>
+            </div>
+          </div>
+          <div class="bg-forge-surface border border-forge-border rounded-lg p-4">
+            <div class="text-[10px] font-cyber tracking-widest text-gray-500 uppercase mb-2">Inline detail</div>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between items-center"><span class="text-gray-300">Inline `code`</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-cyan text-[10px]">identifier_only</span></div>
+              <div class="flex justify-between items-center"><span class="text-gray-300">File paths</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-cyan text-[10px]">filename</span></div>
+            </div>
+          </div>
+          <div class="bg-forge-surface border border-forge-border rounded-lg p-4">
+            <div class="text-[10px] font-cyber tracking-widest text-gray-500 uppercase mb-2">Structural pauses</div>
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between items-center"><span class="text-gray-300">Todo updates</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-purple text-[10px]">itemize</span></div>
+              <div class="flex justify-between items-center"><span class="text-gray-300">Plan blocks</span><span class="bg-forge-dark border border-forge-border rounded px-2 py-0.5 font-mono text-neon-purple text-[10px]">summarize</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-5 leading-relaxed">Settings flow desktop → daemon resolved_cfg → TTS pipeline. AR companion just plays the audio stream — every markup choice you make in the dashboard reshapes what the listener hears in the glasses without any AR-side change.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 6: SHIP STATUS                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="status" class="py-16 border-t border-forge-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <span class="text-xs font-cyber tracking-widest text-neon-pink uppercase">Section 6</span>
+      <h2 class="text-3xl font-cyber font-bold tracking-wide mt-2">Ship status</h2>
+      <p class="text-gray-400 mt-3 max-w-2xl">Where we are in the 10-phase plan. Daemon side is complete; Android skeleton + 5 phases shipped; AR rendering awaits Nebula SDK + glasses.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 1 — BuddyClaude</div>
+          <span class="text-[10px] font-mono text-gray-500">8 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Anthropic Agent SDK wrapper + transcript reader. Spawns a parallel buddy that reads user's session for context.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 2 — BuddyManager</div>
+          <span class="text-[10px] font-mono text-gray-500">3 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Multi-session buddy lifecycle. One buddy per attached session.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 3 — PairingStore</div>
+          <span class="text-[10px] font-mono text-gray-500">6 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Token issue + validate, TTL persistence, sidecar JSON.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 4 — AudioStreamHub</div>
+          <span class="text-[10px] font-mono text-gray-500">5 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Per-session async TTS frame fan-out. Opus/WAV frames published per session_id.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 5 — TTS pipeline wired</div>
+          <span class="text-[10px] font-mono text-gray-500">4 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Piper output now publishes to the Hub alongside local playback.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 6 — ScreenCapture</div>
+          <span class="text-[10px] font-mono text-gray-500">4 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">dxcam + win32gui (Windows). Graceful 503 on platforms without it.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 7 — Companion REST API</div>
+          <span class="text-[10px] font-mono text-gray-500">8 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">7 endpoints + character resolution + active-session routing.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 8 — Dashboard QR</div>
+          <span class="text-[10px] font-mono text-gray-500">2 tests</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">PreferencesPanel "Pair AR Companion" button + QR rendering.</p>
+      </div>
+
+      <div class="neon-card neon-card-green p-5 md:col-span-2">
+        <div class="flex items-center justify-between">
+          <div class="text-xs font-cyber tracking-widest text-neon-green uppercase">✓ Phase 9 — Daemon final regression</div>
+          <span class="text-[10px] font-mono text-gray-500">1049 tests · 6 skipped</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-2 leading-relaxed">Backend test suite green. 50 commits ahead of session start. Pushed to OpenCircuitDev/codetalker main.</p>
+      </div>
+
+      <!-- Android section -->
+      <div class="neon-card neon-card-purple p-5 md:col-span-2 mt-4">
+        <div class="text-xs font-cyber tracking-widest text-neon-purple uppercase mb-3">Android side (companion-android/, local-only)</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 5a</span> Project scaffold · Gradle wrapper · 8.10 + Kotlin 2.0.21 + Compose</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 5b</span> DaemonClient · PairingFlow · ConnectionGuard (patient retry)</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 5c</span> Pairing UI: Choose ↔ Manual ↔ QR</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 5c+</span> CameraX + ZXing QR scanner · permission handling</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 6</span> ButtonRouter state machine · STTRecorder wrapper</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 6+</span> HardwareKeys · dispatchKeyEvent · Beam Pro pipeline</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 7</span> TTSPlayer · ExoPlayer with auth-header HTTP source</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ 9</span> MJPEG decoder · pure-Kotlin · 6 unit tests</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-green text-xs">✓ char</span> Character chip · persona avatars · voice cloning surfaces</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-amber text-xs">○ 8</span> AR HUD via Nebula SDK · awaits glasses + AAR</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-amber text-xs">○ 10</span> Foreground service + Tailscale recipe + battery profile</div>
+          <div class="bg-forge-surface border border-forge-border rounded p-3"><span class="text-neon-cyan text-xs">●</span> 32 unit tests passing · build clean · ./gradlew test verified</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- FOOTER                                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<footer class="border-t border-forge-border py-12 mt-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex items-center gap-3">
+        <span class="text-lg font-cyber font-bold tracking-wider neon-logo-text">CODETALKER</span>
+        <span class="text-xs font-mono text-gray-500">CCT-31 · 2026-05-09</span>
+      </div>
+      <div class="flex items-center gap-6 text-xs">
+        <a href="https://github.com/OpenCircuitDev/codetalker" class="text-gray-500 hover:text-neon-cyan transition">github</a>
+        <span class="text-gray-600">·</span>
+        <span class="text-gray-500">Mockups for review · feedback shapes Phase 8</span>
+      </div>
+    </div>
+    <div class="h-px w-full neon-line mt-8"></div>
+    <div class="text-center text-[10px] text-gray-600 mt-6 font-mono">
+      style adapted from Blueprint Forge · BF_Plugins · all components copied locally
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
