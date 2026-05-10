@@ -87,7 +87,11 @@ def is_process_alive(pid: int) -> bool:
 DAEMON_PORT = 17832
 DAEMON_PIDFILE = Path.home() / ".claude" / "scripts" / "codetalker.pid"
 DAEMON_LOGFILE = Path.home() / ".claude" / "scripts" / "codetalker.log"
-DAEMON_HOST = "127.0.0.1"
+# Default: loopback-only (safe). Set CCT_DAEMON_HOST=0.0.0.0 to allow
+# LAN/Tailscale access, which is required by the CCT-31 AR companion app.
+# The companion uses pairing tokens for auth so the wider bind is safe;
+# all /api/companion/* routes reject requests without X-CCT-Pairing-Token.
+DAEMON_HOST = os.environ.get("CCT_DAEMON_HOST", "127.0.0.1")
 
 
 def daemon_url() -> str:

@@ -873,13 +873,24 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     if disable_transport_security:
         security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
     else:
-        # Allow only the loopback address the daemon listens on (127.0.0.1:17832).
-        # These constants mirror daemon.DAEMON_HOST / DAEMON_PORT; they are not
-        # imported from daemon.py to avoid a circular dependency.
-        security = TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=["127.0.0.1:17832", "127.0.0.1", "localhost"],
-        )
+        # Allow loopback by default. When CCT_DAEMON_HOST=0.0.0.0 (CCT-31 AR
+        # companion mode), the daemon also accepts LAN + Tailscale IPs so a
+        # phone or Beam Pro on the same network can reach /api/companion/*.
+        # X-CCT-Pairing-Token guards every companion route regardless.
+        import os as _os
+        allowed = ["127.0.0.1:17832", "127.0.0.1", "localhost"]
+        if _os.environ.get("CCT_DAEMON_HOST", "127.0.0.1") == "0.0.0.0":
+            # Permit any host header; downstream auth (pairing token) is the
+            # real gate. Setting this to True bypasses DNS-rebinding checks.
+            allowed = []
+            security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=False,
+            )
+        else:
+            security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=allowed,
+            )
 
     fmcp = FastMCP("claude-code-talker", transport_security=security)
     _register_tools_fastmcp(fmcp, state)
