@@ -19,7 +19,9 @@ class Tag:
     markup_overrides: dict = field(default_factory=dict)
 
 
-# 5 starter tags installed on first run if cfg has no triggers.tags
+# Starter tags installed on first run if cfg has no triggers.tags.
+# (Originally 5; now 10 with the plan-mode / subagent / skill / permission
+# tags. Tests should assert >= 5 with the original IDs present.)
 STARTER_TAGS: list[Tag] = [
     Tag(
         id="audible_summary",
@@ -152,7 +154,7 @@ class TagLibrary:
         return {t.id for t in self._tags.values() if t.enabled}
 
     def bootstrap_starters(self) -> None:
-        """If empty, populate with the 5 starter tags. Idempotent."""
+        """If empty, populate with the starter tags (`STARTER_TAGS`). Idempotent."""
         if self._tags:
             return
         for t in STARTER_TAGS:
