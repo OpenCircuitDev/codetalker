@@ -1,0 +1,103 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: core (pytest + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            core/pyproject.toml
+
+      - name: Install ffmpeg (voice-cloner runtime check needs it on PATH)
+        run: sudo apt-get install -y ffmpeg
+
+      - name: Install core (editable + dev extras)
+        run: pip install --upgrade pip build && pip install -e 'core/[dev]'
+
+      - name: pytest core
+        working-directory: core
+        run: pytest -q --tb=short
+
+      - name: Build core wheel + sdist
+        working-directory: core
+        run: python -m build
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude_code_talker-dist
+          path: core/dist/*
+          if-no-files-found: error
+
+  voice-cloner:
+    name: voice-cloner (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install ffmpeg
+        run: sudo apt-get install -y ffmpeg
+
+      - name: Install voice-cloner
+        run: pip install --upgrade pip && pip install -e 'voice-cloner[dev]'
+
+      - name: pytest voice-cloner
+        working-directory: voice-cloner
+        run: pytest -q --tb=short
+
+  extension:
+    name: extension (vitest + tsc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install
+        working-directory: extension
+        run: npm ci
+
+      - name: Compile (tsc)
+        working-directory: extension
+        run: npm run compile
+
+      - name: Test (vitest)
+        working-directory: extension
+        run: npm test
