@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -13,7 +14,20 @@ from claude_code_voice_cloner.registry import (
 )
 
 
+def _check_ffmpeg() -> None:
+    """Verify ffmpeg is on PATH; exit with a helpful message if not."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"], capture_output=True, check=False
+        )
+    except FileNotFoundError:
+        sys.exit("ffmpeg is required but not found on PATH. See README §Prerequisites.")
+    if result.returncode != 0:
+        sys.exit("ffmpeg is required but not found on PATH. See README §Prerequisites.")
+
+
 def main():
+    _check_ffmpeg()
     parser = argparse.ArgumentParser(prog="claude-code-talker-voice-cloner")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
