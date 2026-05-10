@@ -35,6 +35,7 @@ claude-code-talker = "claude_code_talker.server:main"
 claude-code-talker-hook = "claude_code_talker.hook_cli:main"
 claude-code-talker-setup = "claude_code_talker.setup:main"
 claude-code-talker-mcp-stdio = "claude_code_talker.mcp_stdio:main"
+codetalker-mcp = "claude_code_talker.mcp_stdio:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
