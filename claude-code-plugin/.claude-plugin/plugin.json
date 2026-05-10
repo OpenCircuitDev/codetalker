@@ -1,5 +1,4 @@
 {
   "name": "codetalker",
-  "description": "Voice companion for Claude Code. Narrates assistant turns and tool activity via TTS, controlled with /codetalker:* slash commands.",
-  "version": "0.2.0"
+  "description": "Voice companion for Claude Code. Narrates assistant turns and tool activity via TTS, controlled with /codetalker:* slash commands."
 }
