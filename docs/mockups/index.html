@@ -393,25 +393,18 @@ figure.mockup-fig {
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
-      <!-- Screen: Pairing Choose -->
-      <div class="neon-card neon-card-purple p-6 flex flex-col items-center">
+      <!-- Screen: Pairing Choose — CCT-32 H.4 swapped for real Beam Pro screenshot -->
+      <div class="neon-card neon-card-purple p-6 flex flex-col items-center" data-status="screenshot">
         <div class="phone-frame mb-4">
           <div class="phone-screen">
-            <div class="phone-status-bar">
-              <span class="font-mono">9:41</span>
-              <span class="font-mono">●●● 5G ⌁</span>
-            </div>
-            <div class="flex-1 flex flex-col justify-center px-6 gap-4">
-              <div class="text-lg font-bold text-gray-100" style="font-size: 16px;">Pair with codetalker daemon</div>
-              <div class="text-xs text-gray-400" style="line-height: 1.4;">Open the dashboard's Preferences → AR Companion panel and use the QR code or copy the daemon URL + token.</div>
-              <button class="bg-neon-cyan/90 text-forge-dark font-semibold py-2.5 rounded text-sm">📷 Scan QR code</button>
-              <button class="border border-neon-purple/50 text-neon-purple py-2.5 rounded text-sm">Enter manually</button>
-            </div>
+            <img src="screenshots/cct-phaseB-after-pair.png"
+                 alt="codetalker companion: pairing screen on Beam Pro"
+                 class="block w-full h-full object-cover" />
           </div>
         </div>
         <div class="text-center">
           <div class="text-sm font-cyber tracking-wider text-neon-purple uppercase">Choose Path</div>
-          <div class="text-xs text-gray-500 mt-1">First-launch state · ChooseModeScreen.kt</div>
+          <div class="text-xs text-gray-500 mt-1">Beam Pro X4200 capture · ChooseModeScreen.kt</div>
         </div>
       </div>
 
@@ -451,113 +444,48 @@ figure.mockup-fig {
         </div>
       </div>
 
-      <!-- Screen: Manual Entry -->
-      <div class="neon-card neon-card-green p-6 flex flex-col items-center">
+      <!-- Screen: Manual Entry — CCT-32 H.4 swapped for real Beam Pro screenshot -->
+      <div class="neon-card neon-card-green p-6 flex flex-col items-center" data-status="screenshot">
         <div class="phone-frame mb-4">
           <div class="phone-screen">
-            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
-            <div class="flex-1 flex flex-col justify-center px-6 gap-3">
-              <div class="text-lg font-bold text-gray-100" style="font-size: 14px;">Manual pairing</div>
-              <div class="text-[10px] text-gray-400">Paste the daemon URL + token from the dashboard.</div>
-              <div>
-                <div class="text-[9px] text-gray-500 mb-1 uppercase tracking-wide">Daemon URL</div>
-                <div class="bg-forge-surface border border-forge-border rounded px-2 py-2 font-mono text-[10px] text-gray-300">http://192.168.1.42:17832</div>
-              </div>
-              <div>
-                <div class="text-[9px] text-gray-500 mb-1 uppercase tracking-wide">Pairing token</div>
-                <div class="bg-forge-surface border border-forge-border rounded px-2 py-2 font-mono text-[10px] text-gray-400">_5simxU8jOwHyVTxIqllG…</div>
-              </div>
-              <div class="flex gap-2 mt-2">
-                <button class="flex-1 bg-neon-green/90 text-forge-dark font-semibold py-2 rounded text-xs">Save</button>
-                <button class="border border-neon-cyan/40 text-neon-cyan py-2 px-3 rounded text-[10px]">QR</button>
-              </div>
-            </div>
+            <img src="screenshots/cct-phaseB-manual-entry.png"
+                 alt="codetalker companion: manual pairing entry on Beam Pro"
+                 class="block w-full h-full object-cover" />
           </div>
         </div>
         <div class="text-center">
           <div class="text-sm font-cyber tracking-wider text-neon-green uppercase">Manual Entry</div>
-          <div class="text-xs text-gray-500 mt-1">Fallback for permission-denied or remote use</div>
+          <div class="text-xs text-gray-500 mt-1">Beam Pro X4200 capture · ManualPairScreen.kt</div>
         </div>
       </div>
 
-      <!-- Screen: Session List (with characters) -->
-      <div class="neon-card p-6 flex flex-col items-center">
+      <!-- Screen: Session List (with characters) — CCT-32 H.4 swapped for real Beam Pro screenshot -->
+      <div class="neon-card p-6 flex flex-col items-center" data-status="screenshot">
         <div class="phone-frame mb-4">
           <div class="phone-screen">
-            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
-            <div class="flex-1 flex flex-col px-4 pt-4 gap-3 overflow-hidden">
-              <div class="flex items-center justify-between">
-                <div class="text-base font-bold text-gray-100">Sessions</div>
-                <button class="text-[10px] border border-forge-border rounded px-2 py-0.5 text-gray-400">Unpair</button>
-              </div>
-
-              <!-- Card 1: live, character attached -->
-              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-2">
-                <div class="flex items-center gap-2">
-                  <div class="live-dot"></div>
-                  <div class="text-xs font-semibold text-gray-100">fix the auth bug</div>
-                </div>
-                <div class="text-[9px] text-gray-500 font-mono">307910d9</div>
-                <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] text-white" style="background: linear-gradient(135deg, #B45309, #7C2D12);">A</div>
-                  <div class="flex flex-col">
-                    <div class="text-[11px] text-gray-200 font-semibold">Aria</div>
-                    <span class="persona-pill persona-warm">warm</span>
-                  </div>
-                </div>
-                <button class="bg-neon-cyan text-forge-dark text-[10px] font-semibold py-1 rounded">Set active</button>
-              </div>
-
-              <!-- Card 2: offline, character attached -->
-              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-1.5 opacity-80">
-                <div class="text-xs font-semibold text-gray-300">OCR-Web</div>
-                <div class="text-[9px] text-gray-500 font-mono">2eb5c985</div>
-                <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] text-white" style="background: linear-gradient(135deg, #334155, #0F172A);">D</div>
-                  <div class="flex flex-col">
-                    <div class="text-[11px] text-gray-200 font-semibold">Dr. Crow</div>
-                    <span class="persona-pill persona-methodical">methodical</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Card 3: offline, no character -->
-              <div class="bg-forge-surface border border-forge-border rounded p-3 flex flex-col gap-1 opacity-70">
-                <div class="text-xs font-semibold text-gray-300">DigitalWish</div>
-                <div class="text-[9px] text-gray-500 font-mono">8fbc3d10</div>
-                <div class="text-[10px] text-gray-500 italic">no character</div>
-              </div>
-            </div>
+            <img src="screenshots/cct-phaseB-list.png"
+                 alt="codetalker companion: live session list on Beam Pro"
+                 class="block w-full h-full object-cover" />
           </div>
         </div>
         <div class="text-center">
           <div class="text-sm font-cyber tracking-wider text-neon-blue uppercase">Session List</div>
-          <div class="text-xs text-gray-500 mt-1">Character chip carries voice + persona</div>
+          <div class="text-xs text-gray-500 mt-1">Beam Pro X4200 capture · SessionListScreen.kt</div>
         </div>
       </div>
 
-      <!-- Screen: Active session ready -->
-      <div class="neon-card neon-card-amber p-6 flex flex-col items-center">
+      <!-- Screen: Active Speaker — CCT-32 H.4 swapped for real session-detail capture -->
+      <div class="neon-card neon-card-amber p-6 flex flex-col items-center" data-status="screenshot">
         <div class="phone-frame mb-4">
           <div class="phone-screen">
-            <div class="phone-status-bar"><span class="font-mono">9:41</span><span class="font-mono">●●● 5G ⌁</span></div>
-            <div class="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
-              <div class="w-24 h-24 rounded-full flex items-center justify-center font-bold text-3xl text-white animate-breathe" style="background: linear-gradient(135deg, #B45309, #7C2D12); box-shadow: 0 0 30px rgba(180,83,9,0.4);">A</div>
-              <div>
-                <div class="text-lg font-bold text-gray-100">Aria</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-wider">speaking</div>
-              </div>
-              <div class="flex flex-col gap-1 text-[10px] text-gray-500">
-                <div>session: fix the auth bug</div>
-                <div class="font-mono">char-aria voice · live narration</div>
-              </div>
-              <div class="text-[9px] text-gray-600 mt-4 font-mono">put on glasses to switch to AR HUD</div>
-            </div>
+            <img src="screenshots/cct-task-a-2-detail.png"
+                 alt="codetalker companion: per-session detail surface"
+                 class="block w-full h-full object-cover" />
           </div>
         </div>
         <div class="text-center">
           <div class="text-sm font-cyber tracking-wider text-neon-amber uppercase">Active Speaker</div>
-          <div class="text-xs text-gray-500 mt-1">Compose surface when listening pre-AR</div>
+          <div class="text-xs text-gray-500 mt-1">Beam Pro X4200 capture · SessionDetailScreen.kt</div>
         </div>
       </div>
 
