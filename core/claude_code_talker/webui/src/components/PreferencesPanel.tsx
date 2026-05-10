@@ -7,6 +7,7 @@ import { usePreferences } from "../hooks/usePreferences";
 export function PreferencesPanel() {
   const { prefs, setPref } = usePreferences();
   const [pairToken, setPairToken] = useState<string | null>(null);
+  const [pairDaemonUrl, setPairDaemonUrl] = useState<string | null>(null);
   const [pairing, setPairing] = useState(false);
   const [pairError, setPairError] = useState<string | null>(null);
 
@@ -25,6 +26,11 @@ export function PreferencesPanel() {
       }
       const data = await r.json();
       setPairToken(data.token);
+      // CCT-31: prefer the server-resolved daemon_url. The server picked
+      // a LAN/Tailscale-reachable address; window.location.host may be
+      // 127.0.0.1, which would put loopback in the QR — phones can't
+      // reach the PC's loopback, and pairing would silently fail.
+      setPairDaemonUrl(data.daemon_url ?? `http://${window.location.host}`);
     } catch (e) {
       setPairError(String(e));
     } finally {
@@ -32,9 +38,9 @@ export function PreferencesPanel() {
     }
   };
 
-  const pairPayload = pairToken
+  const pairPayload = pairToken && pairDaemonUrl
     ? JSON.stringify({
-        daemon_url: `http://${window.location.host}`,
+        daemon_url: pairDaemonUrl,
         pairing_token: pairToken,
       })
     : null;
@@ -108,11 +114,28 @@ export function PreferencesPanel() {
           <p className="text-xs text-red-400">Pairing failed: {pairError}</p>
         )}
         {pairPayload && (
-          <div className="mt-2 inline-block bg-white p-3 rounded">
-            <QRCodeSVG value={pairPayload} size={192} />
-            <p className="text-zinc-700 text-xs mt-2 max-w-[192px]">
-              Scan with the codetalker Android app
-            </p>
+          <div className="mt-2 space-y-2">
+            <div className="inline-block bg-white p-3 rounded">
+              <QRCodeSVG value={pairPayload} size={192} />
+              <p className="text-zinc-700 text-xs mt-2 max-w-[192px]">
+                Scan with the codetalker Android app
+              </p>
+            </div>
+            <div className="text-xs space-y-0.5 max-w-md">
+              <div className="flex gap-2">
+                <span className="text-[var(--color-text-3)] w-20 shrink-0">URL:</span>
+                <code className="text-cyan-300 break-all">{pairDaemonUrl}</code>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-[var(--color-text-3)] w-20 shrink-0">Token:</span>
+                <code className="text-cyan-300 break-all">{pairToken}</code>
+              </div>
+              {pairDaemonUrl?.includes("127.0.0.1") && (
+                <p className="text-xs text-amber-400 mt-1">
+                  ⚠ daemon resolved to loopback — set CCT_DAEMON_HOST=0.0.0.0 and restart so phones on LAN can reach this URL.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </fieldset>

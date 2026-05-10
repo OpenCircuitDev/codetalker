@@ -6,14 +6,46 @@ token previously issued by this daemon.
 """
 from __future__ import annotations
 
+import socket
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
+
+from claude_code_talker.daemon import DAEMON_PORT
 
 
 def _require_token(request: Request, store) -> bool:
     tok = request.headers.get("X-CCT-Pairing-Token", "")
     return store.validate(tok)
+
+
+def _best_reachable_url(port: int = DAEMON_PORT) -> str:
+    """Return the URL a phone on the same LAN/Tailnet should use to reach
+    this daemon.
+
+    The dashboard's Pair AR Companion QR was previously using
+    ``window.location.host`` which encoded whatever URL the user had the
+    dashboard open at — typically loopback ``127.0.0.1`` — and the phone
+    then dialed loopback (= itself), getting connection refused.
+
+    This helper sidesteps that by asking the OS which interface address it
+    would use to reach the public internet. The connect() call against
+    8.8.8.8 doesn't actually send anything; UDP socket setup just resolves
+    the routing table to pick a source IP. That IP is the LAN address
+    (or Tailnet address if Tailscale is the default route to that target).
+    Falls back to loopback only when no network is reachable.
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            return f"http://{ip}:{port}"
+        finally:
+            s.close()
+    except Exception:
+        return f"http://127.0.0.1:{port}"
 
 
 def make_routes(state) -> list[Route]:
@@ -22,7 +54,18 @@ def make_routes(state) -> list[Route]:
         label = body.get("label", "unknown")
         ttl = int(body.get("ttl_days", 30))
         t = state.pairing.issue(label=label, ttl_days=ttl)
-        return JSONResponse({"token": t.token, "label": t.label, "expires_at": t.expires_at})
+        # CCT-31: include the daemon URL the dashboard's QR generator
+        # should encode. Server-side resolution avoids the loopback-trap
+        # that bites when a user has the dashboard open at
+        # http://127.0.0.1:17832 — window.location.host would put loopback
+        # in the QR, the phone would dial its own loopback, and the
+        # pairing would silently fail. The server knows the right answer.
+        return JSONResponse({
+            "token": t.token,
+            "label": t.label,
+            "expires_at": t.expires_at,
+            "daemon_url": _best_reachable_url(),
+        })
 
     async def list_sessions(request: Request) -> Response:
         if not _require_token(request, state.pairing):
