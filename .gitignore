@@ -13,7 +13,9 @@ core/claude_code_talker/_version.py
 .coverage
 htmlcov/
 .superpowers/
-.claude/
+.claude/*
+!.claude/routines/
+.claude/routines/*.local.md
 core/claude_code_talker/webui/node_modules/
 core/claude_code_talker/webui/dist/
 *.tsbuildinfo
