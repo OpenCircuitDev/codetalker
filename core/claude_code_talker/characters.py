@@ -57,6 +57,7 @@ class Character:
         return cls(**kept)
 
     def to_dict(self) -> dict:
+        """Return a plain-dict representation suitable for JSON / YAML serialization."""
         return asdict(self)
 
 
@@ -89,6 +90,7 @@ class CharacterStore:
         return chars
 
     def get(self, char_id: str) -> Character | None:
+        """Load and return the Character with `char_id`, or None on missing / invalid id / parse failure."""
         if not _ID_RE.match(char_id or ""):
             return None
         path = self._path(char_id)

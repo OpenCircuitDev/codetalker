@@ -18,6 +18,7 @@ class SessionIdError(ValueError):
 
 
 def is_valid_session_id(session_id: str) -> bool:
+    """Return True if `session_id` is a 1-128 char alnum/`_`/`-` string acceptable as a session key."""
     return bool(_SESSION_ID_RE.match(session_id or ""))
 
 
@@ -33,15 +34,18 @@ class PersistentSessionStore:
         self._dir = sessions_dir if sessions_dir is not None else DEFAULT_SESSIONS_DIR
 
     def list(self) -> list[str]:
+        """Return sorted session ids (file stems of `*.yaml` in the sessions dir)."""
         if not self._dir.exists():
             return []
         return sorted(p.stem for p in self._dir.glob("*.yaml"))
 
     def exists(self, session_id: str) -> bool:
+        """Return True if a session record exists. Raises SessionIdError on invalid ids."""
         _require_valid_session_id(session_id)
         return (self._dir / f"{session_id}.yaml").exists()
 
     def get(self, session_id: str) -> dict | None:
+        """Load and parse the session record. Returns None on missing/corrupt files (corruption is logged)."""
         _require_valid_session_id(session_id)
         path = self._dir / f"{session_id}.yaml"
         if not path.exists():
@@ -70,6 +74,7 @@ class PersistentSessionStore:
         return target
 
     def delete(self, session_id: str) -> None:
+        """Remove the session record. Idempotent: silent on missing file. Raises SessionIdError on invalid ids."""
         _require_valid_session_id(session_id)
         path = self._dir / f"{session_id}.yaml"
         try:

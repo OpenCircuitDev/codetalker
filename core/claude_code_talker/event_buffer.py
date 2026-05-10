@@ -25,6 +25,7 @@ class EventBuffer:
         self._subscribers: list[Callable[[Event], None]] = []
 
     def push(self, event: Event) -> None:
+        """Append an event and notify all subscribers. Subscriber failures are logged and swallowed."""
         with self._lock:
             self._events.append(event)
             subs = list(self._subscribers)
@@ -36,10 +37,12 @@ class EventBuffer:
                 logging.warning("event subscriber failed", exc_info=True)
 
     def recent(self, n: int = 10) -> list[Event]:
+        """Return the *n* most recently pushed events (newest last)."""
         with self._lock:
             return list(self._events)[-n:]
 
     def since(self, timestamp: float) -> list[Event]:
+        """Return all buffered events with `timestamp > timestamp` (in push order)."""
         with self._lock:
             return [e for e in self._events if e.timestamp > timestamp]
 
@@ -59,10 +62,12 @@ class EventBuffer:
             return list(seen)
 
     def subscribe(self, callback: Callable[[Event], None]) -> None:
+        """Register a callback invoked synchronously after every `push`."""
         with self._lock:
             self._subscribers.append(callback)
 
     def clear(self) -> None:
+        """Drop every buffered event. Subscribers are kept."""
         with self._lock:
             self._events.clear()
 

@@ -25,12 +25,15 @@ class NarrationEvent:
 
 
 class NarrationStream:
+    """Async fan-out for narration events. Each subscriber receives every published event via a bounded `asyncio.Queue`; if the queue overflows, the oldest event is dropped and a sentinel with `status="overflow"` is enqueued so the consumer can detect data loss."""
+
     def __init__(self, max_queue: int = 200):
         self._max_queue = max_queue
         self._subscribers: list[asyncio.Queue[NarrationEvent]] = []
         self._lock = asyncio.Lock()
 
     def subscribe(self) -> AsyncIterator[NarrationEvent]:
+        """Return an async iterator yielding NarrationEvents until the consumer breaks/finishes."""
         q: asyncio.Queue[NarrationEvent] = asyncio.Queue(maxsize=self._max_queue)
         self._subscribers.append(q)
 
@@ -45,6 +48,7 @@ class NarrationStream:
         return _gen()
 
     async def publish(self, event: NarrationEvent) -> None:
+        """Broadcast `event` to every subscriber. Slow subscribers see a dropped-oldest + overflow sentinel rather than blocking the publisher."""
         async with self._lock:
             for q in list(self._subscribers):
                 if q.full():

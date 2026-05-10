@@ -37,6 +37,7 @@ class CacheKey:
     audio_format: str
 
     def to_hash(self) -> str:
+        """Stable SHA-256 hex digest of all key fields. Used as the on-disk filename."""
         material = f"{self.engine_name}|{self.voice}|{self.rate:.4f}|{self.audio_format}|{self.text}"
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
@@ -61,6 +62,7 @@ class TTSCache:
         return self._dir / key.engine_name / h[:2] / f"{h}.{key.audio_format}"
 
     def get(self, key: CacheKey) -> bytes | None:
+        """Return cached audio bytes for `key`, or None on miss / read failure. Hits update the file mtime so the entry stays warm in the LRU window."""
         path = self._path_for(key)
         with self._lock:
             if not path.exists():
@@ -81,6 +83,7 @@ class TTSCache:
             return data
 
     def put(self, key: CacheKey, audio_bytes: bytes) -> Path:
+        """Atomically write `audio_bytes` to the cache and return the on-disk path. Raises ValueError on empty input. Triggers best-effort LRU eviction when total size exceeds `max_bytes`."""
         if not audio_bytes:
             raise ValueError("refusing to cache empty audio bytes")
         path = self._path_for(key)
@@ -100,6 +103,7 @@ class TTSCache:
         return path
 
     def stats(self) -> dict:
+        """Return cache stats: entries, bytes, max_bytes, hits, misses, hit_ratio."""
         total_bytes = 0
         entry_count = 0
         if self._dir.exists():

@@ -39,6 +39,8 @@ VOICES_DIR = Path.home() / ".claude" / "scripts" / "piper" / "voices"
 
 @dataclass
 class ServerState:
+    """Live runtime state of the daemon. Holds configuration, instantiated engines/providers/modes, registries (sessions, profiles, characters), and the audio queue. Built once at startup by `build_server_state`; mutated in place as users change modes, voices, and active sessions."""
+
     cfg: dict
     engines: dict[str, object]
     providers: dict[str, object]

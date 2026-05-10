@@ -18,6 +18,7 @@ class ProfileNameError(ValueError):
 
 
 def is_valid_profile_name(name: str) -> bool:
+    """Return True if `name` is a 1-64 char alnum/`_`/`-` string acceptable as a profile id."""
     return bool(_PROFILE_NAME_RE.match(name or ""))
 
 
@@ -34,15 +35,18 @@ class ProfileStore:
         self._sessions_dir = self._dir.parent / "sessions"
 
     def list(self) -> list[str]:
+        """Return sorted profile names (file stems of `*.yaml` in the profiles dir)."""
         if not self._dir.exists():
             return []
         return sorted(p.stem for p in self._dir.glob("*.yaml"))
 
     def exists(self, name: str) -> bool:
+        """Return True if a profile named `name` is on disk. Raises ProfileNameError on invalid names."""
         _require_valid_name(name)
         return (self._dir / f"{name}.yaml").exists()
 
     def get(self, name: str) -> dict:
+        """Load and parse `<name>.yaml`. Raises FileNotFoundError if absent, ProfileNameError on invalid names."""
         _require_valid_name(name)
         path = self._dir / f"{name}.yaml"
         if not path.exists():
@@ -67,6 +71,7 @@ class ProfileStore:
         return target
 
     def delete(self, name: str) -> None:
+        """Remove `<name>.yaml`. Idempotent: silent on missing file. Raises ProfileNameError on invalid names."""
         _require_valid_name(name)
         path = self._dir / f"{name}.yaml"
         try:
@@ -78,6 +83,7 @@ class ProfileStore:
         return hashlib.sha256(cwd.encode("utf-8")).hexdigest()[:16]
 
     def last_profile_for_cwd(self, cwd: str) -> str | None:
+        """Return the profile name last activated for `cwd`, or None if no record / invalid name."""
         path = self._sessions_dir / f"{self._cwd_hash(cwd)}.last_profile"
         if not path.exists():
             return None
@@ -88,12 +94,14 @@ class ProfileStore:
         return name if is_valid_profile_name(name) else None
 
     def set_last_profile_for_cwd(self, cwd: str, profile_name: str) -> None:
+        """Record `profile_name` as the most-recent profile for `cwd`. Used to reactivate on next session start."""
         _require_valid_name(profile_name)
         self._sessions_dir.mkdir(parents=True, exist_ok=True)
         path = self._sessions_dir / f"{self._cwd_hash(cwd)}.last_profile"
         path.write_text(profile_name, encoding="utf-8")
 
     def clear_last_profile_for_cwd(self, cwd: str) -> None:
+        """Drop the recorded last-profile for `cwd`. Idempotent."""
         path = self._sessions_dir / f"{self._cwd_hash(cwd)}.last_profile"
         try:
             path.unlink()

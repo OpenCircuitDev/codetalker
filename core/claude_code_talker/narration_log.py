@@ -57,6 +57,7 @@ class NarrationLog:
 
     @property
     def path(self) -> Path:
+        """Path of the JSONL log this NarrationLog appends to."""
         return self._path
 
     def append(self, entry: NarrationEntry | dict) -> None:
@@ -109,6 +110,7 @@ class NarrationLog:
         return matched[-limit:]
 
     def stats(self) -> dict:
+        """Return log size + entry count: {entries, bytes, exists, max_bytes, path}."""
         with self._lock:
             if not self._path.exists():
                 return {"entries": 0, "bytes": 0, "exists": False}

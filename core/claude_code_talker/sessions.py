@@ -60,10 +60,12 @@ class SessionRegistry:
         self._character_store = character_store
 
     def get(self, session_id: str) -> SessionState | None:
+        """Return the SessionState for `session_id`, or None if no session is registered."""
         with self._lock:
             return self._sessions.get(session_id)
 
     def list_active(self) -> list[SessionState]:
+        """Return a snapshot list of every currently-tracked session (insertion order)."""
         with self._lock:
             return list(self._sessions.values())
 

@@ -77,6 +77,7 @@ class TokenTracker:
 
     @property
     def path(self) -> Path:
+        """Path of the JSONL usage log this tracker reads/writes."""
         return self._path
 
     def estimate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -108,6 +109,7 @@ class TokenTracker:
         completion_tokens: int,
         purpose: str = "",
     ) -> UsageEvent:
+        """Append a usage event to the log and return the materialized UsageEvent. Write failures are logged and swallowed (callers see the event regardless)."""
         cost = self.estimate_cost(model, prompt_tokens, completion_tokens)
         event = UsageEvent(
             timestamp=time.time(),
