@@ -123,9 +123,12 @@ async def test_get_tags_returns_starter_set(client):
     body = r.json()
     assert "tags" in body
     ids = {t["id"] for t in body["tags"]}
-    assert "audible_summary" in ids
-    assert "audible_synopsis" in ids
-    assert len(body["tags"]) == 5
+    # Original 5 starter tags must always be present; the set has grown to
+    # include plan-mode / subagent / skill / permission tags. Future
+    # additions should not break this test.
+    assert {"audible_summary", "audible_synopsis", "audible_briefs",
+            "audible_listings", "audible_details"} <= ids
+    assert len(body["tags"]) >= 5
 
 
 # ---------------------------------------------------------------------------
