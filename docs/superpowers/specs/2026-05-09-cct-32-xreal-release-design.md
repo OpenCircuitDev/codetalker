@@ -235,12 +235,39 @@ Decision deferred to v1.1 spec.
 | Battery drain from continuous SSE | Patient retry policy (already shipped); foreground service has Disconnect action; Android 14 power-management auto-doses |
 | Privacy policy hosting requirements | Host on `docs.codetalker.dev` or repo's GitHub Pages — both work as Google Play accepts a stable URL |
 
-## Test strategy
+## Test strategy — full E2E harness integrated per task
 
-- **Unit (32 baseline + ~40 new)**: every state machine, picker, decoder, parser, error path
-- **Instrumented** (`androidTest/`): Compose UI tests, permission flows, lifecycle, SessionDetailScreen end-to-end with mocked daemon
-- **On-device manual**: full pairing → SessionDetail → mode change → audio playback → STT → buddy response, verified weekly during dev
-- **Pre-release smoke**: Beam Pro + glasses + real daemon, every release tag
+Every feature task ends with a **failing test → impl → passing test → commit** cycle PLUS an E2E test that exercises the feature against either a MockWebServer or real device. **No task is "done" without its E2E.**
+
+**Four test layers**:
+
+1. **Unit (JVM, fast)** — pure-logic state machines, parsers, decoders, retry policy. ~70 tests target.
+2. **Instrumented UI (`androidTest/`)** — Compose UI tests with `createComposeRule()`. Each new screen / picker / sheet has at least one test that renders, simulates interaction, and asserts state change OR HTTP request via MockWebServer.
+3. **E2E smoke (`scripts/e2e/`)** — adb-driven shell scripts that exercise the real Beam Pro against the live daemon. Each captures screencaps for visual regression.
+4. **On-device manual** — pre-release acceptance run; the 13-item release-readiness checklist at the end of the plan.
+
+**E2E harness file structure**:
+```
+scripts/e2e/
+├── README.md                   # how to run, prerequisites
+├── lib/
+│   ├── adb_helpers.sh          # connect, screencap, pm clear, send keyevent
+│   ├── daemon_helpers.sh       # curl wrappers for fixture state
+│   └── assert_helpers.sh       # check screen contains text, tap matching
+├── e2e_pairing.sh
+├── e2e_session_detail.sh
+├── e2e_mode_change.sh / voice_change / cadence_change
+├── e2e_markup_quick.sh
+├── e2e_character_attach.sh
+├── e2e_audio_play.sh
+├── e2e_stt_roundtrip.sh
+├── e2e_lifecycle.sh            # screen-off / network-change / process-death
+├── e2e_permissions.sh          # camera deny → rationale → recover
+├── e2e_full_flow.sh            # composes everything
+└── run_all.sh                  # CI-style runner; non-zero exit on any fail
+```
+
+**Pre-tag gate**: `run_all.sh` must pass on fresh `pm clear` before any release tag.
 
 ## Acceptance criteria for v1.0
 
