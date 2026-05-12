@@ -7,7 +7,13 @@ def _state():
     s = MagicMock()
     eng = MagicMock()
     eng.synthesize = MagicMock(return_value=b"WAV")
+    eng.list_voices = MagicMock(return_value=["v", "default"])
     s.engines = {"piper": eng}
+    # 2026-05-11: TTS caching added. Mock the cache to return None on miss.
+    s.tts_cache = None
+    # 2026-05-11: backpressure logic requires either desktop_wanted or hub subscribers.
+    # Set companion_suppress_desktop=False (default) so desktop is in audio_outputs.
+    s.cfg = {"companion_suppress_desktop": False}
     return s
 
 
