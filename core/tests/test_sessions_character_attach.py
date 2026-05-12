@@ -191,7 +191,10 @@ async def test_api_sessions_response_includes_attached_character(tmp_path):
         data = r.json()
         match = next((row for row in data if row["session_id"] == "test-sid"), None)
         assert match is not None
-        assert match.get("attached_character") == "alice"
+        # attached_character is now returned as a Character object (dict with id, display_name, etc.)
+        assert match.get("attached_character") is not None
+        assert match["attached_character"]["id"] == "alice"
+        assert match["attached_character"]["display_name"] == "A"
 
 
 @pytest.mark.asyncio
