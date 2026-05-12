@@ -1238,23 +1238,14 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         if char is None:
             return JSONResponse({"error": f"character not found: {cid}"}, status_code=400)
         # Phase 25a — validate voice_ref resolves to a voice in some registered engine.
-        # Phase 25c v1 stub-clone path: voice_refs of the form ``char-<id>`` are
-        # produced by /api/characters/{id}/clone-voice as a placeholder until
-        # Phase 25b's real cloner runs.  We allowlist them here so the wizard's
-        # save-then-attach flow works end-to-end without bypassing the check
-        # for arbitrary voices.
         voice_ok = False
-        if char.voice_ref and char.voice_ref.startswith("char-"):
-            # stub-clone placeholder: trust it (Phase 25b will replace with real ref)
-            voice_ok = True
-        else:
-            for engine in (state.engines or {}).values():
-                try:
-                    if char.voice_ref in (engine.list_voices() or []):
-                        voice_ok = True
-                        break
-                except Exception:
-                    continue
+        for engine in (state.engines or {}).values():
+            try:
+                if char.voice_ref in (engine.list_voices() or []):
+                    voice_ok = True
+                    break
+            except Exception:
+                continue
         if not voice_ok:
             return JSONResponse(
                 {"error": f"character voice_ref not found in any engine: {char.voice_ref!r}"},
