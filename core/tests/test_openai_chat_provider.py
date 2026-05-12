@@ -132,7 +132,7 @@ async def test_default_stream_yields_complete_for_non_streaming_provider():
 
     class FakeProvider(LLMProvider):
         name = "fake"
-        async def complete(self, prompt: str, max_tokens: int) -> str:
+        async def complete(self, prompt: str, max_tokens: int, *, system: str | None = None) -> str:
             return "all-at-once"
 
     p = FakeProvider()

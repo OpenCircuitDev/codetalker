@@ -15,8 +15,11 @@ def _state_with_engine(audio_hub=None):
     state = MagicMock()
     engine = MagicMock()
     engine.synthesize = MagicMock(return_value=b"WAV-BYTES")
+    engine.list_voices = MagicMock(return_value=["jenny", "default-voice"])
     state.engines = {"piper": engine}
     state.audio_hub = audio_hub
+    # 2026-05-11: TTS caching added. Mock the cache to return None on miss.
+    state.tts_cache = None
     return state, engine
 
 
@@ -79,8 +82,14 @@ def test_worker_fans_synthesized_audio_to_hub():
 
 
 def test_worker_no_fanout_when_hub_is_none():
-    """When state.audio_hub is None, the worker still plays normally (no error)."""
+    """When state.audio_hub is None, the worker still plays normally (no error).
+
+    2026-05-11: backpressure logic requires either desktop_wanted or hub subscribers.
+    Set companion_suppress_desktop=False (default) so desktop is in audio_outputs.
+    """
     state, engine = _state_with_engine(audio_hub=None)
+    # Ensure desktop is wanted so synthesis isn't skipped by backpressure logic
+    state.cfg = {"companion_suppress_desktop": False}
     q = AudioQueue(state)
     with patch("claude_code_talker.audio.play_wav_bytes") as mock_play:
         q.start()
