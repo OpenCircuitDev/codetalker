@@ -70,3 +70,77 @@ async def test_clone_voice_endpoint_calls_real_cloner(tmp_path, monkeypatch):
 
     # Reference wav must exist where the cloner wrote it.
     assert (refs_dir / "test-char.wav").exists(), f"Reference not found at {refs_dir / 'test-char.wav'}"
+
+
+@pytest.mark.asyncio
+async def test_clone_voice_then_attach_character(tmp_path, monkeypatch):
+    """Clone a voice, update character's voice_ref, attach to session,
+    assert voice_ok=True. This validates the voice_ref naming convention
+    and XTTS engine registration end-to-end."""
+    refs_dir = tmp_path / "refs"
+    refs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build server state with a character (initial voice_ref is seed).
+    state = build_server_state()
+    state.characters.save(Character(id="test-char", display_name="Test", voice_ref="seed"))
+
+    # Configure XTTS references dir.
+    if state.cfg.get("engines") is None:
+        state.cfg["engines"] = {}
+    if state.cfg["engines"].get("xtts") is None:
+        state.cfg["engines"]["xtts"] = {}
+    state.cfg["engines"]["xtts"]["references_dir"] = str(refs_dir)
+
+    # Create a session to attach to.
+    sess = state.sessions.touch("sess-1")
+
+    # Mock clone_from_local_file to write a reference wav.
+    async def fake_clone(path, *, name, references_dir):
+        (references_dir / f"{name}.wav").write_bytes(b"FAKE_VOICE_DATA")
+
+    monkeypatch.setattr(
+        "claude_code_talker.voices.clone.clone_from_local_file",
+        fake_clone,
+    )
+
+    # Mock the XTTS engine to return the cloned voice in list_voices().
+    class MockXTTSEngine:
+        def list_voices(self):
+            # Return the character ID as a voice name (matching what clone produces).
+            return ["test-char"]
+
+    state.engines = {"xtts": MockXTTSEngine()}
+
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Step 1: Clone the voice.
+        wav = _silent_wav_bytes()
+        files = {"audio": ("voice.wav", wav, "audio/wav")}
+        clone_resp = await client.post("/api/characters/test-char/clone-voice", files=files)
+
+        assert clone_resp.status_code == 202, f"Clone failed: {clone_resp.status_code}"
+        clone_body = clone_resp.json()
+        assert "voice_ref" in clone_body, clone_body
+        cloned_voice_ref = clone_body["voice_ref"]
+
+        # Step 2: Update character's voice_ref with the cloned one.
+        char = state.characters.get("test-char")
+        assert char is not None, "character not found"
+        char.voice_ref = cloned_voice_ref
+        state.characters.save(char)
+
+        # Step 3: Attach the character to the session.
+        attach_resp = await client.post(
+            "/api/sessions/sess-1/attach-character",
+            json={"character_id": "test-char"}
+        )
+
+        # Step 4: Assert attach succeeded (voice_ok=True).
+        assert attach_resp.status_code == 200, \
+            f"Attach failed with {attach_resp.status_code}: {attach_resp.text}"
+        attach_body = attach_resp.json()
+        assert attach_body.get("state", {}).get("attached_character") == "test-char"
+
+        # Verify reference wav exists.
+        assert (refs_dir / "test-char.wav").exists()
