@@ -6,9 +6,7 @@ import { api } from "../api/client";
  *
  * Surfaces six high-impact markup forms grouped into three categories so a
  * listener can rapidly reshape what they're hearing from a specific session
- * without leaving the SessionCard. The remaining four forms (audible_block,
- * system_reminder, subagent_dispatch, long_numeral) live in the full
- * legacy /ui/#markup panel — kept linked at the bottom.
+ * without leaving the SessionCard.
  *
  * Categorization is intentionally short-lived and refinable: edit
  * QUICK_GROUPS to retitle, regroup, or add/remove rows. The per-form
@@ -128,16 +126,6 @@ export function SessionMarkupQuick({ sessionId }: Props) {
             </div>
           </fieldset>
         ))}
-        <div className="pt-2 border-t border-slate-800 text-right">
-          <a
-            href="/ui/#markup"
-            target="_blank"
-            rel="noopener"
-            className="text-xs text-cyan-400 hover:underline"
-          >
-            Full markup panel (all 10 forms) →
-          </a>
-        </div>
       </div>
     </details>
   );
