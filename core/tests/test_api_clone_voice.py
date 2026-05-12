@@ -1,6 +1,9 @@
 """Phase 25c — clone-voice REST tests."""
 from __future__ import annotations
 
+from pathlib import Path
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -14,12 +17,27 @@ def state(tmp_path):
     s = build_server_state()
     s.characters = CharacterStore(characters_dir=tmp_path / "chars")
     s.clone_jobs = CloneJobTracker(tmp_path / "clone_jobs")
+    # Configure XTTS refs dir for tests
+    if s.cfg.get("engines") is None:
+        s.cfg["engines"] = {}
+    if s.cfg["engines"].get("xtts") is None:
+        s.cfg["engines"]["xtts"] = {}
+    s.cfg["engines"]["xtts"]["references_dir"] = str(tmp_path / "refs")
     return s
 
 
 @pytest.fixture
-def app(state):
+def app(state, monkeypatch):
     from claude_code_talker.server import build_asgi_app
+    # Mock clone_from_local_file to avoid calling the real ffmpeg pipeline
+    async def mock_clone(path, *, name, references_dir):
+        references_dir = Path(references_dir)
+        references_dir.mkdir(parents=True, exist_ok=True)
+        (references_dir / f"{name}.wav").write_bytes(b"MOCK_VOICE_REF")
+    monkeypatch.setattr(
+        "claude_code_talker.voices.clone.clone_from_local_file",
+        mock_clone,
+    )
     return build_asgi_app(state, disable_transport_security=True)
 
 
@@ -33,10 +51,11 @@ async def test_clone_voice_returns_job_id(state, app):
         r = await client.post("/api/characters/buddy/clone-voice", files=files, data=data)
         assert r.status_code == 202
         body = r.json()
-        # Phase 25c v1: stub clone path completes immediately
+        # Now the clone path calls the real cloner (mocked in fixture)
         assert body["status"] == "succeeded"
         assert body["job_id"]
-        assert body["voice_ref"] == "char-buddy"
+        # voice_ref is now the character id (which is the voice filename stem)
+        assert body["voice_ref"] == "buddy"
 
 
 @pytest.mark.asyncio

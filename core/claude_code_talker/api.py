@@ -1058,9 +1058,10 @@ Each emotive_states value: single short phrase describing pose + expression + ar
     async def characters_clone_voice(request: Request) -> JSONResponse:
         """Phase 25c — POST /api/characters/{char_id}/clone-voice.
 
-        v1 stub clone path: creates a tracker job, immediately marks it
-        succeeded with ``voice_ref = char-<character_id>``.  Phase 25b will
-        replace the synchronous success with an async cloning pipeline.
+        Accept a wav/webm upload, clone the voice via XTTS (real pipeline, not v1 stub),
+        register the reference as a usable XTTS voice for narration.
+        2026-05-11 vNext P0-A: replaces the stub that discarded audio bytes and
+        synchronously marked the job succeeded with a fake voice_ref.
         """
         if state.characters is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)
@@ -1084,9 +1085,63 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             audio_bytes = await audio.read()
         else:
             audio_bytes = bytes(audio) if isinstance(audio, (bytes, bytearray)) else str(audio).encode()
+
+        if not audio_bytes:
+            return JSONResponse({"error": "audio file is empty"}, status_code=400)
+
+        # Persist the upload to a tmp wav file the cloner can read.
+        import tempfile
+        from pathlib import Path
+        suffix = ".webm" if "webm" in mime_type else ".wav"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, prefix=f"cct-clone-{cid}-") as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = Path(tmp.name)
+
+        # Resolve the XTTS references dir (used by engines/xtts.py:list_voices to discover voices).
+        xtts_cfg = (state.cfg.get("engines") or {}).get("xtts") or {}
+        refs_dir = Path(
+            xtts_cfg.get("references_dir")
+            or (Path.home() / ".claude" / "scripts" / "voice-cloner" / "references")
+        )
+        refs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Open a job for the UI to poll.
         job = state.clone_jobs.create(cid, audio_bytes, mime_type)
-        # Phase 25c v1: stub clone — succeed immediately with placeholder voice_ref.
-        state.clone_jobs.set_succeeded(job.job_id, voice_ref=f"char-{cid}")
+
+        # Run the real clone pipeline. clone_from_local_file writes `<name>.wav` into
+        # references_dir; we use cid as the name so engines/xtts.py lists it as the
+        # voice for this character.
+        try:
+            from claude_code_talker.voices.clone import clone_from_local_file
+            await clone_from_local_file(tmp_path, name=cid, references_dir=refs_dir)
+        except Exception as exc:
+            state.clone_jobs.set_failed(job.job_id, error=str(exc)[:300])
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+            return JSONResponse(
+                {"job_id": job.job_id, "status": "failed", "error": str(exc)[:300]},
+                status_code=500
+            )
+        finally:
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+        voice_ref = cid  # the real reference filename on disk is <cid>.wav
+        # Mark job as succeeded with the character id (which is the voice filename stem).
+        state.clone_jobs.set_succeeded(job.job_id, voice_ref=voice_ref)
+
+        # Invalidate XTTS engine's voice cache so the new ref shows up immediately.
+        xtts_engine = state.engines.get("xtts")
+        if xtts_engine is not None and hasattr(xtts_engine, "_voice_cache_clear"):
+            try:
+                xtts_engine._voice_cache_clear()
+            except Exception:
+                pass
+
         body = state.clone_jobs.get(job.job_id)
         return JSONResponse(
             {
