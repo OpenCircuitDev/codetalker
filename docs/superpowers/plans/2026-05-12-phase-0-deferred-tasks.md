@@ -80,6 +80,16 @@ These are **NOT P0's responsibility** but they cap a quality gate that should be
 
 **Slow test investigation**: The 7h24min wall-clock for 1088 tests is suspicious. Likely a few tests load Piper/XTTS models from disk per-call instead of session-fixture-cached. Worth profiling before CI signs off.
 
+**Update 2026-05-12 (post-Phase-0.5):** A focused 10-file subset run (88 tests, 17m39s) with `--durations=15` revealed three concrete time-hog clusters:
+
+| Cluster | Tests | Time each | Likely cause |
+|---|---|---|---|
+| `test_e2e_v2.py` setup | 2 setups | ~109-120s | uvicorn-thread fixture + model loading per-test (should be session-scoped) |
+| Voice clone tests | 2 tests | ~108-118s | real XTTS cloning logic — possibly engine init per-test (session-scope candidate) |
+| `test_sessions_character_attach.py` | 6 tests | 30-107s | full ASGI app build per-test (single session-scoped app fixture would batch them) |
+
+These three clusters account for ~13 of the 17 minutes in the focused subset. The fix pattern is consistent: convert per-test fixtures to `@pytest.fixture(scope="session")` for the heavy objects (ASGI app, XTTS engine, uvicorn thread). One sweep dispatch could likely cut the broader run to <5min and the full 1088-test run from 7h to under an hour. File as a single Phase 0.5 follow-up or roll into Phase 1's stabilization budget.
+
 ## What's in `vNext` after Phase 0
 
 - 4 task commits: P0-A (×2 commits — impl + review-fix), P0-B, P0-E, P0-F
