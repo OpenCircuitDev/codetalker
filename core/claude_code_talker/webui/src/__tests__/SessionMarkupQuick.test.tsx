@@ -61,12 +61,12 @@ describe("SessionMarkupQuick", () => {
     expect(screen.getByText("Plan blocks")).toBeInTheDocument();
   });
 
-  it("includes link to full markup panel", async () => {
+  it("does not include link to legacy /ui/#markup panel (P0-F)", async () => {
     render(withClient(<SessionMarkupQuick sessionId="sid-1" />));
     fireEvent.click(screen.getByText("Markup"));
-    const link = screen.getByText(/full markup panel/i);
-    expect(link).toBeInTheDocument();
-    expect(link.getAttribute("href")).toBe("/ui/#markup");
+    // Legacy "Full markup panel" link was removed — assert it's gone.
+    const link = screen.queryByText(/full markup panel/i);
+    expect(link).not.toBeInTheDocument();
   });
 
   it("changing a dropdown PUTs to /api/sessions/{sid}/overlay", async () => {

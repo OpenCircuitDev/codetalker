@@ -139,15 +139,6 @@ export default function App() {
               {t.label}
             </button>
           ))}
-          <a
-            href="/ui/#markup"
-            target="_blank"
-            rel="noopener"
-            className="px-3 py-1 rounded text-sm text-[var(--color-text-2)] hover:bg-zinc-800 hover:text-[var(--color-text-1)]"
-            title="Markup settings (Phase 26)"
-          >
-            Markup ↗
-          </a>
         </nav>
         <main className="flex-1 overflow-hidden">
           {tab === "sessions" && (
