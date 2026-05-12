@@ -45,15 +45,19 @@ Executing P0-C and P0-D on top of that uncommitted in-flight work would (a) conf
 3. Re-plan the P0-D edits with adjusted line numbers and surrounding context.
 4. Dispatch a fresh P0-D implementer subagent (haiku or sonnet, ~120 LOC task).
 
-## Other Phase 0 follow-ups (surfaced by the final reviewer)
+## Other Phase 0 follow-ups (closed in mop-up sweep 06cb85f, 2026-05-12)
 
-These are not P0-C/P0-D blockers but emerged from the integrated review of P0-A/B/E/F. File separately when picked up:
+All three items below emerged from the integrated review of P0-A/B/E/F. **All closed** in the Phase 0 mop-up dispatch (merge commit `06cb85f` on `vNext`):
 
-1. **P0-A integration test gap** (Important). Add `test_clone_voice_then_attach_character()` covering: clone a voice → save voice_ref to a character → attach character → assert `voice_ok=True`. This validates the voice_ref naming convention end-to-end and surfaces XTTS engine registration assumptions.
+1. ✅ **P0-A integration test gap** (Important) — landed in commit `6f0f249` as `test_clone_voice_then_attach_character` in `core/tests/test_voices_clone_e2e.py`. Test clones a voice, attaches it to a character, asserts `voice_ok=True` via the 200 status of `/api/sessions/{sid}/attach-character`.
+2. ✅ **P0-A dead-code cleanup** (Minor) — landed in commit `69c9f51`. The `if char.voice_ref.startswith("char-")` block plus the Phase-25c stub-clone comment are gone from `api.py`. Engine `list_voices()` check is the only voice-validation path now.
+3. ✅ **P0-E skip extension** (Minor) — landed in commit `77f316e`. `test_e2e_v2.py::test_e2e_live_mode_per_tool_call` is function-level skipped (Option B); the other two tests in that file (`test_e2e_stop_via_mcp_client`, `test_e2e_notification_via_mcp_client`) still run cleanly.
 
-2. **P0-A dead-code cleanup** (Minor). `api.py:1247-1249` has stub-format compat logic (`if voice_ref.startswith("char-")`) that's now unreachable since the stub was removed in P0-A. Remove or rewrite the comment to clarify it's legacy-only.
+## New follow-up from the mop-up code-quality review (2026-05-12)
 
-3. **P0-E skip extension** (Minor). The full pytest run after Phase 0 surfaced `test_e2e_v2.py::test_e2e_live_mode_per_tool_call` failing with `NotImplementedError` from P0-E's `_call_mcp_tool` shim. P0-E skipped `test_e2e.py` + `test_hook_cli.py` at module level, but missed this third file in the same neighborhood. Either skip it with the same reason, or rewrite to mock `_post_hook` instead of `_call_mcp_tool`.
+1. 🟡 **XTTS test-fixture extraction** (Important, deferred to a future cleanup pass). The mop-up code-quality reviewer flagged that `core/tests/test_voices_clone_e2e.py` now has two tests that duplicate the XTTS config setup pattern (defensive null-check + `state.cfg["engines"]["xtts"]["references_dir"] = ...`) and the `fake_clone` closure. Extract to a shared `@pytest.fixture` before a third consumer arrives — would be ~15 LOC of cleanup. Same file also has a magic `"xtts"` engine-dict key worth promoting to a module-level constant.
+
+   Not a merge blocker — the reviewer explicitly said "should be refactored before the file grows further" (future-tense). File here so it doesn't get lost.
 
 ## Pre-P0 regression triage (Phase 0.5 cleanup punch list)
 
