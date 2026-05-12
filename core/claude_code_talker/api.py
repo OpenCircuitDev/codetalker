@@ -1116,31 +1116,20 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             await clone_from_local_file(tmp_path, name=cid, references_dir=refs_dir)
         except Exception as exc:
             state.clone_jobs.set_failed(job.job_id, error=str(exc)[:300])
-            try:
-                tmp_path.unlink()
-            except FileNotFoundError:
-                pass
             return JSONResponse(
                 {"job_id": job.job_id, "status": "failed", "error": str(exc)[:300]},
                 status_code=500
             )
         finally:
             try:
-                tmp_path.unlink()
-            except FileNotFoundError:
+                tmp_path.unlink(missing_ok=True)
+            except OSError:
+                # Best-effort cleanup; don't let temp-file removal mask real errors.
                 pass
 
         voice_ref = cid  # the real reference filename on disk is <cid>.wav
         # Mark job as succeeded with the character id (which is the voice filename stem).
         state.clone_jobs.set_succeeded(job.job_id, voice_ref=voice_ref)
-
-        # Invalidate XTTS engine's voice cache so the new ref shows up immediately.
-        xtts_engine = state.engines.get("xtts")
-        if xtts_engine is not None and hasattr(xtts_engine, "_voice_cache_clear"):
-            try:
-                xtts_engine._voice_cache_clear()
-            except Exception:
-                pass
 
         body = state.clone_jobs.get(job.job_id)
         return JSONResponse(
