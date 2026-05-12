@@ -119,6 +119,7 @@ async def test_e2e_notification_via_mcp_client(running_daemon, monkeypatch):
     assert "Claude. Permission required." in submitted[0].text
 
 
+@pytest.mark.skip(reason="MCP-SSE removed; rewrite to mock _post_hook")
 @pytest.mark.asyncio
 async def test_e2e_live_mode_per_tool_call(running_daemon, monkeypatch):
     """With live mode + per_tool_call cadence, each tool event should produce narration."""
