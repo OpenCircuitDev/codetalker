@@ -50,10 +50,29 @@ export const ModelViewer = forwardRef<ModelViewerElement, ModelViewerProps>(
       if (typeof externalRef === "function") externalRef(internalRef.current);
       else if (externalRef) (externalRef as React.MutableRefObject<ModelViewerElement | null>).current = internalRef.current;
     });
+    // React 19 + custom-element gotcha: camelCase props that React knows from
+    // standard HTML elements (src, alt) are set as DOM *properties* on
+    // <model-viewer>, not attributes. model-viewer watches attribute changes
+    // via attributeChangedCallback, so property assignment never triggers the
+    // GLB load. `exposure` exhibits the same parser path. Force-set these
+    // three as attributes after mount so the model actually loads and the
+    // PBR exposure is applied. Kebab-case props like "auto-rotate" etc. are
+    // unknown to React and already go through setAttribute correctly below.
+    useEffect(() => {
+      const el = internalRef.current;
+      if (!el) return;
+      if (props.src != null) el.setAttribute("src", props.src);
+      else el.removeAttribute("src");
+      if (props.alt != null) el.setAttribute("alt", props.alt);
+      else el.removeAttribute("alt");
+      if (props.exposure != null) el.setAttribute("exposure", props.exposure);
+      else el.removeAttribute("exposure");
+    }, [props.src, props.alt, props.exposure]);
     return React.createElement("model-viewer", {
       ref: internalRef,
-      src: props.src,
-      alt: props.alt,
+      // src, alt, exposure intentionally omitted here — set via useEffect
+      // above as attributes (see comment). Leaving them in createElement
+      // re-introduces the React-19 property-assignment bug.
       "auto-rotate": props.autoRotate ? "" : undefined,
       "auto-rotate-delay": props.autoRotateDelay?.toString(),
       "rotation-per-second": props.rotationPerSecond,
@@ -62,7 +81,6 @@ export const ModelViewer = forwardRef<ModelViewerElement, ModelViewerProps>(
       "shadow-intensity": props.shadowIntensity,
       "environment-image": props.environmentImage,
       "camera-orbit": props.cameraOrbit,
-      exposure: props.exposure,
       "interaction-prompt": props.interactionPrompt,
       className: props.className,
       style: props.style,
