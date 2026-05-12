@@ -140,7 +140,7 @@ async def test_composed_app_serves_health_endpoint():
 
 @pytest.mark.asyncio
 async def test_composed_app_serves_static_ui_route():
-    """GET /ui/ returns 200 (or 404 if static dir is empty); not 500."""
+    """GET /ui/ returns 302 redirect (legacy /ui retired 2026-05-11; redirects to /ui-react/)."""
     state = build_server_state()
     app = build_asgi_app(state, **_NO_SECURITY)
 
@@ -149,8 +149,9 @@ async def test_composed_app_serves_static_ui_route():
         transport=httpx.ASGITransport(app=app), base_url=_BASE_URL
     ) as client:
         r = await client.get("/ui/")
-    # Should not be 500. Either 200 (index served) or 404 (no index yet).
-    assert r.status_code in (200, 404)
+    # /ui/ is legacy; should redirect to /ui-react/
+    assert r.status_code == 302
+    assert r.headers["location"] == "/ui-react/"
 
 
 @pytest.mark.asyncio
