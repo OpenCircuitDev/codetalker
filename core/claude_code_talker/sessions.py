@@ -25,6 +25,66 @@ class SessionState:
     attached_character: str | None = None
     cached_cfg: dict | None = None
     enabled: bool = True
+    # CCT-32 v0.1.0 unification — transient flags for cross-surface flash
+    # animations + auto-mode evaluator. Not persisted; reset on daemon restart.
+    is_speaking: bool = False
+    last_user_interaction_at: float = 0.0
+    last_manual_mode_change_at: float = 0.0
+
+
+def evaluate_auto_mode(state, sid: str) -> None:
+    """CCT-32 v0.1.0 unification — auto-switch active_mode between live/brief.
+
+    When `auto_mode_enabled` is True for the session's persistent overlay,
+    the active_mode flips to ``"live"`` when the user has interacted with
+    the session recently (within `auto_mode_idle_threshold_secs`, fleet
+    default 30s), or ``"brief"`` when work is happening without recent
+    user input. Manual mode picks pause auto-mode for 60s so the user's
+    explicit choice isn't immediately overwritten.
+
+    No-op when auto_mode_enabled is False, the session isn't live, the
+    target equals the current mode, or required state is missing.
+    """
+    import time as _time
+
+    persistent_store = getattr(state, "persistent_sessions", None)
+    if persistent_store is None:
+        return
+    persistent = persistent_store.get(sid) or {}
+    if not persistent.get("auto_mode_enabled", False):
+        return
+    sessions = getattr(state, "sessions", None)
+    if sessions is None:
+        return
+    session = sessions.get(sid)
+    if session is None:
+        return
+
+    now = _time.time()
+    last_manual = getattr(session, "last_manual_mode_change_at", 0.0) or 0.0
+    if last_manual and (now - last_manual) < 60.0:
+        return
+
+    fleet_default = float(
+        getattr(state, "cfg", {}).get("auto_mode_idle_threshold_secs", 30.0)
+    )
+    threshold = float(
+        persistent.get("auto_mode_idle_threshold_secs", fleet_default)
+    )
+    idle = now - float(getattr(session, "last_user_interaction_at", 0.0) or 0.0)
+    target = "live" if idle < threshold else "brief"
+
+    try:
+        cfg = sessions.config_for(sid) or {}
+    except Exception:
+        cfg = {}
+    if cfg.get("active_mode") == target:
+        return
+    try:
+        sessions.update_overlay(sid, {"active_mode": target})
+    except Exception:
+        # Auto-mode is best-effort; never let it break a hook handler.
+        pass
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -112,8 +172,17 @@ class SessionRegistry:
                         s.cached_cfg = None
             return s
 
-    def expire_idle(self, max_idle_seconds: float = 1800.0) -> int:
-        """Remove sessions idle longer than max_idle_seconds. Returns count removed."""
+    def expire_idle(self, max_idle_seconds: float = 28800.0) -> int:
+        """Remove sessions idle longer than max_idle_seconds. Returns count removed.
+
+        v0.1.0 unification — default bumped 30min -> 8h. Most CC sessions
+        sit open all day with intermittent activity; the old 30min cap
+        evicted them from the in-memory registry, making them appear
+        dormant in the webui Sessions list even when the user knew they
+        were still open. The LRU eviction in `_evict_oldest_if_full_locked`
+        (capped at `max_active=50`) prevents unbounded memory growth, so
+        a longer sweep window costs nothing for typical workloads.
+        """
         import time
         cutoff = time.time() - max_idle_seconds
         with self._lock:
@@ -128,6 +197,17 @@ class SessionRegistry:
             if s is None:
                 raise KeyError(f"unknown session: {session_id}")
             _deep_merge(s.live_overlay, partial)
+            # Mirror the top-level `enabled` flag onto the SessionState
+            # itself. The narration handlers read `s.enabled` directly
+            # (tts_handle_stop / _user_prompt_submit / _notification all
+            # bail with "skipped: per-session disabled" when False), but
+            # this method only updated the overlay dict — leaving the
+            # SessionState attribute stale until the next daemon restart
+            # (when touch() re-reads from persistent). That's why
+            # mute/unmute toggles via the UI appeared to do nothing for
+            # already-live sessions.
+            if "enabled" in partial:
+                s.enabled = bool(partial["enabled"])
             s.cached_cfg = None
             return s
 
@@ -186,7 +266,7 @@ class SessionRegistry:
             raise RuntimeError("SessionRegistry constructed without profile_store")
         return resolve_for_session(base, s, self._profile_store, self._character_store)
 
-    def start_sweeper(self, *, interval_seconds: float = 60.0, max_idle_seconds: float = 1800.0) -> None:
+    def start_sweeper(self, *, interval_seconds: float = 60.0, max_idle_seconds: float = 28800.0) -> None:
         """Start a background thread that calls expire_idle on a timer."""
         if self._sweeper_thread is not None and self._sweeper_thread.is_alive():
             return

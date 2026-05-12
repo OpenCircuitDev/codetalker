@@ -57,7 +57,11 @@ def _write_overlay_teacher_mode(overlay_path: Path, fields_to_set: dict) -> None
 
 
 async def _generate_personas(provider) -> list[Persona]:
-    raw = await provider.complete(build_generation_prompt(), max_tokens=600)
+    # 600 was too tight — 5 detailed personas each with name + role +
+    # primary_lens + skill_floor + jargon_tolerance + detail_appetite
+    # blow past 600 tokens for any non-pithy model. Bumped to 2000 so
+    # the JSON array completes; cheap on Haiku/openrouter.
+    raw = await provider.complete(build_generation_prompt(), max_tokens=2000)
     return parse_personas_response(raw)
 
 

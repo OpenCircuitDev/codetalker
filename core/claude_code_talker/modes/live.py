@@ -318,6 +318,7 @@ class LiveMode(ModeStrategy):
                 rate=rate,
                 engine_name=engine_name,
                 priority="normal",
+                session_id=session_id,
             ))
             self._append_narration_log(clean, voice, engine_name, "normal",
                                        session_id=session_id, mode="trigger")
@@ -365,6 +366,7 @@ class LiveMode(ModeStrategy):
                 rate=rate,
                 priority=priority,
                 engine_name=engine_name,
+                session_id=session_id,
             ))
             self._append_narration_log(chunk, voice, engine_name, priority,
                                         session_id=session_id, mode="live-stream")
@@ -469,6 +471,7 @@ class LiveMode(ModeStrategy):
         self.audio_queue.submit(AudioJob(
             text=text, voice=voice, rate=rate, priority=priority,
             engine_name=engine_name,
+            session_id=session_id,
         ))
         self._append_narration_log(text, voice, engine_name, priority,
                                     session_id=session_id, mode="live")

@@ -15,6 +15,10 @@ export interface Character {
   mesh_path: string | null;
   mesh_provider: string | null;
   mesh_prompt: string | null;
+  /** v0.1.0 Tier 2 unification — per-character override map for the
+   *  emotive state mesh prompts. Keys are state names from
+   *  docs/character_emotive_states.md. */
+  emotive_states?: Record<string, string>;
   created_at: number;
   updated_at: number;
 }

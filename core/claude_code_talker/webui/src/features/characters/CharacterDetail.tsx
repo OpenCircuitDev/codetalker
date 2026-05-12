@@ -3,6 +3,7 @@ import type { Character } from "./characters.types";
 import { PersonaBadge } from "./PersonaBadge";
 import { attachCharacter } from "./characters.api";
 import { MeshGenerator } from "./MeshGenerator";
+import { EmotiveStatesEditor } from "./EmotiveStatesEditor";
 
 interface SessionLite {
   session_id: string;
@@ -32,6 +33,29 @@ export function CharacterDetail({ character }: { character: Character | null }) 
     mutationFn: ({ sessionId, characterId }: { sessionId: string; characterId: string }) =>
       attachCharacter(sessionId, characterId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+  });
+
+  // v0.1.0 Tier 2 — save updated emotive_states map via PUT /api/characters/{id}.
+  // The endpoint accepts the full character record, so we merge the new
+  // emotive_states into the existing record and PUT the whole thing.
+  const saveEmotive = useMutation({
+    mutationFn: async (next: Record<string, string>) => {
+      if (!character) throw new Error("no character");
+      const body = { ...character, emotive_states: next };
+      const r = await fetch(`/api/characters/${encodeURIComponent(character.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const t = await r.text().catch(() => "");
+        throw new Error(`PUT character ${r.status}: ${t}`);
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["characters"] });
+    },
   });
 
   if (!character) return <p className="text-zinc-500">Select a character to see details.</p>;
@@ -78,6 +102,16 @@ export function CharacterDetail({ character }: { character: Character | null }) 
         )}
       </div>
       <MeshGenerator characterId={character.id} />
+      <EmotiveStatesEditor
+        value={character.emotive_states}
+        onChange={(next) => saveEmotive.mutate(next)}
+        saving={saveEmotive.isPending}
+      />
+      {saveEmotive.isError && (
+        <p className="text-rose-400 text-xs">
+          {(saveEmotive.error as Error)?.message}
+        </p>
+      )}
     </div>
   );
 }

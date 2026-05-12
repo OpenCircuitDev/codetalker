@@ -20,13 +20,12 @@ export function GlobalStatusBar() {
         />
       </div>
       <div className="flex items-center gap-4">
-        <a
-          href="/ui/"
-          className="text-xs text-slate-500 hover:text-slate-300 underline"
-          title="Open the legacy UI for advanced editing (voices, secrets, profiles, trigger tags)"
-        >
-          Advanced
-        </a>
+        {/* 2026-05-11 — Removed the "Advanced (legacy ↗)" link to /ui/
+            after the legacy UI was retired (its top-level mute button
+            kept causing accidental global mutes). The /ui route now
+            302-redirects to /ui-react/, so the link would have been a
+            no-op circle. Form-based controls migrating into the React
+            UI itself when needed. */}
         <span className="text-xs text-slate-400 font-mono">
           {live} live session{live === 1 ? "" : "s"}
         </span>

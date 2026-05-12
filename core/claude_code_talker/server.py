@@ -7,7 +7,7 @@ PostToolUse for live narration.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from claude_code_talker.audio import AudioJob, AudioQueue
@@ -19,6 +19,7 @@ from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.modes.direct import DirectMode
 from claude_code_talker.modes.brief import BriefMode
 from claude_code_talker.modes.live import LiveMode
+from claude_code_talker.modes.teacher import TeacherMode
 from claude_code_talker.profiles import ProfileStore
 from claude_code_talker.providers import OllamaProvider
 from claude_code_talker.catalog import SessionCatalog
@@ -82,7 +83,14 @@ class ServerState:
     audio_hub_loop: object = None      # asyncio loop the hub lives on (set at lifespan start)
     screen_capture: object = None      # ScreenCaptureSource
     buddy_manager: object = None       # BuddyManager
-    companion_active_session: str | None = None
+    # 2026-05-11 — was a single str slot; promoted to a set so the phone can
+    # subscribe to multiple sessions simultaneously and have all of them route
+    # audio through the phone speaker (sequential playback enforced
+    # client-side). Read paths still expose `companion_active_session`
+    # (whichever member is "primary" — first-set wins) for old callers that
+    # haven't migrated to the multi endpoint.
+    companion_active_sessions: set = field(default_factory=set)
+    companion_active_session: str | None = None  # backward-compat: first set
 
 
 def _select_provider(state: "ServerState", mode_name: str) -> "object | None":
@@ -325,7 +333,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
         base_cfg_provider=lambda: state.cfg,
         character_store=state.characters,
     )
-    state.sessions.start_sweeper(interval_seconds=60.0, max_idle_seconds=1800.0)
+    state.sessions.start_sweeper(interval_seconds=60.0, max_idle_seconds=28800.0)
 
     catalog = SessionCatalog()
     catalog.scan()
@@ -357,13 +365,20 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.pairing = PairingStore(_companion_home / "pairing.json")
     state.audio_hub = AudioStreamHub()
     state.screen_capture = ScreenCaptureSource()
+    # CCT-32 v0.1.0 polish — buddy now routes via OpenRouter's
+    # OpenAI-compatible chat completions, so prefer the user's
+    # openrouter_api_key. Fall back to anthropic_api_key for users on the
+    # direct-Anthropic path (kept for compatibility with pre-refactor setups).
+    _buddy_key = secrets.get("openrouter_api_key") or secrets.get("anthropic_api_key") or ""
     state.buddy_manager = BuddyManager(
-        api_key=secrets.get("anthropic_api_key") or "",
+        api_key=_buddy_key,
         transcript_dir=Path.home() / ".claude" / "projects",
     )
     state.companion_active_session = None
+    state.companion_active_sessions = set()
 
     state.modes["brief"] = BriefMode(provider=_select_provider(state, "brief"))
+    state.modes["teacher"] = TeacherMode(provider=_select_provider(state, "brief"))
     state.modes["live"] = LiveMode(
         provider=_select_provider(state, "live"),
         cadence=cadence,
@@ -492,8 +507,11 @@ def register_tools(server, state) -> None:
             if not voices:
                 return "skipped: no voices available"
             voice = voices[0]
-        state.audio_queue.submit(AudioJob(text=text, voice=voice, rate=rate, engine_name=engine_name,
-                                          audio_format=getattr(engine, "audio_format", "wav")))
+        state.audio_queue.submit(AudioJob(
+            text=text, voice=voice, rate=rate, engine_name=engine_name,
+            audio_format=getattr(engine, "audio_format", "wav"),
+            session_id=args.get("session_id", "") or "",
+        ))
         return f"queued: {len(text)} chars"
 
     async def tts_set_mode(args):
@@ -610,15 +628,25 @@ def register_tools(server, state) -> None:
         state.audio_queue.submit(AudioJob(
             text=text, voice=voice, rate=rate, engine_name=engine_name,
             audio_format=getattr(engine, "audio_format", "wav"),
+            session_id=session_id,
         ))
         return f"queued: {len(text)} chars"
 
     async def tts_handle_user_prompt_submit(args):
         import time as _t
         from claude_code_talker.hooks import handle_user_prompt_submit
+        from claude_code_talker.sessions import evaluate_auto_mode
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
         state.sessions.touch(session_id, cwd=cwd)
+        # v0.1.0 unification — bump the user-interaction timestamp so the
+        # auto-mode evaluator knows this session is now "interactive" and
+        # switches to live mode (if auto_mode_enabled is set on the
+        # session's persistent overlay).
+        _ups = state.sessions.get(session_id)
+        if _ups is not None:
+            _ups.last_user_interaction_at = _t.time()
+        evaluate_auto_mode(state, session_id)
         # Phase 13.9c Task 7 — register with transcript watcher via catalog lookup.
         if state.transcript_watcher is not None and state.catalog is not None:
             try:
@@ -668,6 +696,7 @@ def register_tools(server, state) -> None:
             text=text, voice=voice, rate=rate, engine_name=engine_name,
             audio_format=getattr(engine, "audio_format", "wav"),
             priority="normal",
+            session_id=session_id,
         ))
         # Also log to narration audit
         if state.narration_log is not None:
@@ -712,6 +741,7 @@ def register_tools(server, state) -> None:
         state.audio_queue.submit(AudioJob(
             text=text, voice=voice, rate=rate, engine_name=engine_name,
             audio_format=getattr(engine, "audio_format", "wav"),
+            session_id=session_id,
         ))
         return f"queued: {len(text)} chars"
 
@@ -743,9 +773,13 @@ def register_tools(server, state) -> None:
 
     async def tts_handle_posttool(args):
         import time
+        from claude_code_talker.sessions import evaluate_auto_mode
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
         state.sessions.touch(session_id, cwd=cwd)
+        # v0.1.0 unification — re-evaluate auto-mode at the end of each tool
+        # so a long stretch of background work eventually flips to brief.
+        evaluate_auto_mode(state, session_id)
         s = state.sessions.get(session_id)
         if s is not None and not s.enabled:
             return "skipped: per-session disabled"
@@ -790,6 +824,19 @@ def register_tools(server, state) -> None:
     server.register(MCPTool("tts_handle_posttool",
                             "Record a PostToolUse event into the rolling buffer.",
                             tts_handle_posttool))
+
+    # v1.0 — expose the same handlers via a plain REST endpoint
+    # (/api/hooks/dispatch) so hook_cli can bypass MCP entirely. The
+    # MCP SSE handshake from the Windows .exe wrapper was adding
+    # 10-22s per hook, causing hooks to silently time out before the
+    # tool dispatch ran. REST POST completes in <100ms.
+    state.hook_handlers_async = {
+        "Stop": tts_handle_stop,
+        "Notification": tts_handle_notification,
+        "UserPromptSubmit": tts_handle_user_prompt_submit,
+        "PreToolUse": tts_handle_pretool,
+        "PostToolUse": tts_handle_posttool,
+    }
 
 
 def build_mcp_server(state: ServerState) -> MCPServer:
@@ -850,11 +897,12 @@ def _register_tools_fastmcp(fmcp, state) -> None:
 
 
 def build_asgi_app(state: ServerState, *, disable_transport_security: bool = False):
-    """Compose a parent Starlette app from FastMCP + /ui static files + /api routes.
+    """Compose a parent Starlette app from FastMCP + /ui-react static files + /api routes.
 
     Routes:
       /sse, /messages   -- MCP-over-SSE (FastMCP)
-      /ui/*             -- static frontend served from package's static/ dir
+      /ui-react/*       -- React frontend served from `webui/dist/`
+      /ui, /ui/*        -- 302 redirect to /ui-react/ (legacy retired 2026-05-11)
       /api/*            -- REST API for sessions, profiles, status, etc.
 
     Args:
@@ -867,7 +915,8 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     from mcp.server.fastmcp import FastMCP
     from mcp.server.transport_security import TransportSecuritySettings
     from starlette.applications import Starlette
-    from starlette.routing import Mount
+    from starlette.routing import Mount, Route
+    from starlette.responses import RedirectResponse
     from starlette.staticfiles import StaticFiles
 
     from claude_code_talker.api import build_routes
@@ -898,17 +947,28 @@ def build_asgi_app(state: ServerState, *, disable_transport_security: bool = Fal
     _register_tools_fastmcp(fmcp, state)
     fmcp_app = fmcp.sse_app()
 
-    static_dir = Path(__file__).parent / "static"
-    static_dir.mkdir(parents=True, exist_ok=True)
-
+    # 2026-05-11 — legacy `/ui/*` retired. The old static frontend
+    # (`static/index.html`) had a top-level mute-toggle button that fired
+    # POST /api/mute on click. Stray taps / autocomplete navigation kept
+    # globally muting the daemon, producing silent-narration class bugs.
+    # The React UI in `webui/dist` is the supported surface. The old
+    # mount is replaced by a 302 redirect so any bookmarks / open tabs
+    # land on the new UI instead of 404-ing.
     react_dir = Path(__file__).parent / "webui" / "dist"
-    # react_dir may not exist if the webui hasn't been built yet — that's fine,
-    # we still mount it so a 404 is informative.
     react_dir.mkdir(parents=True, exist_ok=True)
+
+    async def _legacy_ui_redirect(request):
+        # Preserve query string + any subpath under /ui/ when redirecting
+        # so deep-links don't lose their fragment.
+        subpath = request.path_params.get("rest", "") or ""
+        suffix = ("?" + str(request.url.query)) if request.url.query else ""
+        target = f"/ui-react/{subpath}{suffix}".rstrip("?")
+        return RedirectResponse(target, status_code=302)
 
     routes = []
     routes.extend(build_routes(state))
-    routes.append(Mount("/ui", app=StaticFiles(directory=str(static_dir), html=True)))
+    routes.append(Route("/ui", _legacy_ui_redirect, methods=["GET"]))
+    routes.append(Route("/ui/{rest:path}", _legacy_ui_redirect, methods=["GET"]))
     routes.append(Mount("/ui-react", app=StaticFiles(directory=str(react_dir), html=True)))
     routes.append(Mount("/", app=fmcp_app))  # FastMCP handles /sse and /messages at root
 

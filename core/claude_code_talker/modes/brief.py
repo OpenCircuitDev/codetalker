@@ -8,10 +8,20 @@ from __future__ import annotations
 
 from claude_code_talker.modes.base import ModeStrategy
 from claude_code_talker.providers.base import LLMProvider
-from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
+from claude_code_talker.teacher_mode import (
+    max_tokens_for,
+    merge_teacher_into_prompt,
+    teacher_directives,
+)
 
 
-BRIEF_PROMPT_TEMPLATE = """\
+# 2026-05-11 — split into system+user blocks so Anthropic provider can cache
+# the stable instruction prefix (cache_control: ephemeral, see
+# providers/anthropic.py). Below the per-model cache threshold (Haiku: 2048
+# tokens; Sonnet/Opus: 1024) the cache attach is a no-op but stays semantically
+# correct. When teacher_directives are appended to BRIEF_SYSTEM, the combined
+# system block grows toward the threshold and caching kicks in.
+BRIEF_SYSTEM = """\
 You are a simultaneous translator who narrates Claude Code work for spoken audio.
 Translate the technical Claude Code turn below into 2-4 spoken sentences. Cover:
 - Done: what tool actions and edits happened
@@ -20,8 +30,10 @@ Translate the technical Claude Code turn below into 2-4 spoken sentences. Cover:
 - Needs input: questions for the user
 - Advice: what Claude recommends next
 Skip categories that have nothing to report. Use accessible language while
-keeping key technical facts. No markdown, no lists. Just spoken English.
+keeping key technical facts. No markdown, no lists. Just spoken English."""
 
+
+BRIEF_USER_TEMPLATE = """\
 PROSE:
 {prose}
 
@@ -32,6 +44,12 @@ TODOS:
 {todos}
 
 BRIEF:"""
+
+
+# Legacy combined template — kept so anything that imports the symbol does not
+# break, and as the prompt used when system+user blocks aren't supported by the
+# provider (none today, but defensive).
+BRIEF_PROMPT_TEMPLATE = BRIEF_SYSTEM + "\n\n" + BRIEF_USER_TEMPLATE
 
 
 class BriefMode(ModeStrategy):
@@ -47,20 +65,26 @@ class BriefMode(ModeStrategy):
 
     async def build_async(self, prose_entries, tool_uses, todos, cfg):
         payload = self.build_payload(prose_entries, tool_uses, todos)
-        prompt = BRIEF_PROMPT_TEMPLATE.format(
+        user_prompt = BRIEF_USER_TEMPLATE.format(
             prose=payload["prose"] or "(no prose)",
             actions=self._format_actions(payload["actions"]),
             todos=self._format_todos(payload["todos"]),
         )
-        prompt = merge_teacher_into_prompt(prompt, cfg.get("teacher_mode"))
+        # Stable instruction prefix → system block (cacheable on Anthropic).
+        # Teacher directives extend the system block when teacher_mode is on,
+        # which (a) keeps the variable user-prompt minimal so cache hits are
+        # more frequent and (b) bulks the system block closer to the model's
+        # cache-threshold (Haiku: 2048; Sonnet/Opus: 1024).
+        teacher_cfg = cfg.get("teacher_mode")
+        directives = teacher_directives(teacher_cfg)
+        system_prompt = BRIEF_SYSTEM + (("\n" + directives) if directives else "")
         # Teacher.verbosity overrides the brief.max_tokens default when on.
         # Brief mode default is 200; teacher.expanded bumps to 320.
-        teacher_cfg = cfg.get("teacher_mode")
         max_tokens = max_tokens_for(teacher_cfg, default=int((cfg.get("brief") or {}).get("max_tokens", 200)))
         if self.provider is None:
             return self._fallback(payload)
         try:
-            return (await self.provider.complete(prompt, max_tokens)).strip()
+            return (await self.provider.complete(user_prompt, max_tokens, system=system_prompt)).strip()
         except Exception:
             return self._fallback(payload)
 

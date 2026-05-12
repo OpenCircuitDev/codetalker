@@ -57,13 +57,17 @@ class OllamaProvider(LLMProvider):
         self.endpoint = endpoint.rstrip("/")
         self.model = model
 
-    async def complete(self, prompt: str, max_tokens: int) -> str:
-        payload = {
+    async def complete(self, prompt: str, max_tokens: int, *, system: str | None = None) -> str:
+        payload: dict = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "options": {"num_predict": max_tokens},
         }
+        if system:
+            # Ollama's native `system` param ships the system prompt
+            # separately so model templates use the right slot.
+            payload["system"] = system
         client = _get_client()
         resp = await client.post(f"{self.endpoint}/api/generate", json=payload)
         resp.raise_for_status()

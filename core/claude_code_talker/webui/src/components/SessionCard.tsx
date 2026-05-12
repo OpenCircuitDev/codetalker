@@ -3,6 +3,11 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
 import type { Session } from "../types";
+import {
+  resolveAttachedCharacter,
+  characterDisplayName,
+  getSessionHeadline,
+} from "../types";
 import { useSessionConfig } from "../hooks/useSessionConfig";
 import { cardEntry } from "../theme/motion";
 import { CharacterAvatar } from "./CharacterAvatar";
@@ -24,12 +29,12 @@ function SessionCardImpl({ session }: Props) {
     config !== undefined
       ? config.enabled === false
       : session.enabled === false || !!session.is_muted;
-  const char = session.attached_character;
+  const char = resolveAttachedCharacter(session.attached_character);
   // CCT-28 fix: trust the backend's display_name (already resolves
   // custom_title > vscode_label > slug > c.title > project_slug). Reading
   // session.title first overrode `/title` renames whenever Claude Code
   // emitted an ai-title, causing visible flicker as catalog scans landed.
-  const headline = session.display_name || session.session_id.slice(0, 8);
+  const headline = getSessionHeadline(session);
 
   return (
     <motion.article
@@ -50,7 +55,7 @@ function SessionCardImpl({ session }: Props) {
       <header className="flex items-center gap-3">
         {char ? (
           <CharacterAvatar
-            name={char.display_name}
+            name={characterDisplayName(char)}
             meshUrl={char.mesh_path}
             persona={char.persona ?? null}
             size="md"
@@ -71,7 +76,7 @@ function SessionCardImpl({ session }: Props) {
         <ProfileBadge profile={session.attached_profile} />
         {char && (
           <span className="px-2 py-0.5 rounded bg-cyan-900 text-cyan-200">
-            {char.display_name}
+            {characterDisplayName(char)}
           </span>
         )}
         {session.mode && (

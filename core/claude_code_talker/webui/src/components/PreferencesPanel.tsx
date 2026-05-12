@@ -1,8 +1,13 @@
 // Phase 27 — Preferences panel: sound effects, density, accent.
 // CCT-31 — adds AR Companion pairing QR generator.
+// v0.1.0 unification — adds "Audio defaults" section that flips the
+// fleet-level companion_suppress_desktop flag (the third "obvious
+// toggle" called out in the unification spec).
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePreferences } from "../hooks/usePreferences";
+import { api } from "../api/client";
 
 export function PreferencesPanel() {
   const { prefs, setPref } = usePreferences();
@@ -10,6 +15,17 @@ export function PreferencesPanel() {
   const [pairDaemonUrl, setPairDaemonUrl] = useState<string | null>(null);
   const [pairing, setPairing] = useState(false);
   const [pairError, setPairError] = useState<string | null>(null);
+
+  const qc = useQueryClient();
+  const audioDefaults = useQuery({
+    queryKey: ["audio-defaults"],
+    queryFn: api.audioDefaults,
+    staleTime: 10_000,
+  });
+  const audioDefaultsMutation = useMutation({
+    mutationFn: api.setAudioDefaults,
+    onSuccess: (data) => qc.setQueryData(["audio-defaults"], data),
+  });
 
   const issueToken = async () => {
     setPairing(true);
@@ -97,6 +113,42 @@ export function PreferencesPanel() {
       </fieldset>
 
       <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
+        <legend className="text-sm font-bold text-[var(--color-text-1)]">
+          Audio defaults
+        </legend>
+        <p className="text-xs text-[var(--color-text-3)]">
+          Fleet-level default for sessions without an explicit override.
+          Per-session destinations on the Sessions tab take precedence.
+        </p>
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!audioDefaults.data?.companion_suppress_desktop}
+            disabled={audioDefaultsMutation.isPending || audioDefaults.isLoading}
+            onChange={(e) => audioDefaultsMutation.mutate(e.target.checked)}
+            className="mt-0.5"
+          />
+          <div>
+            <div className="text-sm">Companion takes over desktop</div>
+            <div className="text-[11px] text-[var(--color-text-3)]">
+              When on, default audio routes only to {`{phone, glasses}`}.
+              When off, all three sinks play by default.
+            </div>
+          </div>
+        </label>
+        {audioDefaults.data && (
+          <div className="text-[11px] text-[var(--color-text-3)] font-mono">
+            current default outputs: [{audioDefaults.data.default_outputs.join(", ")}]
+          </div>
+        )}
+        {audioDefaultsMutation.isError && (
+          <div className="text-[11px] text-rose-400">
+            Failed to save: {(audioDefaultsMutation.error as Error).message}
+          </div>
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
         <legend className="text-sm font-bold text-[var(--color-text-1)]">AR Companion</legend>
         <p className="text-xs text-[var(--color-text-3)]">
           Pair the codetalker Android app on your XREAL Beam Pro by scanning a QR token
@@ -138,6 +190,30 @@ export function PreferencesPanel() {
             </div>
           </div>
         )}
+      </fieldset>
+
+      {/* VoiceManager moved to its own top-level tab "Voices" for
+          easier discovery. This Preferences section is now just a
+          pointer so users who land here aren't confused. */}
+      <fieldset className="border border-zinc-800 rounded p-4 mt-6">
+        <legend className="text-xs uppercase tracking-wider text-[var(--color-text-2)] px-2">
+          Voice library
+        </legend>
+        <p className="text-xs text-[var(--color-text-3)]">
+          Voice install / preview / remove moved to the{" "}
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("cct:navigate", { detail: { tab: "voices" } })
+              )
+            }
+            className="text-cyan-400 hover:underline"
+          >
+            Voices tab
+          </button>{" "}
+          for easier discovery.
+        </p>
       </fieldset>
     </section>
   );

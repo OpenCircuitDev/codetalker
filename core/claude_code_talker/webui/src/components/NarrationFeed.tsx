@@ -1,4 +1,6 @@
 // Phase 27 — narration rail. Subscribes to /api/narration-stream.
+// Optional `sessionId` prop filters the feed to one session — used by
+// CTC mode to render a per-card narration view.
 import { useNarrationStream } from "../hooks/useNarrationStream";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -9,8 +11,10 @@ const STATUS_COLORS: Record<string, string> = {
   overflow: "text-amber-400",
 };
 
-export function NarrationFeed() {
-  const events = useNarrationStream();
+type Props = { sessionId?: string };
+
+export function NarrationFeed({ sessionId }: Props = {}) {
+  const events = useNarrationStream(sessionId);
   if (events.length === 0) {
     return (
       <div className="p-4 text-xs text-[var(--color-text-3)]">

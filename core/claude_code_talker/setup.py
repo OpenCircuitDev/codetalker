@@ -166,9 +166,10 @@ def main():
     print()
     _section("Web UI")
     print("Open the multi-session control panel in any browser:")
-    print("  http://127.0.0.1:17832/ui/")
+    print("  http://127.0.0.1:17832/ui-react/")
     print("From there: see active Claude sessions, tune voice/mode/cadence per session,")
     print("save settings as named profiles, install hooks with one click.")
+    print("(Legacy /ui/ now 302-redirects to /ui-react/ — retired 2026-05-11)")
 
     print()
     _section("Hook integration")

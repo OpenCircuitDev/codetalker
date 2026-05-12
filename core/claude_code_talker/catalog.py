@@ -239,6 +239,41 @@ def _read_transcript_tail_names(transcript: Path) -> tuple[str, str]:
     return custom_title, slug
 
 
+def _scan_full_for_custom_title(transcript: Path) -> str:
+    """Scan the entire transcript file for the LAST customTitle event.
+
+    Used as a fallback when `_read_transcript_tail_names` returns "" but
+    we suspect the customTitle exists earlier in the file (e.g. the user
+    ran `/title <name>` early in the session and the event has since been
+    pushed past the 16KB tail buffer by subsequent activity). Cost is
+    proportional to file size — only call once per session and cache the
+    result. For 6MB transcripts this is ~50-200ms.
+
+    Returns "" if no customTitle event is found anywhere in the file.
+    """
+    custom_title = ""
+    try:
+        with transcript.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line.startswith("{"):
+                    continue
+                try:
+                    d = json.loads(line)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                ct = d.get("customTitle")
+                if isinstance(ct, str) and ct.strip():
+                    custom_title = ct.strip()
+                elif d.get("type") == "custom-title":
+                    ct = d.get("title") or d.get("customTitle")
+                    if isinstance(ct, str) and ct.strip():
+                        custom_title = ct.strip()
+    except OSError:
+        pass
+    return custom_title
+
+
 def _read_transcript_latest_slug(transcript: Path) -> str:
     """Backwards-compat shim: returns just the slug from _read_transcript_tail_names."""
     _, slug = _read_transcript_tail_names(transcript)
@@ -304,9 +339,22 @@ class SessionCatalog:
             with self._lock:
                 self._entries = new_entries
             return 0
-        # Snapshot existing titles so re-scans don't re-read every transcript.
+        # Snapshot existing titles + custom_titles so re-scans don't
+        # re-read every transcript.
+        # v0.1.0 unification — custom_title now carries forward across
+        # re-scans like `title` does. Reason: long sessions (>16KB of
+        # transcript activity past the customTitle event) push the event
+        # past the tail-read buffer, so subsequent tail-only reads return
+        # "" and we'd fall back to slug-derived display. Carry-forward
+        # preserves the once-seen value forever; tail-read overrides
+        # only when it actually finds a newer customTitle event.
         with self._lock:
             prior_titles = {sid: e.title for sid, e in self._entries.items() if e.title}
+            prior_custom_titles = {
+                sid: e.custom_title
+                for sid, e in self._entries.items()
+                if e.custom_title
+            }
         # Best-effort: pull user-set labels from the VS Code Claude Code panel.
         vscode_labels = _read_vscode_session_labels()
         for project_dir in self._projects_dir.iterdir():
@@ -320,9 +368,35 @@ class SessionCatalog:
                     continue
                 sid = transcript.stem
                 title = prior_titles.get(sid) or _read_transcript_title(transcript)
-                # custom_title and slug are always re-read — users rename sessions
-                # during their lifetime via /title, and slug also updates.
-                custom_title, slug = _read_transcript_tail_names(transcript)
+                # Tail-read first (cheap). If the tail returned a customTitle,
+                # use it — it's the freshest. Otherwise carry forward the
+                # cached value. If neither exists AND this is a session we
+                # haven't scanned before, do a one-time full-file scan to
+                # catch customTitle events that have been pushed past the
+                # 16KB tail buffer by subsequent activity.
+                tail_custom_title, slug = _read_transcript_tail_names(transcript)
+                if tail_custom_title:
+                    custom_title = tail_custom_title
+                elif sid in prior_custom_titles:
+                    custom_title = prior_custom_titles[sid]
+                else:
+                    # 2026-05-11 — only do the slow full-file scan when the
+                    # transcript was modified recently (≤7 days). py-spy
+                    # diagnosis 2026-05-11: cold-start with ~89 sessions on
+                    # disk was firing _scan_full_for_custom_title for ALL
+                    # of them inside the request handler, parking the
+                    # asyncio loop for tens of seconds. Most older sessions
+                    # never had a /title applied — tail-read covers the
+                    # 16KB window and is the right cost ceiling. Recent
+                    # sessions still get the full scan so a /title set
+                    # early in a long session still surfaces. Sessions
+                    # outside the 7-day window keep "" custom_title until
+                    # a subsequent tail-read picks one up.
+                    import time
+                    if (time.time() - stat.st_mtime) <= 7 * 86400:
+                        custom_title = _scan_full_for_custom_title(transcript)
+                    else:
+                        custom_title = ""
                 new_entries[sid] = CatalogEntry(
                     session_id=sid,
                     project_slug=project_slug,

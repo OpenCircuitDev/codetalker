@@ -72,10 +72,19 @@ class EventBuffer:
             self._events.clear()
 
 
+_USER_DECISION_TOOLS: frozenset[str] = frozenset({
+    "AskUserQuestion",
+    "ExitPlanMode",
+    "EnterPlanMode",
+})
+
+
 def score_significance(event: Event, keywords: list[str]) -> float:
     """Deterministic significance scoring 0.0–1.0.
 
-    Notifications max out (user needs to hear). Errors and findings score high.
+    Notifications max out (user needs to hear). User-decision tool invocations
+    (AskUserQuestion / ExitPlanMode / EnterPlanMode) also max out so they hit
+    the alert-priority audio path. Errors and findings score high.
     Edits/Writes score moderate. Reads/Greps score low.
     """
     if event.type == "NOTIFICATION":
@@ -85,6 +94,14 @@ def score_significance(event: Event, keywords: list[str]) -> float:
         if not event.metadata.get("success", True):
             return 0.9
         tool = event.metadata.get("tool_name", "")
+        if tool in _USER_DECISION_TOOLS:
+            return 0.95
+        if tool == "TodoWrite":
+            todos = event.metadata.get("input", {})
+            if isinstance(todos, dict):
+                items = todos.get("todos") or []
+                if any((t or {}).get("status") == "completed" for t in items if isinstance(t, dict)):
+                    return 0.7
         if tool in ("Edit", "Write"):
             return 0.6
         if tool == "Bash":
@@ -96,6 +113,8 @@ def score_significance(event: Event, keywords: list[str]) -> float:
 
     if event.type == "PRE_TOOL":
         tool = event.metadata.get("tool_name", "")
+        if tool in _USER_DECISION_TOOLS:
+            return 0.95
         if tool == "Bash":
             cmd = event.metadata.get("input", "") or ""
             if any(s in cmd.lower() for s in ("rm ", "kill", "drop ", "delete ")):

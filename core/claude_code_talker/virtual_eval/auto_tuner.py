@@ -94,12 +94,26 @@ Return JSON ONLY, no preamble:
 
 def parse_tuning_response(raw: str) -> dict:
     """Parse the LLM tuning response. Always returns a dict with fields_to_set
-    and reasoning keys; invalid input yields empty fields_to_set."""
+    and reasoning keys; invalid input yields empty fields_to_set.
+
+    Tolerates ```json fences, leading commentary, AND prose after the
+    JSON object (which the LLM tends to add even when told not to).
+    The lenient brace-extraction matches what the personas + character
+    generate flows already do.
+    """
     text = (raw or "").strip()
-    fence = re.compile(r"^```(?:json)?\s*\n?(.+?)\n?```$", re.DOTALL)
+    if not text:
+        return {"fields_to_set": {}, "reasoning": ""}
+    fence = re.compile(r"^```(?:json)?\s*\n?(.+?)\n?```\s*$", re.DOTALL)
     m = fence.match(text)
     if m:
         text = m.group(1).strip()
+    # Lenient: extract from first `{` to last `}` so surrounding prose
+    # ("Here's the tuning proposal:" / "Let me know…") gets stripped.
+    first = text.find("{")
+    last = text.rfind("}")
+    if first != -1 and last > first:
+        text = text[first : last + 1]
     try:
         data = json.loads(text)
     except (json.JSONDecodeError, ValueError):
@@ -171,7 +185,12 @@ async def propose_tuning(
         max_fields=max_fields,
     )
     try:
-        raw = await provider.complete(prompt, max_tokens=400)
+        # 400 was too tight — the LLM truncates mid-JSON, especially
+        # when prompt_directive_extras is one of the proposed fields
+        # (each char counts against the token budget). 1200 gives
+        # plenty of room for both fields_to_set and the reasoning
+        # paragraph without forcing the model to skip detail.
+        raw = await provider.complete(prompt, max_tokens=1200)
     except Exception as e:
         logging.debug("tuning proposal failed: %s", e)
         return {"fields_to_set": {}, "reasoning": "", "pending_approval": False}

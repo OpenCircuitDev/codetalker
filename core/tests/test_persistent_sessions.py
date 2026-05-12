@@ -1,7 +1,11 @@
 """Tests for PersistentSessionStore."""
 import pytest
 from pathlib import Path
-from claude_code_talker.persistent_sessions import PersistentSessionStore
+from claude_code_talker.persistent_sessions import (
+    PersistentSessionStore,
+    _migrate_promoted_keys,
+    _PROMOTED_KEYS,
+)
 
 
 @pytest.fixture
@@ -130,3 +134,85 @@ def test_unknown_keys_preserved_on_roundtrip(store):
     assert loaded == payload
     assert loaded["future_field_we_dont_know_about"] == "preserved"
     assert loaded["another_unknown"]["nested"] == "data"
+
+
+# --- v0.1.0 unification: self-healing migration of promoted keys ---
+
+def test_migrate_lifts_pinned_from_live_overlay():
+    """When `pinned` was orphaned under live_overlay (pre-fix daemon code),
+    reading the overlay lifts it to top-level + strips the nested copy."""
+    data = {
+        "live_overlay": {"active_mode": "brief", "pinned": True},
+        "display_name": None,
+        "workspace_group": "OCDev",
+    }
+    out = _migrate_promoted_keys(data)
+    assert out["pinned"] is True
+    assert "pinned" not in out["live_overlay"]
+    # Other live_overlay keys stay put.
+    assert out["live_overlay"]["active_mode"] == "brief"
+
+
+def test_migrate_lifts_all_promoted_keys():
+    """All keys in _PROMOTED_KEYS get the same treatment."""
+    nested = {k: f"value_{k}" for k in _PROMOTED_KEYS}
+    nested["other_unknown"] = "stays_here"
+    data = {"live_overlay": dict(nested), "enabled": True}
+    out = _migrate_promoted_keys(data)
+    for k in _PROMOTED_KEYS:
+        assert out[k] == f"value_{k}", f"{k} should lift to top-level"
+        assert k not in out["live_overlay"], f"{k} should be stripped from nested"
+    # Non-promoted keys stay nested.
+    assert out["live_overlay"]["other_unknown"] == "stays_here"
+
+
+def test_migrate_top_level_wins_over_nested():
+    """If both top-level and nested exist, top-level value is kept (newer
+    write); nested is stripped."""
+    data = {
+        "live_overlay": {"pinned": False, "workspace_group": "OldGroup"},
+        "pinned": True,
+        "workspace_group": "NewGroup",
+    }
+    out = _migrate_promoted_keys(data)
+    assert out["pinned"] is True
+    assert out["workspace_group"] == "NewGroup"
+    assert "pinned" not in out["live_overlay"]
+    assert "workspace_group" not in out["live_overlay"]
+
+
+def test_migrate_no_op_when_no_live_overlay():
+    """Migration is a no-op when live_overlay is missing or non-dict."""
+    data = {"display_name": "Test"}
+    out = _migrate_promoted_keys(data)
+    assert out == {"display_name": "Test"}
+
+
+def test_migrate_no_op_when_no_promoted_keys_nested():
+    """live_overlay exists but has no promoted keys — no-op."""
+    data = {
+        "live_overlay": {"active_mode": "brief", "voice": {"model": "x"}},
+        "display_name": "Foo",
+    }
+    out = _migrate_promoted_keys(data)
+    assert out == data
+
+
+def test_get_applies_migration_transparently(store, tmp_path):
+    """The store's get() applies the migration on read so callers
+    never see the orphan shape, even on overlays written by old daemon
+    code that didn't recognize the promoted keys."""
+    # Simulate an old-daemon write where 'pinned' landed under live_overlay
+    # because the merge fell through to the catch-all else-branch.
+    raw = """\
+live_overlay:
+  active_mode: brief
+  pinned: true
+display_name: null
+workspace_group: OCDev
+"""
+    (tmp_path / "legacy-sid.yaml").write_text(raw, encoding="utf-8")
+    loaded = store.get("legacy-sid")
+    assert loaded["pinned"] is True
+    assert "pinned" not in loaded["live_overlay"]
+    assert loaded["workspace_group"] == "OCDev"

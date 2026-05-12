@@ -135,17 +135,37 @@ Return ONLY a JSON array of 5 objects. No prose, no markdown fences."""
 def parse_personas_response(raw_response: str) -> list[Persona]:
     """Parse the LLM's response into validated Personas.
 
-    Tolerates ```json fences, leading/trailing whitespace.
+    Tolerates:
+    - ``` / ```json fences
+    - leading/trailing whitespace
+    - leading commentary before the JSON array
+    - trailing commentary after the JSON array (common when the LLM
+      explains its choices after the structured output)
+
     Raises ValueError if the result isn't 5 valid personas.
     """
-    text = raw_response.strip()
-    # Strip optional markdown code fence
-    fence_pattern = re.compile(r"^```(?:json)?\s*\n?(.+?)\n?```$", re.DOTALL)
+    text = (raw_response or "").strip()
+    if not text:
+        raise ValueError(
+            "persona response is empty (LLM returned no content — check provider + max_tokens)"
+        )
+    # Strip optional markdown code fence around the whole response.
+    fence_pattern = re.compile(r"^```(?:json)?\s*\n?(.+?)\n?```\s*$", re.DOTALL)
     m = fence_pattern.match(text)
     if m:
         text = m.group(1).strip()
+    # Lenient extraction: pull from the first `[` to the last `]` so any
+    # surrounding prose ("Here are the personas:" / "Hope these help!")
+    # gets stripped before json.loads. Same trick we use for the
+    # generate-character endpoint's draft parser.
+    first = text.find("[")
+    last = text.rfind("]")
+    if first != -1 and last > first:
+        text = text[first : last + 1]
     try:
         data = json.loads(text)
     except json.JSONDecodeError as e:
-        raise ValueError(f"persona response is not valid JSON: {e}") from e
+        raise ValueError(
+            f"persona response is not valid JSON: {e}; raw={raw_response[:200]!r}"
+        ) from e
     return validate_personas(data)

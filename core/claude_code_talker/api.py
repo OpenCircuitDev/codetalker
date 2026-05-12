@@ -60,27 +60,255 @@ def _has_codetalker_hook(entries: list) -> bool:
     return False
 
 
+def _merge_into_persistent(state, sid: str, partial: dict, live=None) -> None:
+    """v0.1.0 polish — merge an overlay partial into persistent_sessions storage.
+
+    Used by put_overlay to mirror Pro-companion + webui edits to disk so
+    (a) the webui's catalog view sees the same state on its next poll,
+    (b) the change survives daemon restart, and (c) dormant sessions can be
+    edited at all (otherwise put_overlay would 404).
+
+    The partial follows the same schema the in-memory overlay does. Top-level
+    keys we recognize: ``enabled``, ``active_mode``, ``voice`` (dict),
+    ``live`` (dict with cadence), ``markup`` (dict). Anything we don't
+    recognize is preserved verbatim under ``live_overlay``.
+    """
+    if state.persistent_sessions is None:
+        return
+    existing = state.persistent_sessions.get(sid) or {}
+    existing.setdefault("live_overlay", {})
+    # The in-memory overlay structure is partial[key] = new value; mirror
+    # that into the persisted shape.
+    for key, value in partial.items():
+        if key == "enabled":
+            existing["enabled"] = bool(value)
+        elif key == "active_mode":
+            existing["live_overlay"]["active_mode"] = value
+        elif key == "live" and isinstance(value, dict):
+            sub = existing["live_overlay"].setdefault("live", {})
+            sub.update(value)
+        elif key == "voice" and isinstance(value, dict):
+            existing["live_overlay"].setdefault("voice", {}).update(value)
+        elif key == "markup" and isinstance(value, dict):
+            existing["live_overlay"].setdefault("markup", {}).update(value)
+        elif key == "attached_profile":
+            existing["attached_profile"] = value
+        elif key == "attached_character":
+            existing["attached_character"] = value
+        elif key == "workspace_group":
+            # v0.1.0 polish — user-defined workspace grouping (separate from
+            # cwd-derived project_dir). Empty string clears.
+            if value is None or value == "":
+                existing.pop("workspace_group", None)
+            else:
+                existing["workspace_group"] = str(value)
+        elif key == "audio_outputs":
+            # v0.1.0 unification — multi-select audio destinations. List of
+            # strings from {"desktop", "phone", "glasses"}. Empty list or
+            # null = no audio (silenced everywhere).
+            if value is None:
+                existing.pop("audio_outputs", None)
+            elif isinstance(value, (list, tuple)):
+                valid = {"desktop", "phone", "glasses"}
+                cleaned = sorted(
+                    {str(v).lower() for v in value if str(v).lower() in valid}
+                )
+                existing["audio_outputs"] = cleaned
+        elif key == "auto_mode_enabled":
+            # v0.1.0 unification — opt-in auto-switch between live/brief
+            # active_mode based on user-interaction recency.
+            existing["auto_mode_enabled"] = bool(value)
+        elif key == "auto_mode_idle_threshold_secs":
+            if value is None:
+                existing.pop("auto_mode_idle_threshold_secs", None)
+            else:
+                try:
+                    existing["auto_mode_idle_threshold_secs"] = float(value)
+                except (TypeError, ValueError):
+                    pass
+        elif key == "display_name":
+            # v0.1.0 polish — user-facing rename of a session, sync'd
+            # between Pro app and webui.
+            if value is None or value == "":
+                existing.pop("display_name", None)
+            else:
+                existing["display_name"] = str(value)
+        elif key == "pinned":
+            # v0.1.0 unification — pin-to-top within the session's group.
+            # Stored as bool; truthy = pinned. Webui SessionGrid sorts
+            # pinned-first within each workspace_group section.
+            if value:
+                existing["pinned"] = True
+            else:
+                existing.pop("pinned", None)
+        else:
+            existing["live_overlay"][key] = value
+    if live is not None:
+        # Carry forward useful identity fields for the webui's catalog row.
+        existing.setdefault("display_name", None)
+        existing.setdefault("cwd", getattr(live, "cwd", "") or "")
+    state.persistent_sessions.save(sid, existing)
+
+
+def _read_pinned(persistent: dict | None) -> bool:
+    """v0.1.0 unification — read the pinned flag defensively from a
+    persistent overlay dict. Older overlays (from daemons predating the
+    pinned-key-handling commit) may have `pinned: true` nested under
+    `live_overlay` instead of at the top level, because the merge
+    fell through to the catch-all else-branch. Treat both shapes as
+    truthy so existing pins survive the daemon restart that activates
+    the new code path."""
+    if not persistent:
+        return False
+    if persistent.get("pinned"):
+        return True
+    lo = persistent.get("live_overlay")
+    if isinstance(lo, dict) and lo.get("pinned"):
+        return True
+    return False
+
+
 def build_routes(state) -> list[Route]:
     """Build the list of Starlette Route objects bound to this server state."""
 
     async def health(request: Request) -> JSONResponse:
         return JSONResponse({"ok": True})
 
+    def _audio_misaligned(sid: str, audio_outputs) -> bool:
+        """Tier-A.2 (2026-05-11) — True iff this session has a companion
+        sink configured (phone/glasses) but no live audio_hub subscriber.
+        UIs use this to render a 'configured but not receiving' badge so
+        the dual-state alignment trap surfaces visually instead of as
+        silent dead air.
+        """
+        if not audio_outputs:
+            return False
+        try:
+            outs = {str(o).lower() for o in audio_outputs}
+        except Exception:
+            return False
+        if not (outs & {"phone", "glasses"}):
+            return False
+        hub = getattr(state, "audio_hub", None)
+        if hub is None:
+            return True
+        try:
+            subs = getattr(hub, "_subscribers", {}).get(sid, [])
+        except Exception:
+            return True
+        return not subs
+
     async def list_sessions(request: Request) -> JSONResponse:
+        # v0.1.0 unification — broader liveness signal.
+        # The daemon's in-memory `SessionState` only exists for sessions
+        # that fired a hook recently (the `state.sessions.touch()` path).
+        # That misses two real-world cases:
+        #   (a) A CC session sitting idle without tool calls — its
+        #       transcript is being written but no PreToolUse hook fires.
+        #   (b) A new CC session that started after the last 30s catalog
+        #       watcher tick — not yet in the catalog at all.
+        # We classify a session as "live" if EITHER it has an in-memory
+        # SessionState OR its transcript file was modified within
+        # TRANSCRIPT_LIVE_WINDOW_SEC. This matches the user's mental model
+        # ("the session is open in CC right now") rather than the strict
+        # hook-driven model.
+        import time as _time
+        TRANSCRIPT_LIVE_WINDOW_SEC = 60
+
         live = state.sessions.list_active()
         live_by_sid = {s.session_id: s for s in live}
-        merged = []
+
+        # 2026-05-11 — replaced per-request `DEFAULT_PROJECTS_DIR.rglob("*.jsonl")`
+        # walk with an in-memory derivation from the catalog. py-spy diagnosis
+        # showed that walk was the second wedge in this handler (the first
+        # being a synchronous catalog.refresh, also removed): rglob iterates
+        # thousands of file stats inside the event loop, parking the daemon
+        # for tens of seconds per request. The catalog already tracks mtime
+        # per entry via its 30s background watcher, so liveness detection
+        # comes from those entries — same TRANSCRIPT_LIVE_WINDOW_SEC window,
+        # zero new disk I/O.
+        from claude_code_talker.catalog import _slug_to_display_name  # noqa: F401
+
+        now = _time.time()
         if state.catalog is not None:
             catalog_entries = state.catalog.entries()
         else:
             catalog_entries = []
+        disk_active_sids: set[str] = {
+            e.session_id for e in catalog_entries
+            if (now - e.last_modified) < TRANSCRIPT_LIVE_WINDOW_SEC
+        }
+        merged = []
         seen_sids = set()
-        from claude_code_talker.catalog import _slug_to_display_name
+
+        # v0.1.0 unification — resolve attached_character (which is stored
+        # as a string ID on SessionState + persistent overlay) into the
+        # full character record so the webui can render the avatar +
+        # display name + voice ref without an extra round-trip per session.
+        # Accepts either a string ID (legacy/typical) or a pre-resolved
+        # dict (defensive — some code paths may pass the full record).
+        def _resolve_character(value):
+            if value is None or value == "":
+                return None
+            if isinstance(value, dict):
+                return value
+            if state.characters is None:
+                return {"id": str(value), "display_name": str(value)}
+            try:
+                c = state.characters.get(str(value))
+                if c is None:
+                    # Stale ID — character was deleted but session still
+                    # references it. Return a minimal stub so the UI shows
+                    # something instead of silently dropping the attachment.
+                    return {"id": str(value), "display_name": str(value)}
+                return c.to_dict()
+            except Exception:
+                return {"id": str(value), "display_name": str(value)}
+        # v0.1.0 unification — for LIVE sessions only, re-read the latest
+        # custom_title + slug from the transcript tail directly. The catalog
+        # watcher refreshes every 30s, which is too slow to feel reactive
+        # when the user runs `/title <name>` in Claude Code and immediately
+        # checks the webui. Live sessions are typically <= 5 transcripts at
+        # ~16KB tail each per request — trivial IO. Dormant sessions keep
+        # the cached watcher values.
+        from claude_code_talker.catalog import _read_transcript_tail_names
         for c in catalog_entries:
             sid = c.session_id
             seen_sids.add(sid)
             live_match = live_by_sid.get(sid)
             persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
+            # Live-session refresh: re-read tail to pick up `/title` renames
+            # within the webui's 5s poll cadence rather than waiting on the
+            # 30s catalog watcher. Best-effort — if the read fails (file
+            # locked etc.) we fall back to the catalog-cached values.
+            #
+            # FIX: The condition is `live_match OR sid in disk_active_sids`
+            # so we re-read for any session that's `is_live` via either
+            # path (in-memory SessionState OR transcript-mtime). The
+            # in-memory-only check missed sessions whose SessionState was
+            # wiped by daemon restart but whose transcript is still being
+            # actively written — exactly the case the transcript-mtime
+            # liveness fix was designed to surface.
+            live_custom_title = ""
+            live_slug = ""
+            if live_match is not None or sid in disk_active_sids:
+                try:
+                    live_custom_title, live_slug = _read_transcript_tail_names(
+                        c.transcript_path
+                    )
+                except Exception:
+                    pass
+            # v0.1.0 unification — expose project_dir (the Claude Code
+            # transcript folder name like "C--Users-brand-...-codetalker")
+            # so the webui can group sessions by Claude project, matching
+            # what the Pro Android app already does via the companion endpoint.
+            project_dir = ""
+            try:
+                tp = getattr(c, "transcript_path", None)
+                if tp is not None:
+                    project_dir = tp.parent.name
+            except Exception:
+                project_dir = ""
             # Display priority:
             #   persistent display_name (codetalker-set)
             #   > Claude Code custom_title (user's /title rename — verbatim)
@@ -88,44 +316,89 @@ def build_routes(state) -> list[Route]:
             #   > slug-derived display name (auto-generated, tracks renames)
             #   > catalog auto-title (cached first prompt)
             #   > project_slug
-            slug_display = _slug_to_display_name(c.slug) if c.slug else ""
+            # For live sessions, prefer the freshly-read tail values over
+            # the catalog-cached versions.
+            effective_custom_title = live_custom_title or c.custom_title
+            effective_slug = live_slug or c.slug
+            slug_display = _slug_to_display_name(effective_slug) if effective_slug else ""
             display_name = (
                 (persistent.get("display_name") if persistent else None)
-                or (c.custom_title or None)
+                or (effective_custom_title or None)
                 or (c.vscode_label or None)
                 or (slug_display or None)
                 or (c.title or None)
                 or c.project_slug
             )
+            # Resolve active_mode + cadence. Only call the expensive
+            # config_for() merge when the session has its own overlay or
+            # is live; otherwise inherit the daemon's global default
+            # (which is what config_for would resolve to anyway with no
+            # per-session override). Skipping the merge for ~85 dormant
+            # sessions cuts /api/sessions latency from ~3s to ~30ms.
+            _live_overlay = (persistent.get("live_overlay") if persistent else None) or {}
+            if live_match is not None or _live_overlay:
+                try:
+                    _resolved = state.sessions.config_for(sid) or {}
+                except Exception:
+                    _resolved = {}
+                _active_mode = _resolved.get("active_mode") or getattr(state, "active_mode", None)
+                _cadence = (_resolved.get("live") or {}).get("cadence")
+            else:
+                _active_mode = getattr(state, "active_mode", None)
+                _cadence = ((getattr(state, "cfg", {}) or {}).get("live") or {}).get("cadence")
             merged.append({
                 "session_id": sid,
                 "cwd": (live_match.cwd if live_match else "") or "",
                 "project_slug": c.project_slug,
+                "project_dir": project_dir,
                 "title": c.title,
                 "display_name": display_name,
                 "last_modified": max(
                     c.last_modified,
                     live_match.last_hook_at if live_match else 0.0,
                 ),
-                "is_live": live_match is not None,
+                "is_live": (live_match is not None) or (sid in disk_active_sids),
                 "enabled": (persistent.get("enabled", True) if persistent else True),
+                "active_mode": _active_mode,
+                "cadence": _cadence,
                 "attached_profile": (
                     live_match.attached_profile if live_match else (
                         persistent.get("attached_profile") if persistent else None
                     )
                 ),
-                "attached_character": (
+                "attached_character": _resolve_character(
                     live_match.attached_character if live_match else (
                         persistent.get("attached_character") if persistent else None
                     )
                 ),
                 "has_persistent_settings": persistent is not None,
+                # v0.1.0 unification — fields the webui's unified session UI needs.
+                "workspace_group": (persistent.get("workspace_group") if persistent else None),
+                "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
+                "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
+                "audio_misaligned": _audio_misaligned(c.session_id, persistent.get("audio_outputs") if persistent else None),
+                "is_speaking": bool(getattr(live_match, "is_speaking", False)) if live_match else False,
+                "pinned": _read_pinned(persistent),
+                # v0.1.0 Tier 2 emotive state machine — expose the
+                # transient last_user_interaction_at so the webui's
+                # useCharacterPose can drive the `listening` state
+                # accurately. 0 means "no recorded interaction since
+                # daemon start" (treated as not-listening by the hook).
+                "last_user_interaction_at": float(
+                    getattr(live_match, "last_user_interaction_at", 0.0)
+                ) if live_match else 0.0,
             })
         # Live sessions not in the catalog (newly created since last scan)
         for sid, live_match in live_by_sid.items():
             if sid in seen_sids:
                 continue
             persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
+            try:
+                _resolved2 = state.sessions.config_for(sid) or {}
+            except Exception:
+                _resolved2 = {}
+            _active_mode2 = _resolved2.get("active_mode") or getattr(state, "active_mode", None)
+            _cadence2 = (_resolved2.get("live") or {}).get("cadence")
             merged.append({
                 "session_id": sid,
                 "cwd": live_match.cwd or "",
@@ -134,9 +407,21 @@ def build_routes(state) -> list[Route]:
                 "last_modified": live_match.last_hook_at,
                 "is_live": True,
                 "enabled": (persistent.get("enabled", True) if persistent else True),
+                "active_mode": _active_mode2,
+                "cadence": _cadence2,
                 "attached_profile": live_match.attached_profile,
-                "attached_character": live_match.attached_character,
+                "attached_character": _resolve_character(live_match.attached_character),
                 "has_persistent_settings": persistent is not None,
+                "pinned": _read_pinned(persistent),
+                # v0.1.0 unification — fields the webui's unified session UI needs.
+                "workspace_group": (persistent.get("workspace_group") if persistent else None),
+                "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
+                "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
+                "audio_misaligned": _audio_misaligned(sid, persistent.get("audio_outputs") if persistent else None),
+                "is_speaking": bool(getattr(live_match, "is_speaking", False)),
+                "last_user_interaction_at": float(
+                    getattr(live_match, "last_user_interaction_at", 0.0)
+                ),
             })
         merged.sort(key=lambda e: e["last_modified"], reverse=True)
         return JSONResponse(merged)
@@ -144,44 +429,138 @@ def build_routes(state) -> list[Route]:
     async def get_session(request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
         s = state.sessions.get(sid)
-        if s is None:
+        if s is not None:
+            cfg = state.sessions.config_for(sid)
+            return JSONResponse({
+                "state": {
+                    "session_id": s.session_id,
+                    "cwd": s.cwd,
+                    "transcript_path": s.transcript_path,
+                    "last_hook_at": s.last_hook_at,
+                    "live_overlay": s.live_overlay,
+                    "attached_profile": s.attached_profile,
+                    "attached_character": s.attached_character,
+                },
+                "resolved_cfg": cfg,
+            })
+        # v0.1.0 unification — dormant fallback. Without this, opening the
+        # detail panel for a session that's `is_live` via transcript-mtime
+        # (no in-memory SessionState since restart) returned 404, leaving
+        # ModePicker/VoicePicker/CadencePicker stuck on "(unknown)" with
+        # no way to save. Same gating as put_overlay's dormant branch:
+        # the SID must be known via persistent overlay or catalog.
+        if state.persistent_sessions is None:
             return _not_found(f"unknown session: {sid}")
-        cfg = state.sessions.config_for(sid)
+        try:
+            persistent = state.persistent_sessions.get(sid)
+        except Exception:
+            persistent = None
+        catalog_entry = (
+            state.catalog.entry_for(sid) if state.catalog is not None else None
+        )
+        if persistent is None and catalog_entry is None:
+            return _not_found(f"unknown session: {sid}")
+        # Build a synthetic resolved_cfg by merging persistent overlay
+        # onto base cfg, mirroring SessionRegistry.config_for() but
+        # without requiring an in-memory SessionState.
+        from claude_code_talker.config import resolve_for_session
+        from claude_code_talker.sessions import SessionState as _SS
+        synthetic = _SS(session_id=sid)
+        if persistent is not None:
+            synthetic.live_overlay = dict(persistent.get("live_overlay") or {})
+            synthetic.attached_profile = persistent.get("attached_profile")
+            synthetic.attached_character = persistent.get("attached_character")
+            synthetic.enabled = bool(persistent.get("enabled", True))
+        try:
+            cfg = resolve_for_session(
+                state.cfg if hasattr(state, "cfg") else {},
+                synthetic,
+                state.profiles,
+                state.characters if hasattr(state, "characters") else None,
+            )
+        except Exception:
+            cfg = (persistent or {}) if isinstance(persistent, dict) else {}
         return JSONResponse({
             "state": {
-                "session_id": s.session_id,
-                "cwd": s.cwd,
-                "transcript_path": s.transcript_path,
-                "last_hook_at": s.last_hook_at,
-                "live_overlay": s.live_overlay,
-                "attached_profile": s.attached_profile,
-                "attached_character": s.attached_character,
+                "session_id": sid,
+                "cwd": (persistent or {}).get("cwd", "") if persistent else "",
+                "transcript_path": "",
+                "last_hook_at": 0.0,
+                "live_overlay": synthetic.live_overlay,
+                "attached_profile": synthetic.attached_profile,
+                "attached_character": synthetic.attached_character,
+                "persistent_only": True,
             },
             "resolved_cfg": cfg,
         })
 
     async def put_overlay(request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
-        if state.sessions.get(sid) is None:
-            return _not_found(f"unknown session: {sid}")
         try:
             partial = await _read_json(request)
         except ValueError as e:
             return _bad_request(str(e))
-        try:
-            state.sessions.update_overlay(sid, partial)
-        except KeyError:
+        # v0.1.0 polish — accept overlay edits for dormant sessions too, so
+        # mute/mode/character changes made on the Pro Sessions list survive
+        # the session's eviction from state.sessions AND are visible to the
+        # webui (which reads persistent overlays for catalog rows). For live
+        # sessions, also update in-memory state.sessions so Claude Code's
+        # next hook sees the change immediately.
+        live = state.sessions.get(sid)
+        if live is not None:
+            try:
+                state.sessions.update_overlay(sid, partial)
+            except KeyError:
+                return _not_found(f"unknown session: {sid}")
+            cfg = state.sessions.config_for(sid)
+            state.sessions.invalidate(sid)
+            s = state.sessions.get(sid)
+            # Mirror the change into persistent storage so the webui's
+            # /api/persistent-sessions/<sid> view (and a subsequent daemon
+            # restart) sees the same state — Pro app ↔ webui cross-sync.
+            try:
+                if state.persistent_sessions is not None:
+                    _merge_into_persistent(state, sid, partial, s)
+            except Exception:
+                pass
+            return JSONResponse({
+                "state": {
+                    "session_id": s.session_id,
+                    "live_overlay": s.live_overlay,
+                    "attached_profile": s.attached_profile,
+                },
+                "resolved_cfg": cfg,
+            })
+        # Dormant session — write directly to persistent overlay so the
+        # change is preserved and the next live boot of this session
+        # reads it on resume. Gated on the SID being known via persistent
+        # storage or catalog so a typo'd/stale SID doesn't silently create
+        # a ghost entry; use POST /api/persistent-sessions/<sid> to create.
+        if state.persistent_sessions is None:
             return _not_found(f"unknown session: {sid}")
-        cfg = state.sessions.config_for(sid)
-        state.sessions.invalidate(sid)  # keep cache cleared after resolving for response
-        s = state.sessions.get(sid)
+        try:
+            has_persistent = state.persistent_sessions.exists(sid)
+        except Exception:
+            return _not_found(f"unknown session: {sid}")
+        has_catalog = (
+            state.catalog is not None
+            and state.catalog.entry_for(sid) is not None
+        )
+        if not (has_persistent or has_catalog):
+            return _not_found(f"unknown session: {sid}")
+        try:
+            _merge_into_persistent(state, sid, partial, None)
+        except Exception as e:
+            return _bad_request(f"persistent overlay write failed: {e}")
+        merged = state.persistent_sessions.get(sid) or {}
         return JSONResponse({
             "state": {
-                "session_id": s.session_id,
-                "live_overlay": s.live_overlay,
-                "attached_profile": s.attached_profile,
+                "session_id": sid,
+                "live_overlay": merged.get("live_overlay", {}),
+                "attached_profile": merged.get("attached_profile"),
+                "persistent_only": True,
             },
-            "resolved_cfg": cfg,
+            "resolved_cfg": merged,
         })
 
     async def delete_overlay_keypath(request: Request) -> JSONResponse:
@@ -273,6 +652,64 @@ def build_routes(state) -> list[Route]:
             "settings_path": str(path),
             "missing_events": missing,
         })
+
+    async def hooks_dispatch(request: Request) -> JSONResponse:
+        """v1.0 — REST entry point for Claude Code hooks. Replaces the
+        MCP SSE path that hook_cli.py used to take; the SSE handshake
+        from the Windows .exe wrapper was adding 10-22s per hook,
+        causing them to silently time out before the tool dispatch ran.
+
+        Body: the raw hook payload from Claude Code (must include
+        ``hook_event_name`` + ``session_id``; additional fields depend
+        on the event).
+        """
+        try:
+            payload = await _read_json(request)
+        except ValueError as exc:
+            return _bad_request(str(exc))
+        if not isinstance(payload, dict):
+            return _bad_request("body must be a JSON object")
+        event = payload.get("hook_event_name") or ""
+        handlers = getattr(state, "hook_handlers_async", {}) or {}
+        handler = handlers.get(event)
+        if handler is None:
+            return _bad_request(f"unknown or unsupported hook event: {event!r}")
+        # Build the args dict the same way hook_cli.dispatch_hook did
+        # for MCP; the underlying tts_handle_* functions all read these
+        # specific keys (others are ignored).
+        common = {
+            "session_id": payload.get("session_id", ""),
+            "cwd": payload.get("cwd", ""),
+        }
+        if event == "Stop":
+            args = {**common, "transcript_path": payload.get("transcript_path", "")}
+        elif event == "Notification":
+            args = {**common, "message": payload.get("message", "")}
+        elif event == "UserPromptSubmit":
+            args = {**common, "prompt": payload.get("prompt", "")}
+        elif event == "PreToolUse":
+            args = {
+                **common,
+                "tool_name": payload.get("tool_name", ""),
+                "tool_input": payload.get("tool_input", {}),
+            }
+        elif event == "PostToolUse":
+            args = {
+                **common,
+                "tool_name": payload.get("tool_name", ""),
+                "tool_input": payload.get("tool_input", {}),
+                "tool_response": payload.get("tool_response", {}),
+            }
+        else:
+            args = common
+        try:
+            result = await handler(args)
+        except Exception as exc:
+            return JSONResponse(
+                {"error": f"handler raised: {exc}", "event": event},
+                status_code=500,
+            )
+        return JSONResponse({"event": event, "result": result})
 
     async def install_hooks(request: Request) -> JSONResponse:
         path = CLAUDE_SETTINGS_PATH
@@ -430,6 +867,194 @@ def build_routes(state) -> list[Route]:
         state.characters.delete(cid)
         return JSONResponse({"deleted": True})
 
+    async def generate_character_for_session(request: Request) -> JSONResponse:
+        """POST /api/sessions/{session_id}/generate-character — use the
+        configured LLM to invent a Character tailored to this session.
+
+        Modes:
+        - `?preview=true` — return the LLM draft (display_name, persona,
+          mesh_prompt, emotive_states) WITHOUT saving or attaching. UI
+          opens an editor with the draft pre-filled so the user can tweak
+          fields before committing.
+        - default (no query) — save the character to the store and
+          attach it to the session in one call (legacy one-click flow).
+
+        The LLM is told about the session display_name and project_dir
+        and asked to return a JSON document. voice_ref defaults to a
+        known piper voice; the user can swap it later in the Voice
+        picker or attach a cloned voice.
+        """
+        preview_only = request.query_params.get("preview", "").lower() in (
+            "1", "true", "yes"
+        )
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        sid = request.path_params.get("session_id", "")
+        if not sid:
+            return _bad_request("session_id is required")
+        # Read session context for the LLM prompt.
+        sess = state.sessions.get(sid) if state.sessions is not None else None
+        persistent = (
+            state.persistent_sessions.get(sid)
+            if getattr(state, "persistent_sessions", None) is not None
+            else {}
+        ) or {}
+        display_name = (
+            persistent.get("display_name")
+            or (getattr(sess, "live_overlay", {}) or {}).get("display_name")
+            or sid[:8]
+        )
+        project_dir = (
+            (getattr(sess, "cwd", "") if sess is not None else "")
+            or persistent.get("cwd")
+            or ""
+        )
+        # Last segment of project_dir is a useful project name proxy.
+        import os as _os
+        project_label = _os.path.basename(project_dir.replace("\\", "/")) or "the project"
+
+        from claude_code_talker.server import _select_provider
+        provider = _select_provider(state, "brief")
+        if provider is None:
+            return JSONResponse(
+                {"error": "no LLM provider configured (set openrouter or anthropic key)"},
+                status_code=503,
+            )
+
+        prompt = f"""You are designing a TTS narrator character for a coding session named "{display_name}" working on project "{project_label}".
+
+The character will narrate Claude Code's progress aloud as work happens. The persona should suit the work being done — analytical for systems work, warm for creative work, technical for infra, etc.
+
+VISUAL FORMAT — CRITICAL: the character is rendered as a TALKING-HEAD PORTRAIT with the body visible from the WAIST UP and ARMS in-frame. All visual prompts (mesh_prompt + emotive_states) must describe poses, gestures, and expressions that work within this framing. Do NOT describe full-body or legs/feet motion. Arms and hands are always part of every pose. Camera frames torso + head.
+
+Output ONLY valid JSON matching this exact schema (no markdown, no commentary, no code fences):
+
+{{
+  "display_name": "short readable name like 'Maya' or 'Atlas' (1-3 words)",
+  "persona": "one of: methodical, warm, technical, plain, sarcastic, energetic",
+  "mesh_prompt": "single sentence visual description, WAIST-UP PORTRAIT with arms visible: attire, hair, expression, era/style, arm position, framing should clearly state 'waist-up portrait' or 'bust shot'",
+  "emotive_states": {{
+    "idle": "character-specific baseline waist-up pose with arm/hand position, 5-15 words",
+    "listening": "attentive forward lean with hands/arms gesture specific to this character",
+    "speaking": "expressive talking gesture with hand/arm motion specific to this character",
+    "researching": "studying or reading pose with arms/hands engaged specific to this character",
+    "working": "focused task-doing pose with hands active specific to this character",
+    "questioning": "inquiring head-tilt with hand/arm position specific to this character",
+    "thinking": "contemplative pose with hand near face/chin specific to this character",
+    "confirming": "satisfied affirming pose with arm/hand gesture specific to this character",
+    "concluding": "settled wrap-up pose with hands relaxed specific to this character",
+    "alerted": "alert or concerned reaction with arms/hands raised specific to this character"
+  }}
+}}
+
+Each emotive_states value: single short phrase describing pose + expression + arm/hand gesture, rooted in the character's visual identity, framing always waist-up."""
+
+        try:
+            raw = await provider.complete(prompt, max_tokens=900)
+        except Exception as exc:
+            return JSONResponse({"error": f"LLM call failed: {exc}"}, status_code=502)
+        text = (raw or "").strip()
+        # Trim common LLM artifacts (markdown fences, leading commentary).
+        if text.startswith("```"):
+            # strip ```json ... ``` fences
+            text = text.lstrip("`")
+            if text.lower().startswith("json"):
+                text = text[4:]
+            text = text.strip().rstrip("`").strip()
+        # Find the first { ... last } to be lenient with leading prose.
+        first = text.find("{")
+        last = text.rfind("}")
+        if first == -1 or last == -1 or last <= first:
+            return JSONResponse(
+                {"error": "LLM did not return JSON", "raw": raw[:500]},
+                status_code=502,
+            )
+        try:
+            data = json.loads(text[first : last + 1])
+        except json.JSONDecodeError as exc:
+            return JSONResponse(
+                {"error": f"LLM JSON parse failed: {exc}", "raw": raw[:500]},
+                status_code=502,
+            )
+        if not isinstance(data, dict):
+            return JSONResponse(
+                {"error": "LLM JSON was not an object", "raw": raw[:500]},
+                status_code=502,
+            )
+
+        # Slug-ify the display_name into a kebab-case character id, dedup
+        # if the slug already exists in the store.
+        import re as _re
+        ai_display = (data.get("display_name") or "").strip() or "agent"
+        base_slug = _re.sub(r"[^a-z0-9-]+", "-", ai_display.lower()).strip("-") or "agent"
+        slug = base_slug
+        n = 2
+        while state.characters.get(slug) is not None:
+            slug = f"{base_slug}-{n}"
+            n += 1
+
+        # Default voice: pick the first installed piper voice, fall back to
+        # a known good one. Per-character voice clones come later.
+        piper = state.engines.get("piper")
+        voices = piper.list_voices() if piper is not None else []
+        default_voice = voices[0] if voices else "en_GB-jenny_dioco-medium"
+
+        emotive = data.get("emotive_states") or {}
+        if not isinstance(emotive, dict):
+            emotive = {}
+        # Coerce non-string emotive values defensively.
+        emotive = {k: str(v).strip() for k, v in emotive.items() if isinstance(k, str) and v}
+
+        persona = (data.get("persona") or "").strip().lower()
+        if persona not in {"methodical", "warm", "technical", "plain", "sarcastic", "energetic"}:
+            persona = "technical"
+
+        now_ts = __import__("time").time()
+        from claude_code_talker.characters import Character, CharacterValidationError
+        char = Character(
+            id=slug,
+            display_name=ai_display,
+            voice_ref=default_voice,
+            persona=persona,
+            mesh_prompt=(data.get("mesh_prompt") or "").strip() or None,
+            emotive_states=emotive,
+            created_at=now_ts,
+            updated_at=now_ts,
+        )
+
+        # Preview mode: return the draft without saving or attaching so
+        # the user can edit fields in the UI before committing. The slug
+        # is offered as a SUGGESTED id (which the UI may regenerate if
+        # the user changes display_name).
+        if preview_only:
+            return JSONResponse({
+                "preview": True,
+                "draft": char.to_dict(),
+                "session_id": sid,
+                "session_label": display_name,
+            })
+
+        try:
+            char.validate()
+            state.characters.save(char)
+        except CharacterValidationError as exc:
+            return JSONResponse(
+                {"error": f"validation failed: {exc}", "raw": raw[:500]},
+                status_code=502,
+            )
+        # Attach to the session (mirrors attach_character logic). Persists
+        # to the overlay so it survives daemon restart.
+        if state.sessions is not None:
+            s = state.sessions.get(sid)
+            if s is not None:
+                s.attached_character = slug
+            try:
+                _merge_into_persistent(state, sid, {"attached_character": slug}, s)
+            except Exception:
+                pass
+
+        return JSONResponse({"character": char.to_dict(), "attached_to": sid})
+
     async def characters_clone_voice(request: Request) -> JSONResponse:
         """Phase 25c — POST /api/characters/{char_id}/clone-voice.
 
@@ -489,6 +1114,52 @@ def build_routes(state) -> list[Route]:
             }
         )
 
+    async def character_mesh_file(request: Request):
+        """v0.1.0 unification — GET /api/characters/{char_id}/mesh-file.
+
+        Serves the character's .glb mesh from disk so the webui can
+        render it in a 3D viewer (model-viewer / three.js) instead of
+        the persona-tinted fallback circle. Returns 404 if the character
+        doesn't exist or has no mesh.
+
+        Why not StaticFiles: mesh_path is per-character and not under a
+        single shared dir — the character store may have models split
+        across `~/.claude/scripts/codetalker/models/<id>/` AND uploaded
+        files elsewhere. A per-character route keeps the path mapping
+        in one place (the Character record's `mesh_path`).
+        """
+        from starlette.responses import FileResponse
+        from pathlib import Path as _P
+
+        if state.characters is None:
+            return JSONResponse({"error": "character store unavailable"}, status_code=503)
+        cid = request.path_params.get("char_id", "")
+        if not _CHARACTER_ID_RE.match(cid):
+            return _bad_character_id(cid)
+        char = state.characters.get(cid)
+        if char is None or not char.mesh_path:
+            return JSONResponse({"error": "no mesh"}, status_code=404)
+        mesh = _P(char.mesh_path)
+        if not mesh.exists() or not mesh.is_file():
+            return JSONResponse({"error": "mesh file missing"}, status_code=404)
+        # Detect content type by extension. GLB is the binary glTF format
+        # most browsers + <model-viewer> understand natively.
+        suffix = mesh.suffix.lower()
+        media_type = {
+            ".glb": "model/gltf-binary",
+            ".gltf": "model/gltf+json",
+            ".obj": "model/obj",
+        }.get(suffix, "application/octet-stream")
+        return FileResponse(
+            mesh,
+            media_type=media_type,
+            headers={
+                # Allow long browser caching since meshes are immutable
+                # per character record (mesh_path changes when regen'd).
+                "Cache-Control": "public, max-age=300",
+            },
+        )
+
     async def attach_character(request: Request) -> JSONResponse:
         if state.characters is None or state.sessions is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)
@@ -496,8 +1167,22 @@ def build_routes(state) -> list[Route]:
         if not is_valid_session_id(sid):
             return _bad_request(f"invalid session id: {sid!r}")
         s = state.sessions.get(sid)
+        # v0.1.0 unification — dormant fallback for sessions that have no
+        # in-memory SessionState (transcript-mtime live OR fully dormant).
+        # Without this, attaching a character to a session you haven't
+        # poked since daemon restart 404'd. Gate on the SID being known
+        # via persistent or catalog so a typo doesn't ghost-create.
         if s is None:
-            return JSONResponse({"error": "session not found"}, status_code=404)
+            known = False
+            if state.persistent_sessions is not None:
+                try:
+                    known = state.persistent_sessions.exists(sid)
+                except Exception:
+                    pass
+            if not known and state.catalog is not None:
+                known = state.catalog.entry_for(sid) is not None
+            if not known:
+                return JSONResponse({"error": "session not found"}, status_code=404)
         try:
             body = await request.json()
         except (json.JSONDecodeError, ValueError):
@@ -531,9 +1216,21 @@ def build_routes(state) -> list[Route]:
                 {"error": f"character voice_ref not found in any engine: {char.voice_ref!r}"},
                 status_code=400,
             )
-        s.attached_character = cid
+        if s is not None:
+            s.attached_character = cid
+        # v0.1.0 unification — persist the attach so it survives daemon
+        # restart AND so the API's list_sessions reads the correct
+        # attached_character even when this session is later transcript-
+        # mtime-live without an in-memory SessionState. Without this,
+        # the picker shows the selection (cached client-side) but the
+        # CharacterStage / next-load reads None.
+        try:
+            if state.persistent_sessions is not None:
+                _merge_into_persistent(state, sid, {"attached_character": cid}, s)
+        except Exception:
+            pass
         return JSONResponse({
-            "state": {"session_id": s.session_id, "attached_character": s.attached_character}
+            "state": {"session_id": sid, "attached_character": cid}
         })
 
     async def detach_character(request: Request) -> JSONResponse:
@@ -543,11 +1240,28 @@ def build_routes(state) -> list[Route]:
         if not is_valid_session_id(sid):
             return _bad_request(f"invalid session id: {sid!r}")
         s = state.sessions.get(sid)
+        # v0.1.0 unification — dormant fallback (mirrors attach_character).
         if s is None:
-            return JSONResponse({"error": "session not found"}, status_code=404)
-        s.attached_character = None
+            known = False
+            if state.persistent_sessions is not None:
+                try:
+                    known = state.persistent_sessions.exists(sid)
+                except Exception:
+                    pass
+            if not known and state.catalog is not None:
+                known = state.catalog.entry_for(sid) is not None
+            if not known:
+                return JSONResponse({"error": "session not found"}, status_code=404)
+        if s is not None:
+            s.attached_character = None
+        # Clear from persistent overlay too so the detach survives restart.
+        try:
+            if state.persistent_sessions is not None:
+                _merge_into_persistent(state, sid, {"attached_character": None}, s)
+        except Exception:
+            pass
         return JSONResponse({
-            "state": {"session_id": s.session_id, "attached_character": None}
+            "state": {"session_id": sid, "attached_character": None}
         })
 
     async def get_profile(request: Request) -> JSONResponse:
@@ -978,6 +1692,7 @@ def build_routes(state) -> list[Route]:
                     rate=float(voice_cfg.get("rate", 1.0)),
                     engine_name=engine_name,
                     audio_format=getattr(engine, "audio_format", "wav"),
+                    session_id=sid or "",
                 ))
                 result["narrated"] = True
         return JSONResponse(result)
@@ -1111,6 +1826,8 @@ def build_routes(state) -> list[Route]:
             new_prov_brief = _select_provider(state, "brief")
             if state.modes.get("brief") is not None:
                 state.modes["brief"].provider = new_prov_brief
+            if state.modes.get("teacher") is not None:
+                state.modes["teacher"].provider = new_prov_brief
         # Invalidate per-session caches so resolved cfg picks up the new values.
         for s in state.sessions.list_active():
             state.sessions.invalidate(s.session_id)
@@ -1505,6 +2222,146 @@ def build_routes(state) -> list[Route]:
             return JSONResponse({"error": f"synthesis failed: {exc}"}, status_code=500)
         return Response(content=audio_bytes, media_type="audio/wav")
 
+    # ---------------- Piper voice manager (v0.1.x) ----------------
+    # Curated subset of rhasspy/piper-voices. The full HuggingFace catalog
+    # has 100+ voices across many languages; this list intentionally stays
+    # small and English-focused as a starter set. Users who want more can
+    # drop .onnx + .onnx.json into the voices dir manually.
+    _PIPER_CATALOG = [
+        {"name": "en_US-amy-medium",                        "lang": "en_US", "speaker": "amy",                        "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_US-danny-low",                         "lang": "en_US", "speaker": "danny",                      "gender": "male",   "quality": "low",    "size_mb": 23},
+        {"name": "en_US-hfc_female-medium",                 "lang": "en_US", "speaker": "hfc_female",                 "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_US-hfc_male-medium",                   "lang": "en_US", "speaker": "hfc_male",                   "gender": "male",   "quality": "medium", "size_mb": 63},
+        {"name": "en_US-joe-medium",                        "lang": "en_US", "speaker": "joe",                        "gender": "male",   "quality": "medium", "size_mb": 63},
+        {"name": "en_US-kristin-medium",                    "lang": "en_US", "speaker": "kristin",                    "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_US-lessac-medium",                     "lang": "en_US", "speaker": "lessac",                     "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_US-ryan-high",                         "lang": "en_US", "speaker": "ryan",                       "gender": "male",   "quality": "high",   "size_mb": 110},
+        {"name": "en_GB-alan-medium",                       "lang": "en_GB", "speaker": "alan",                       "gender": "male",   "quality": "medium", "size_mb": 63},
+        {"name": "en_GB-cori-medium",                       "lang": "en_GB", "speaker": "cori",                       "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_GB-jenny_dioco-medium",                "lang": "en_GB", "speaker": "jenny_dioco",                "gender": "female", "quality": "medium", "size_mb": 63},
+        {"name": "en_GB-northern_english_male-medium",      "lang": "en_GB", "speaker": "northern_english_male",      "gender": "male",   "quality": "medium", "size_mb": 63},
+    ]
+
+    def _piper_voice_url(name: str, ext: str) -> str:
+        """Build the rhasspy/piper-voices HuggingFace download URL for a
+        voice file. Voice names follow `<lang_locale>-<speaker>-<quality>`
+        and live at `<lang_short>/<lang_locale>/<speaker>/<quality>/<name><ext>`
+        in the repo."""
+        parts = name.split("-")
+        if len(parts) < 3:
+            raise ValueError(f"invalid piper voice name: {name}")
+        lang_locale = parts[0]
+        quality = parts[-1]
+        speaker = "-".join(parts[1:-1])
+        lang_short = lang_locale.split("_")[0]
+        return f"https://huggingface.co/rhasspy/piper-voices/resolve/main/{lang_short}/{lang_locale}/{speaker}/{quality}/{name}{ext}"
+
+    def _piper_voices_dir() -> "Path":
+        from pathlib import Path
+        return Path.home() / ".claude" / "scripts" / "piper" / "voices"
+
+    async def piper_catalog(request: Request) -> JSONResponse:
+        """GET /api/piper/catalog — curated list of installable piper voices.
+
+        Each entry is annotated with `installed: bool` so the UI can render
+        installed vs available without a second roundtrip."""
+        voices_dir = _piper_voices_dir()
+        installed: set[str] = set()
+        if voices_dir.exists():
+            installed = {p.stem for p in voices_dir.glob("*.onnx")}
+        out = [{**v, "installed": v["name"] in installed} for v in _PIPER_CATALOG]
+        # Also surface voices on disk that AREN'T in the curated catalog so
+        # the UI doesn't hide them. They get a `curated: false` marker.
+        catalog_names = {v["name"] for v in _PIPER_CATALOG}
+        for name in installed - catalog_names:
+            out.append({
+                "name": name, "lang": "", "speaker": "", "gender": "",
+                "quality": "", "size_mb": 0, "installed": True, "curated": False,
+            })
+        for entry in out:
+            entry.setdefault("curated", True)
+        return JSONResponse(out)
+
+    async def piper_install(request: Request) -> JSONResponse:
+        """POST /api/piper/install body={"name": "..."} — download voice
+        files from HuggingFace into the local voices dir. Runs the network
+        I/O in a thread so the event loop stays responsive (each file is
+        20-110 MB)."""
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return _bad_request("invalid JSON")
+        if not isinstance(body, dict):
+            return _bad_request("body must be a JSON object")
+        name = (body.get("name") or "").strip()
+        if not name:
+            return _bad_request("'name' is required")
+        if name not in {v["name"] for v in _PIPER_CATALOG}:
+            return _bad_request(f"voice not in catalog: {name}")
+        voices_dir = _piper_voices_dir()
+        voices_dir.mkdir(parents=True, exist_ok=True)
+
+        def _download() -> tuple[bool, str]:
+            import urllib.request
+            try:
+                for ext in (".onnx", ".onnx.json"):
+                    url = _piper_voice_url(name, ext)
+                    dst = voices_dir / f"{name}{ext}"
+                    with urllib.request.urlopen(url, timeout=120) as r:
+                        dst.write_bytes(r.read())
+                return True, ""
+            except Exception as exc:
+                return False, str(exc)
+
+        ok, err = await asyncio.to_thread(_download)
+        if not ok:
+            return JSONResponse({"error": f"download failed: {err}"}, status_code=502)
+        return JSONResponse({"installed": name})
+
+    async def piper_uninstall(request: Request) -> JSONResponse:
+        """DELETE /api/piper/voices/{name} — remove voice files from disk."""
+        name = request.path_params.get("name", "")
+        voices_dir = _piper_voices_dir()
+        onnx = voices_dir / f"{name}.onnx"
+        cfg = voices_dir / f"{name}.onnx.json"
+        if not onnx.exists() and not cfg.exists():
+            return _not_found(f"voice not installed: {name}")
+        for p in (onnx, cfg):
+            if p.exists():
+                try:
+                    p.unlink()
+                except OSError as exc:
+                    return JSONResponse({"error": str(exc)}, status_code=500)
+        return JSONResponse({"uninstalled": name})
+
+    async def piper_preview(request: Request) -> Response:
+        """POST /api/piper/preview/{name} — synthesise a short sample via
+        piper and play it on the desktop. Returns the wav bytes so the
+        caller can also play in-browser if desired."""
+        name = request.path_params.get("name", "")
+        engine = state.engines.get("piper")
+        if engine is None:
+            return JSONResponse({"error": "piper engine unavailable"}, status_code=503)
+        if name not in engine.list_voices():
+            return _not_found(f"voice not installed: {name}")
+        text = f"Hello, this is a sample of the {name} voice."
+
+        def _synth() -> bytes:
+            return engine.synthesize(text, name, 1.0)
+
+        try:
+            wav = await asyncio.to_thread(_synth)
+        except Exception as exc:
+            return JSONResponse({"error": f"synthesis failed: {exc}"}, status_code=500)
+        # Best-effort desktop playback — don't fail the response if the
+        # audio handle isn't available (e.g. headless server).
+        try:
+            from claude_code_talker.audio import play_audio_bytes
+            await asyncio.to_thread(play_audio_bytes, wav, "wav")
+        except Exception:
+            pass
+        return Response(content=wav, media_type="audio/wav")
+
     async def voices_rename(request: Request) -> JSONResponse:
         """PATCH /api/voices/<name> — rename a voice (WAV + metadata sidecar)."""
         from claude_code_talker.voices.metadata import read_metadata, write_metadata
@@ -1629,6 +2486,49 @@ def build_routes(state) -> list[Route]:
         (refs_dir / f"{name}.glb").unlink(missing_ok=True)
 
         return JSONResponse({"deleted": True})
+
+    # -----------------------------------------------------------------
+    # v0.1.0 unification — fleet audio-routing defaults endpoint.
+    # Provides the third "obvious toggle" called out in the unification
+    # spec: a global default that applies to sessions without an explicit
+    # `audio_outputs` override. Backed by `companion_suppress_desktop`
+    # in cfg-overlay (the single fleet flag `_resolve_audio_outputs`
+    # honors). When True the default becomes {phone, glasses}; when
+    # False it's {desktop, phone, glasses}.
+    # -----------------------------------------------------------------
+
+    async def audio_defaults_get(request: Request) -> JSONResponse:
+        """GET /api/cfg/audio-defaults — current fleet default."""
+        suppress = bool(state.cfg.get("companion_suppress_desktop", False))
+        return JSONResponse(
+            {
+                "companion_suppress_desktop": suppress,
+                "default_outputs": ["phone", "glasses"]
+                if suppress
+                else ["desktop", "phone", "glasses"],
+            }
+        )
+
+    async def audio_defaults_put(request: Request) -> JSONResponse:
+        """PUT /api/cfg/audio-defaults — update the fleet default.
+
+        Body: {"companion_suppress_desktop": bool}. Mirrors the value
+        into in-memory cfg (so it takes effect immediately without
+        daemon restart) and persists to cfg-overlay so it survives
+        the next restart.
+        """
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        if "companion_suppress_desktop" not in body:
+            return _bad_request("missing 'companion_suppress_desktop'")
+        suppress = bool(body["companion_suppress_desktop"])
+        state.cfg["companion_suppress_desktop"] = suppress
+        overlay = _read_overlay()
+        overlay["companion_suppress_desktop"] = suppress
+        _write_overlay(overlay)
+        return JSONResponse({"ok": True, "companion_suppress_desktop": suppress})
 
     # -----------------------------------------------------------------
     # Phase 14.5 — Trigger-mode configuration + tag CRUD endpoints
@@ -2092,6 +2992,9 @@ def build_routes(state) -> list[Route]:
         Route("/api/characters/{char_id}", delete_character, methods=["DELETE"]),
         # Phase 25c — voice cloning kickoff + job status
         Route("/api/characters/{char_id}/clone-voice", characters_clone_voice, methods=["POST"]),
+        # v0.1.x — auto-generate a character tailored to a session via LLM
+        Route("/api/sessions/{session_id}/generate-character", generate_character_for_session, methods=["POST"]),
+        Route("/api/characters/{char_id}/mesh-file", character_mesh_file, methods=["GET"]),
         Route("/api/voice-clone-jobs/{job_id}", voice_clone_job_get, methods=["GET"]),
         Route("/api/sessions/{session_id}/attach-character", attach_character, methods=["POST"]),
         Route("/api/sessions/{session_id}/character", detach_character, methods=["DELETE"]),
@@ -2109,15 +3012,26 @@ def build_routes(state) -> list[Route]:
         Route("/api/voices/{name}", voices_rename, methods=["PATCH"]),
         Route("/api/voices/{name}/replace-source", voices_replace_source, methods=["POST"]),
         Route("/api/voices/{name}", voices_delete, methods=["DELETE"]),
+        # Piper voice manager (v0.1.x) — local TTS voice catalog/install/preview
+        Route("/api/piper/catalog", piper_catalog, methods=["GET"]),
+        Route("/api/piper/install", piper_install, methods=["POST"]),
+        Route("/api/piper/voices/{name}", piper_uninstall, methods=["DELETE"]),
+        Route("/api/piper/preview/{name}", piper_preview, methods=["POST"]),
         Route("/api/status", status, methods=["GET"]),
         Route("/api/mute", mute, methods=["POST"]),
         Route("/api/unmute", unmute, methods=["POST"]),
         Route("/api/hooks-status", hooks_status, methods=["GET"]),
         Route("/api/install-hooks", install_hooks, methods=["POST"]),
+        # v1.0 — REST hook dispatch (replaces MCP SSE path for the
+        # Windows .exe wrapper which was costing 10-22s per hook).
+        Route("/api/hooks/dispatch", hooks_dispatch, methods=["POST"]),
         Route("/api/virtual-eval/run", virtual_eval_run, methods=["POST"]),
         Route("/api/virtual-eval/latest", virtual_eval_latest, methods=["GET"]),
         Route("/api/virtual-eval/history", virtual_eval_history, methods=["GET"]),
         Route("/api/virtual-eval/revert/{entry_id}", virtual_eval_revert, methods=["POST"]),
+        # v0.1.0 unification — fleet audio defaults
+        Route("/api/cfg/audio-defaults", audio_defaults_get, methods=["GET"]),
+        Route("/api/cfg/audio-defaults", audio_defaults_put, methods=["PUT"]),
         # Phase 14.5 — trigger-mode config + tag CRUD (specific routes before wildcard)
         Route("/api/triggers/config", triggers_get_config, methods=["GET"]),
         Route("/api/triggers/config", triggers_put_config, methods=["PUT"]),

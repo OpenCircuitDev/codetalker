@@ -21,18 +21,27 @@ class LLMProvider(ABC):
             raise TypeError(f"{cls.__name__} must override the `name` class attribute")
 
     @abstractmethod
-    async def complete(self, prompt: str, max_tokens: int) -> str:
+    async def complete(self, prompt: str, max_tokens: int, *, system: str | None = None) -> str:
         """Run a completion and return the generated text.
 
         Raises RuntimeError on provider failure.
+
+        ``system`` is an OPTIONAL system-prompt prefix. Providers that
+        support prompt caching (currently only Anthropic via
+        ``cache_control: ephemeral``) put ``system`` in a separately-cached
+        block. Providers that don't support caching should prepend ``system``
+        to ``prompt`` as a backward-compatible fallback. Cache activation has
+        a per-model token minimum (Haiku: 2048; Sonnet/Opus: 1024), so a
+        short system prompt is functionally a no-op for caching but stays
+        semantically correct.
         """
 
-    async def stream(self, prompt: str, max_tokens: int) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, max_tokens: int, *, system: str | None = None) -> AsyncIterator[str]:
         """Stream text deltas as they arrive (Phase 10).
 
         Default implementation falls back to ``complete()`` and yields the
         whole result at once. Providers that support real streaming should
         override this and set ``supports_streaming = True``.
         """
-        text = await self.complete(prompt, max_tokens)
+        text = await self.complete(prompt, max_tokens, system=system)
         yield text

@@ -1,7 +1,15 @@
-"""CCT-31 — BuddyClaude: parallel Anthropic Agent SDK session for AR companion.
+"""CCT-31 + CCT-32 v0.1.0 polish — BuddyClaude: parallel LLM session for AR companion.
 
 Reads the user's main Claude Code session transcript for context but maintains
 its own conversation. Read-only access to the user's session in v1.
+
+v0.1.0 polish: now uses OpenRouter's OpenAI-compatible /chat/completions
+endpoint (httpx + SSE) instead of the Anthropic SDK directly. This aligns
+the buddy with the rest of the codebase's provider abstraction
+(providers/openrouter.py) and lets a single OpenRouter key power both
+narration and the AR-companion buddy. The default model is
+`anthropic/claude-sonnet-4-5` which OpenRouter routes to Anthropic;
+override via the `model` constructor arg for Gemini, GPT-4, etc.
 """
 from __future__ import annotations
 
@@ -10,10 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import AsyncIterator, Literal
 
-try:
-    import anthropic  # type: ignore
-except ImportError:  # pragma: no cover
-    anthropic = None  # tests can patch
+import httpx
+
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = "anthropic/claude-sonnet-4-5"
 
 
 @dataclass
@@ -44,13 +53,24 @@ def read_recent_transcript(path: Path, max_messages: int = 20) -> list[dict]:
 
 
 class BuddyClaude:
+    """Buddy LLM session using OpenRouter chat completions.
+
+    The constructor keeps the `anthropic_api_key` parameter name for backward
+    compatibility with callers wired before the v0.1.0 refactor, but the value
+    is treated as a generic Bearer token. Supply an OpenRouter key (preferred)
+    or a direct Anthropic key with `base_url=https://api.anthropic.com/v1`
+    (though the request shape is OpenAI-compatible so direct Anthropic auth
+    will not work without further changes).
+    """
+
     def __init__(
         self,
         *,
         user_session_id: str,
         transcript_path: Path,
         anthropic_api_key: str,
-        model: str = "claude-sonnet-4-5",
+        model: str = DEFAULT_MODEL,
+        base_url: str = OPENROUTER_BASE_URL,
     ):
         if not anthropic_api_key:
             raise ValueError("api_key required")
@@ -58,8 +78,9 @@ class BuddyClaude:
         self.transcript_path = Path(transcript_path)
         self.api_key = anthropic_api_key
         self.model = model
+        self.base_url = base_url.rstrip("/")
         self.history: list[dict] = []
-        self._client = None  # lazily constructed in inject()
+        self._client: httpx.AsyncClient | None = None
 
     def _build_system_prompt(self) -> str:
         return (
@@ -72,51 +93,67 @@ class BuddyClaude:
 
     def _build_messages(self, user_text: str) -> list[dict]:
         ctx = read_recent_transcript(self.transcript_path, max_messages=20)
-        # Format context as a system-style intro (Anthropic API treats only
-        # role=user/assistant; context goes inside system_prompt for v1).
-        msgs: list[dict] = []
-        for m in ctx[-6:]:  # last 6 to keep prompt small
+        msgs: list[dict] = [{"role": "system", "content": self._build_system_prompt()}]
+        for m in ctx[-6:]:
             role = m.get("role")
             content = m.get("content")
             if role in ("user", "assistant") and isinstance(content, (str, list)):
-                msgs.append({"role": role, "content": content if isinstance(content, str) else "[non-text]"})
+                msgs.append({
+                    "role": role,
+                    "content": content if isinstance(content, str) else "[non-text]",
+                })
         msgs.extend(self.history)
         msgs.append({"role": "user", "content": user_text})
         return msgs
 
-    async def inject(self, text: str) -> AsyncIterator[BuddyEvent]:
-        if anthropic is None:
-            yield BuddyEvent(kind="error", error="anthropic SDK not installed")
-            return
+    async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, connect=10.0),
+                limits=httpx.Limits(max_keepalive_connections=2, keepalive_expiry=300),
+            )
+        return self._client
+
+    async def inject(self, text: str) -> AsyncIterator[BuddyEvent]:
+        client = await self._ensure_client()
         messages = self._build_messages(text)
-        # Append user turn to history immediately so callers can verify it
-        # regardless of whether the stream produces text.
+        # Append user turn immediately so callers can verify it even if the
+        # network call fails before producing any output.
         self.history.append({"role": "user", "content": text})
         full_text_chunks: list[str] = []
         try:
-            async with self._client.messages.stream(
-                model=self.model,
-                system=self._build_system_prompt(),
-                messages=messages,
-                max_tokens=512,
-            ) as stream:
-                async for evt in _iter_compat(stream):
-                    et = getattr(evt, "type", None)
-                    if et == "content_block_delta":
-                        delta = getattr(evt, "delta", None)
-                        chunk = getattr(delta, "text", "") if delta else ""
-                        if chunk:
-                            full_text_chunks.append(chunk)
-                            yield BuddyEvent(kind="partial_text", text=chunk)
-                    elif et == "message_stop":
-                        full = "".join(full_text_chunks)
-                        self.history.append({"role": "assistant", "content": full})
-                        yield BuddyEvent(kind="final_text", text=full)
-                        yield BuddyEvent(kind="done")
-                        return
-            # Stream ended without message_stop — still record history if we got chunks
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "max_tokens": 512,
+                    "stream": True,
+                },
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    payload = line[6:]
+                    if payload.strip() == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    try:
+                        delta = data["choices"][0]["delta"].get("content")
+                    except (KeyError, IndexError):
+                        delta = None
+                    if delta:
+                        full_text_chunks.append(delta)
+                        yield BuddyEvent(kind="partial_text", text=delta)
             full = "".join(full_text_chunks)
             if full:
                 self.history.append({"role": "assistant", "content": full})
@@ -127,25 +164,31 @@ class BuddyClaude:
 
 
 class BuddyManager:
-    def __init__(self, *, api_key: str, transcript_dir: Path, model: str = "claude-sonnet-4-5"):
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        transcript_dir: Path,
+        model: str = DEFAULT_MODEL,
+        base_url: str = OPENROUTER_BASE_URL,
+    ):
         self.api_key = api_key
         self.transcript_dir = Path(transcript_dir)
         self.model = model
+        self.base_url = base_url
         self._buddies: dict[str, BuddyClaude] = {}
 
     def start(self, user_session_id: str) -> BuddyClaude:
         existing = self._buddies.get(user_session_id)
         if existing:
             return existing
-        # Convention: Claude Code stores session transcripts at
-        # transcript_dir / <session_id>.jsonl. Production codebases use the
-        # SessionCatalog for resolution; we mirror that contract here.
         path = self.transcript_dir / f"{user_session_id}.jsonl"
         b = BuddyClaude(
             user_session_id=user_session_id,
             transcript_path=path,
             anthropic_api_key=self.api_key,
             model=self.model,
+            base_url=self.base_url,
         )
         self._buddies[user_session_id] = b
         return b
@@ -158,31 +201,3 @@ class BuddyManager:
 
     def list_active(self) -> list[str]:
         return list(self._buddies.keys())
-
-
-async def _iter_compat(stream):
-    """Iterate over a stream that may be an async iterator or a sync one.
-
-    The Anthropic SDK normally yields async events but tests mock it with
-    sync iterables. We accept both shapes so unit tests don't need to
-    construct full async machinery.
-    """
-    aiter = getattr(stream, "__aiter__", None)
-    if aiter is not None:
-        try:
-            it = aiter() if not callable(getattr(aiter, "__call__", None)) is False else aiter()
-        except TypeError:
-            it = aiter
-        # Peek if the returned iterator is async-iterable (has __anext__).
-        if hasattr(it, "__anext__"):
-            while True:
-                try:
-                    yield await it.__anext__()
-                except StopAsyncIteration:
-                    return
-        # It's sync — fall through to sync iteration over the *result*.
-        for evt in it:
-            yield evt
-        return
-    for evt in stream:
-        yield evt

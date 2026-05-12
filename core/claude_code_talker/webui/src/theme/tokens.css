@@ -17,6 +17,29 @@
   --shadow-soft-2: 0 8px 28px -8px rgba(0, 0, 0, 0.4);
 }
 
+/* v0.1.0 unification — Tier 1 character ambient motion.
+ * Breathe = subtle "alive" pulse when idle (4.5s gentle scale).
+ * Speak-pulse = stronger scale + cyan glow when is_speaking=true.
+ * Both target the CharacterStage container so the persona-tinted
+ * background tints with them. Use `will-change` so the browser
+ * promotes the element to its own compositor layer (smoother). */
+@keyframes character-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.015); }
+}
+@keyframes character-speak-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.4)); }
+  50%      { transform: scale(1.025); filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.7)); }
+}
+.character-breathe {
+  animation: character-breathe 4.5s ease-in-out infinite;
+  will-change: transform;
+}
+.character-speak-pulse {
+  animation: character-speak-pulse 1.2s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
 body {
   background: var(--color-surface-0);
   color: var(--color-text-1);

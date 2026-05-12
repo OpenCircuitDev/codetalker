@@ -33,6 +33,16 @@ class Character:
     mesh_provider: str | None = None
     mesh_prompt: str | None = None
     mesh_prompt_history: list[str] = field(default_factory=list)
+    # v0.1.0 Tier 2 unification — per-character override map for the
+    # emotive state mesh prompts (see
+    # docs/character_emotive_states.md "Per-state mesh prompts"). Keys
+    # are state names (idle, listening, speaking, researching, working,
+    # questioning, thinking, confirming, concluding, alerted) and values
+    # are character-specific prompt strings used when generating per-state
+    # mesh variants (Path A / future). When a key is missing, the global
+    # STATE_PROFILES[state].meshPromptHint applies. The wizard UI exposes
+    # these as editable fields per character ("custom field entry sets").
+    emotive_states: dict[str, str] = field(default_factory=dict)
     created_at: float = 0.0
     updated_at: float = 0.0
 

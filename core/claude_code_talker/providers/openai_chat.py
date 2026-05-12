@@ -59,7 +59,15 @@ class OpenAIChatProvider(LLMProvider):
         self.api_key = api_key
         self.model = model
 
-    async def complete(self, prompt: str, max_tokens: int) -> str:
+    @staticmethod
+    def _build_messages(prompt: str, system: str | None) -> list[dict]:
+        msgs: list[dict] = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.append({"role": "user", "content": prompt})
+        return msgs
+
+    async def complete(self, prompt: str, max_tokens: int, *, system: str | None = None) -> str:
         try:
             client = _get_client()
             resp = await client.post(
@@ -67,7 +75,7 @@ class OpenAIChatProvider(LLMProvider):
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={
                     "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "messages": self._build_messages(prompt, system),
                     "max_tokens": max_tokens,
                 },
             )
@@ -77,7 +85,7 @@ class OpenAIChatProvider(LLMProvider):
         except (httpx.HTTPError, KeyError, IndexError) as exc:
             raise RuntimeError(f"openai request failed: {exc}") from exc
 
-    async def stream(self, prompt: str, max_tokens: int) -> AsyncIterator[str]:
+    async def stream(self, prompt: str, max_tokens: int, *, system: str | None = None) -> AsyncIterator[str]:
         """Stream text deltas via OpenAI SSE."""
         try:
             client = _get_client()
@@ -87,7 +95,7 @@ class OpenAIChatProvider(LLMProvider):
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={
                     "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "messages": self._build_messages(prompt, system),
                     "max_tokens": max_tokens,
                     "stream": True,
                 },

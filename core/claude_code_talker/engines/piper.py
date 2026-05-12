@@ -3,10 +3,20 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 from claude_code_talker.engines.base import TTSEngine
+
+
+# 2026-05-11 — On Windows, subprocess.run() without CREATE_NO_WINDOW
+# pops a console window for every synth call. Since narration fires
+# continuously during a live session, the screen flashes with brief
+# console windows on every utterance. CREATE_NO_WINDOW suppresses
+# this entirely. Non-Windows platforms ignore the flag (it's a Windows
+# constant); we gate on sys.platform so the symbol exists.
+_PIPER_CREATIONFLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 
 class PiperEngine(TTSEngine):
@@ -44,6 +54,7 @@ class PiperEngine(TTSEngine):
                     input=text.encode("utf-8"),
                     capture_output=True,
                     timeout=120,
+                    creationflags=_PIPER_CREATIONFLAGS,
                 )
             except subprocess.TimeoutExpired as exc:
                 raise RuntimeError(f"piper timed out after {exc.timeout}s") from exc
