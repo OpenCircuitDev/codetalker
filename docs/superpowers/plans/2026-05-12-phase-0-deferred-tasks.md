@@ -53,6 +53,29 @@ These are not P0-C/P0-D blockers but emerged from the integrated review of P0-A/
 
 2. **P0-A dead-code cleanup** (Minor). `api.py:1247-1249` has stub-format compat logic (`if voice_ref.startswith("char-")`) that's now unreachable since the stub was removed in P0-A. Remove or rewrite the comment to clarify it's legacy-only.
 
+3. **P0-E skip extension** (Minor). The full pytest run after Phase 0 surfaced `test_e2e_v2.py::test_e2e_live_mode_per_tool_call` failing with `NotImplementedError` from P0-E's `_call_mcp_tool` shim. P0-E skipped `test_e2e.py` + `test_hook_cli.py` at module level, but missed this third file in the same neighborhood. Either skip it with the same reason, or rewrite to mock `_post_hook` instead of `_call_mcp_tool`.
+
+## Pre-P0 regression triage (Phase 0.5 cleanup punch list)
+
+A full pytest run after Phase 0 landed: **1061 passed / 11 failed / 16 skipped (~7.4h — slow Piper fixture loading inflates wall time; total CPU not as bad)**. Of the 11 failures, only one is downstream of P0 work (item #3 above). The other 10 are **pre-existing regressions from the session-base commit `ce8e4ca`** (audio_hub backpressure refactor, /ui retirement, sessions-character-attach reshape):
+
+| Test | Likely cause |
+|------|--------------|
+| `test_audio_companion_fanout.py::test_worker_fans_synthesized_audio_to_hub` | audio_hub backpressure (ce8e4ca) |
+| `test_audio_companion_fanout.py::test_worker_no_fanout_when_hub_is_none` | audio_hub backpressure (ce8e4ca) |
+| `test_audio_priority.py::test_alert_jumps_normal` | audio queue priority (ce8e4ca) |
+| `test_audio_priority.py::test_stale_jobs_dropped_on_dispatch` | audio queue priority (ce8e4ca) |
+| `test_audio_queue.py::test_worker_synthesizes_and_plays` | audio worker refactor (ce8e4ca) |
+| `test_audio_queue.py::test_worker_continues_after_synth_error` | audio worker refactor (ce8e4ca) |
+| `test_audio_queue.py::test_worker_continues_after_play_error` | audio worker refactor (ce8e4ca) |
+| `test_openai_chat_provider.py::test_default_stream_yields_complete_for_non_streaming_provider` | OpenAI provider streaming |
+| `test_server_transport.py::test_composed_app_serves_static_ui_route` | /ui retirement (now 302 redirect) |
+| `test_sessions_character_attach.py::test_api_sessions_response_includes_attached_character` | sessions response shape |
+
+These are **NOT P0's responsibility** but they cap a quality gate that should be cleared before Phase 1 ships (or earlier — pre-Phase-1 in a "Phase 0.5 stabilize" pass). Each failure is in a test for code that landed in `ce8e4ca` (the single big session-end commit on main) and was carried into `vNext` as the branch base. Updating the tests to the new contracts is the typical fix path.
+
+**Slow test investigation**: The 7h24min wall-clock for 1088 tests is suspicious. Likely a few tests load Piper/XTTS models from disk per-call instead of session-fixture-cached. Worth profiling before CI signs off.
+
 ## What's in `vNext` after Phase 0
 
 - 4 task commits: P0-A (×2 commits — impl + review-fix), P0-B, P0-E, P0-F
