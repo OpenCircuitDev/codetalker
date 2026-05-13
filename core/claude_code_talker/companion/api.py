@@ -21,6 +21,70 @@ def _require_token(request: Request, store) -> bool:
     return store.validate(tok)
 
 
+async def _send_keys_to_foreground(text: str) -> None:
+    """Type `text` into the OS foreground window, then press Enter.
+
+    Windows-only — uses PowerShell + System.Windows.Forms.SendKeys. The
+    user is expected to have their Claude Code session window focused on
+    the desktop before triggering the direct-STT gesture; this function
+    does not raise or switch window focus.
+
+    SendKeys treats `+`, `^`, `%`, `~`, `{`, `}`, `(`, `)`, `[`, `]` as
+    modifier/grouping characters; we escape each by wrapping in braces
+    (e.g. `+` → `{+}`). Newlines in the transcript map to Enter via the
+    final `~` sentinel after the text.
+    """
+    import asyncio
+    import subprocess
+    import sys
+    if sys.platform != "win32":
+        raise RuntimeError(
+            f"direct-STT keyboard injection is Windows-only; got {sys.platform}"
+        )
+    # Escape SendKeys metacharacters. Order matters — braces first so we
+    # don't double-escape the wrapper braces below.
+    escape_map = [
+        ("{", "{{}"),
+        ("}", "{}}"),
+        ("+", "{+}"),
+        ("^", "{^}"),
+        ("%", "{%}"),
+        ("~", "{~}"),
+        ("(", "{(}"),
+        (")", "{)}"),
+        ("[", "{[}"),
+        ("]", "{]}"),
+    ]
+    escaped = text
+    for src, dst in escape_map:
+        escaped = escaped.replace(src, dst)
+    # PowerShell's own quoting — wrap the escaped text in single quotes and
+    # double any internal single quotes per PS literal-string rules.
+    ps_literal = escaped.replace("'", "''")
+    ps_script = (
+        "Add-Type -AssemblyName System.Windows.Forms;"
+        "Start-Sleep -Milliseconds 150;"
+        f"[System.Windows.Forms.SendKeys]::SendWait('{ps_literal}');"
+        # Final Enter — `~` is SendKeys' literal for Enter.
+        "[System.Windows.Forms.SendKeys]::SendWait('~')"
+    )
+    # CREATE_NO_WINDOW = 0x08000000 keeps the PS window from flashing.
+    proc = await asyncio.create_subprocess_exec(
+        "powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script,
+        creationflags=0x08000000,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=10.0)
+    except asyncio.TimeoutError:
+        proc.kill()
+        raise RuntimeError("SendKeys subprocess timed out after 10s")
+    if proc.returncode != 0:
+        err = (stderr or b"").decode(errors="replace")[:500]
+        raise RuntimeError(f"SendKeys failed (exit {proc.returncode}): {err}")
+
+
 def _derive_workspace_group(display_name: str | None) -> str | None:
     """Best-effort default workspace_group from display_name pattern.
 
@@ -519,11 +583,49 @@ def make_routes(state) -> list[Route]:
             return JSONResponse({"error": "capture unavailable"}, status_code=503)
         return Response(jpg, media_type="image/jpeg")
 
+    async def direct_stt(request: Request) -> Response:
+        """2026-05-12 — direct-STT entry point.
+
+        Phone's vol-UP long-press records audio, transcribes (phone-side or
+        via daemon STT pipeline), and POSTs the result here. The daemon
+        types the transcript via Windows SendKeys into whatever has OS
+        focus on the desktop — presumed to be the user's Claude Code
+        window for the session named in `session_id`. (Daemon does NOT
+        switch window focus; the user keeps their CC window foreground
+        while triggering the gesture.)
+
+        This is intentionally distinct from `/api/companion/inject`, which
+        routes through the Buddy LLM intermediate. Direct-STT bypasses
+        Buddy entirely and lands the words straight into the running CC
+        session's user-input pipeline.
+
+        Body: {"text": "...", "session_id": "..."}
+        Returns: {"ok": true, "session_id": ..., "chars": N}
+                 or {"error": ...} on failure.
+        """
+        if not _require_token(request, state.pairing):
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        body = await request.json()
+        text = (body.get("text") or "").strip()
+        session_id = body.get("session_id") or ""
+        if not text:
+            return JSONResponse({"error": "text required"}, status_code=400)
+        try:
+            await _send_keys_to_foreground(text)
+            return JSONResponse({
+                "ok": True,
+                "session_id": session_id,
+                "chars": len(text),
+            })
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
     return [
         Route("/api/companion/pair", pair, methods=["POST"]),
         Route("/api/companion/sessions", list_sessions, methods=["GET"]),
         Route("/api/companion/start-buddy", start_buddy, methods=["POST"]),
         Route("/api/companion/inject", inject, methods=["POST"]),
+        Route("/api/companion/direct-stt", direct_stt, methods=["POST"]),
         Route("/api/companion/active-session", active_session, methods=["POST"]),
         Route("/api/companion/active-sessions", active_sessions_list, methods=["GET"]),
         Route("/api/companion/audio-stream/{session_id}", audio_stream, methods=["GET"]),
