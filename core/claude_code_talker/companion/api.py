@@ -235,7 +235,7 @@ def make_routes(state) -> list[Route]:
                 # dormant + live sessions consistently by workspace.
                 "project_dir": project_dir,
                 "workspace_group": workspace_group,
-                "is_live": live_match is not None,
+                "is_live": (live_match is not None) or (sid in disk_active_sids),
                 "enabled": enabled,
                 "active_mode": active_mode,
                 "last_hook_at": last_hook_at,
@@ -285,11 +285,23 @@ def make_routes(state) -> list[Route]:
         # is filtered. Matches the same filter in /api/sessions list.
         import time as _t
         SESSION_VISIBILITY_WINDOW_SEC = 24 * 3600
+        TRANSCRIPT_LIVE_WINDOW_SEC = 300
         _now = _t.time()
         visible_entries = [
             e for e in catalog.entries()
             if (_now - getattr(e, "last_modified", 0.0)) < SESSION_VISIBILITY_WINDOW_SEC
         ]
+        # 2026-05-12 — broader live signal that matches /api/sessions:
+        # a session is "live" if it has an in-memory SessionState (hook
+        # fired recently) OR its transcript was modified within the live
+        # window. The strict in-memory-only check meant the phone showed
+        # "Live · 0" right after daemon restart even when active CC
+        # sessions were running (no hooks had fired YET against the new
+        # daemon process). The catalog-recency check covers that gap.
+        disk_active_sids: set[str] = {
+            e.session_id for e in visible_entries
+            if (_now - getattr(e, "last_modified", 0.0)) < TRANSCRIPT_LIVE_WINDOW_SEC
+        }
 
         rows: list[dict] = []
         seen: set[str] = set()
