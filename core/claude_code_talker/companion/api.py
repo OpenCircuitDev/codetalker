@@ -21,6 +21,31 @@ def _require_token(request: Request, store) -> bool:
     return store.validate(tok)
 
 
+def _derive_workspace_group(display_name: str | None) -> str | None:
+    """Best-effort default workspace_group from display_name pattern.
+
+    Returns None if no pattern matches — caller treats that as Ungrouped.
+    Explicit `persistent.workspace_group` overlay always wins over this
+    derivation; this only fires when the overlay is absent.
+
+    2026-05-12 introduced because the catalog accumulates session entries
+    over time and the user's existing project structure (OCR-*, CodeTalker,
+    OCM, etc.) would otherwise show as a wall of ungrouped sessions on
+    the phone. Adjust this map (or wire it to a cfg file) as the user's
+    workspace organization evolves.
+    """
+    if not display_name:
+        return None
+    name = display_name.lower()
+    if name.startswith("ocr-") or name == "ocr":
+        return "OCRacing"
+    if name in {"ocm", "codetalker", "ctdev", "ctweb"}:
+        return "OCDev"
+    if name == "blueprintforge" or name.startswith("blueprintforge"):
+        return "BlueprintForge"
+    return None
+
+
 def _best_reachable_url(port: int = DAEMON_PORT) -> str:
     """Return the URL a phone on the same LAN/Tailnet should use to reach
     this daemon.
@@ -158,11 +183,14 @@ def make_routes(state) -> list[Route]:
                 or ""
             )
             # v0.1.0 polish — user-defined workspace group, persisted in
-            # persistent_sessions. Pro app + webui both group by this; null
-            # means "Ungrouped" so the Pro app shows it under that bucket.
+            # persistent_sessions. Pro app + webui both group by this.
+            # 2026-05-12 — if not explicitly set, derive from display_name
+            # pattern so the user's existing project structure surfaces
+            # without requiring per-session overlay configuration. Explicit
+            # overlays still win; this is a fallback for ungrouped sessions.
             workspace_group = (
                 persistent.get("workspace_group") if persistent else None
-            )
+            ) or _derive_workspace_group(display_name)
             # v0.1.0 unification — speaking state, auto-mode toggle, and
             # per-session audio routing for the unified UI.
             is_speaking = (
@@ -248,9 +276,24 @@ def make_routes(state) -> list[Route]:
                 or e.project_slug
             )
 
+        # 2026-05-12 — drop historical catalog entries whose transcript
+        # hasn't been modified in SESSION_VISIBILITY_WINDOW_SEC. Without
+        # this, the phone's Sessions list returns every transcript ever
+        # indexed (95+ in one observed household, with six entries all
+        # named "CodeTalker"). Direct session_id lookups still work via
+        # /api/sessions/{sid} for accessing history; only the list view
+        # is filtered. Matches the same filter in /api/sessions list.
+        import time as _t
+        SESSION_VISIBILITY_WINDOW_SEC = 24 * 3600
+        _now = _t.time()
+        visible_entries = [
+            e for e in catalog.entries()
+            if (_now - getattr(e, "last_modified", 0.0)) < SESSION_VISIBILITY_WINDOW_SEC
+        ]
+
         rows: list[dict] = []
         seen: set[str] = set()
-        for e in catalog.entries():
+        for e in visible_entries:
             # The catalog Entry doesn't store cwd directly, but transcript_path
             # lives at `~/.claude/projects/<encoded-cwd>/<session_id>.jsonl` so
             # `transcript_path.parent.name` is the canonical Claude Code project

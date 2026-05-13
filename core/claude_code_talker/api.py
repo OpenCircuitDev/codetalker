@@ -44,6 +44,31 @@ def _rate_limit_check(state, key: str, min_interval: float) -> bool:
     _REFRESH_LAST_AT[bucket_key] = now
     return True
 
+
+def _derive_workspace_group(display_name: str | None) -> str | None:
+    """Best-effort default workspace_group from display_name pattern.
+
+    Returns None when no pattern matches; caller treats that as Ungrouped.
+    Explicit `persistent.workspace_group` overlay always wins over this
+    derivation; this only fires when the overlay is absent.
+
+    2026-05-12 introduced because the catalog accumulates session entries
+    over time and the user's existing project structure (OCR-*, CodeTalker,
+    OCM, etc.) would otherwise show as a wall of ungrouped sessions on
+    the phone. Mirrored verbatim in companion/api.py — consolidate during
+    P1-B api.py decomposition.
+    """
+    if not display_name:
+        return None
+    name = display_name.lower()
+    if name.startswith("ocr-") or name == "ocr":
+        return "OCRacing"
+    if name in {"ocm", "codetalker", "ctdev", "ctweb"}:
+        return "OCDev"
+    if name == "blueprintforge" or name.startswith("blueprintforge"):
+        return "BlueprintForge"
+    return None
+
 _HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse", "UserPromptSubmit"]
 _HOOK_ENTRY = {
     "hooks": [
@@ -212,8 +237,26 @@ def build_routes(state) -> list[Route]:
         # TRANSCRIPT_LIVE_WINDOW_SEC. This matches the user's mental model
         # ("the session is open in CC right now") rather than the strict
         # hook-driven model.
+        #
+        # 2026-05-12 widened — TRANSCRIPT_LIVE_WINDOW_SEC raised from 60s to
+        # 300s (5 min). The 60s window was too narrow: an active CC session
+        # that pauses for the user to read a response would flicker out of
+        # "live" within a minute, even though the process is alive and the
+        # user considers it active. Companion-android polls every ~15s, so
+        # 5 minutes gives ~20 polls of grace before a dormant-but-active
+        # session disappears from the user's live filter.
+        #
+        # 2026-05-12 added VISIBILITY filter — historical session
+        # transcripts pile up in `~/.claude/projects/<slug>/*.jsonl` and the
+        # catalog tracks them indefinitely (95 entries observed in one
+        # household). Without filtering, the session list returns six
+        # entries named "CodeTalker" (one current + five history) which is
+        # noise. Drop any entry whose transcript hasn't been touched in
+        # SESSION_VISIBILITY_WINDOW_SEC. History remains accessible by
+        # direct session_id lookup; only the list view is filtered.
         import time as _time
-        TRANSCRIPT_LIVE_WINDOW_SEC = 60
+        TRANSCRIPT_LIVE_WINDOW_SEC = 300
+        SESSION_VISIBILITY_WINDOW_SEC = 24 * 3600
 
         live = state.sessions.list_active()
         live_by_sid = {s.session_id: s for s in live}
@@ -234,6 +277,17 @@ def build_routes(state) -> list[Route]:
             catalog_entries = state.catalog.entries()
         else:
             catalog_entries = []
+        # 2026-05-12 — drop historical catalog entries whose transcript
+        # hasn't been modified in SESSION_VISIBILITY_WINDOW_SEC. This is
+        # the dedup-by-recency fix: instead of returning every transcript
+        # ever indexed (95+ in one observed household, with six entries
+        # all named "CodeTalker"), only sessions with activity in the
+        # visibility window appear. Direct session_id lookups still work
+        # via /api/sessions/{sid} for accessing history.
+        catalog_entries = [
+            e for e in catalog_entries
+            if (now - e.last_modified) < SESSION_VISIBILITY_WINDOW_SEC
+        ]
         disk_active_sids: set[str] = {
             e.session_id for e in catalog_entries
             if (now - e.last_modified) < TRANSCRIPT_LIVE_WINDOW_SEC
@@ -373,7 +427,7 @@ def build_routes(state) -> list[Route]:
                 ),
                 "has_persistent_settings": persistent is not None,
                 # v0.1.0 unification — fields the webui's unified session UI needs.
-                "workspace_group": (persistent.get("workspace_group") if persistent else None),
+                "workspace_group": (persistent.get("workspace_group") if persistent else None) or _derive_workspace_group(display_name),
                 "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
                 "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
                 "audio_misaligned": _audio_misaligned(c.session_id, persistent.get("audio_outputs") if persistent else None),
@@ -399,11 +453,12 @@ def build_routes(state) -> list[Route]:
                 _resolved2 = {}
             _active_mode2 = _resolved2.get("active_mode") or getattr(state, "active_mode", None)
             _cadence2 = (_resolved2.get("live") or {}).get("cadence")
+            _display_name2 = (persistent.get("display_name") if persistent else None) or sid[:12]
             merged.append({
                 "session_id": sid,
                 "cwd": live_match.cwd or "",
                 "project_slug": "",
-                "display_name": (persistent.get("display_name") if persistent else None) or sid[:12],
+                "display_name": _display_name2,
                 "last_modified": live_match.last_hook_at,
                 "is_live": True,
                 "enabled": (persistent.get("enabled", True) if persistent else True),
@@ -414,7 +469,7 @@ def build_routes(state) -> list[Route]:
                 "has_persistent_settings": persistent is not None,
                 "pinned": _read_pinned(persistent),
                 # v0.1.0 unification — fields the webui's unified session UI needs.
-                "workspace_group": (persistent.get("workspace_group") if persistent else None),
+                "workspace_group": (persistent.get("workspace_group") if persistent else None) or _derive_workspace_group(_display_name2),
                 "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
                 "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
                 "audio_misaligned": _audio_misaligned(sid, persistent.get("audio_outputs") if persistent else None),
