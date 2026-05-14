@@ -59,6 +59,69 @@ All three items below emerged from the integrated review of P0-A/B/E/F. **All cl
 
    Not a merge blocker — the reviewer explicitly said "should be refactored before the file grows further" (future-tense). File here so it doesn't get lost.
 
+## 2026-05-13 session additions — hardware-verified follow-ups
+
+After the post-reboot hardware testing session, these items emerged:
+
+### Direct-STT (vol-up long-press) — landed and verified ✅
+
+Daemon endpoint `/api/companion/direct-stt` + Windows SendKeys helper landed in commit `0ed8b2e`. Kotlin wiring in companion-android (HardwareKeys vol-up long-press, ButtonInput LongPressUp/HoldEndUp variants, MainActivity routing, CompanionButtonHandler new methods, SessionDetailScreen handlers, CompanionViewModel SttMode enum + branched dispatch, DaemonClient.postDirectStt) is **uncommitted in the private repo, intentional** — belongs to the user to commit.
+
+Hardware verification proof: user test message *"This is a test resp"* arrived as a typed user message in the active Claude Code session via the SendKeys path.
+
+### Session-view fixes — landed and verified ✅
+
+Three bugs found while diagnosing why the phone showed only 1 of the user's 6 active CC sessions:
+
+- **Visibility filter (24h)**: drops catalog entries whose transcript hasn't been touched in 24h. Result: 95 → 14 entries (and naturally less when sessions age out).
+- **Live window (60s → 300s)**: `TRANSCRIPT_LIVE_WINDOW_SEC` raised so an active CC session pausing for the user to read a response doesn't flicker out of "live".
+- **workspace_group auto-derive heuristic**: OCR-* → OCRacing, CodeTalker/CTDev/CTWeb/OCM → OCDev, BlueprintForge → BlueprintForge.
+- **Companion is_live mirrors webui**: `(live_match is not None) or (sid in disk_active_sids)` — phone now reports Live count immediately post-daemon-restart instead of waiting for first hook.
+
+Commits: `5b7853a` + `62cc400`. The `_derive_workspace_group` helper is duplicated in `api.py` and `companion/api.py` — consolidate during P1-B api.py decomposition.
+
+### 🟡 STT truncation tuning (Important follow-up)
+
+Direct-STT works end-to-end but the test transcript got cut mid-word ("resp" instead of "response"). Probable causes:
+
+- Android `SpeechRecognizer.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS` aggressive default
+- LongPressDetector's `onHoldEnd` fires before the recognizer's final-text event lands in `lastFinalText`
+- Network/SendKeys flush race
+
+Quick fix idea: add a 200-300ms grace window in CompanionViewModel.dispatch() that waits for any pending STT final-text event before reading `lastFinalText`.
+
+### 🟡 Settings-save UI bug (Important follow-up)
+
+User reported settings changes on SessionDetail not persisting. Daemon API verified to write correctly to disk (`/api/persistent-sessions/{sid}` reads back the overlay). The bug is one of:
+
+- Phone PUT request not firing (network/auth/code path)
+- Phone UI not reflecting post-save state (display bug)
+
+Next diagnostic step: capture phone HTTP traffic while user changes a setting; see if PUT lands at the daemon. If not → phone-side bug. If yes → UI redraw issue.
+
+### 🟢 Audio routing requires explicit `audio_outputs: ["phone"]`
+
+Discovered today. Without this overlay, the daemon synthesizes narration but only publishes to desktop. Phone gets silence even though it's subscribed.
+
+Fixed for the user's 4 active sessions via API. Consider:
+
+- **Auto-set on subscribe**: when `companion_active_sessions.add(sid)` fires, default `audio_outputs` to include `"phone"` if it's null.
+- **Make this discoverable in UI**: the phone's SessionDetail should show + let the user toggle the routing list. Currently invisible.
+
+### IME-conflict gotcha for adb-driven UI testing
+
+When tapping a button via `adb shell input tap X Y`, if the on-screen keyboard is showing and the tap Y coordinate overlaps the keyboard area, the tap goes to the keyboard (typing a character) instead of the intended button. ALWAYS hide IME with `KEYCODE_BACK` before tapping buttons near screen bottom. Spent ~5 min today debugging this when the Save button at (312, 1643) was typing an `e` into the token field below.
+
+### Phone post-reboot pair flow
+
+Phone reboots wipe its AppPreferences pairing state. Re-pair flow:
+
+1. Discover wireless ADB port: `adb mdns services` (requires phone Wireless Debugging foreground)
+2. `adb connect 192.168.1.132:<port>`
+3. Generate fresh pair token: `curl -X POST -H "Content-Type: application/json" -d '{"label":"..."}' http://127.0.0.1:17832/api/companion/pair`
+4. Drive phone manual-entry pair via adb taps + `input text` for URL + token + Save (remember to hide IME before Save tap)
+5. Daemon-side pair tokens are persistent on disk; old tokens stay valid until expiry even after re-pair.
+
 ## Pre-P0 regression triage (Phase 0.5 cleanup punch list)
 
 A full pytest run after Phase 0 landed: **1061 passed / 11 failed / 16 skipped (~7.4h — slow Piper fixture loading inflates wall time; total CPU not as bad)**. Of the 11 failures, only one is downstream of P0 work (item #3 above). The other 10 are **pre-existing regressions from the session-base commit `ce8e4ca`** (audio_hub backpressure refactor, /ui retirement, sessions-character-attach reshape):
