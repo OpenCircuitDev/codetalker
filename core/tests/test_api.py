@@ -42,7 +42,12 @@ async def test_health_endpoint(client):
     async with client as c:
         r = await c.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"ok": True}
+    # 2026-05-16 -- /api/health now includes narration_enabled and
+    # narration_warning so clients can surface the master narration
+    # switch state. Assert the core contract (ok=True) without
+    # locking down the exact field set.
+    body = r.json()
+    assert body["ok"] is True
 
 
 @pytest.mark.asyncio

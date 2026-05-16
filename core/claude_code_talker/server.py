@@ -55,6 +55,11 @@ class ServerState:
     profiles: ProfileStore = None
     catalog: SessionCatalog = None
     persistent_sessions: PersistentSessionStore = None
+    # 2026-05-16 refactor — SQLite-backed canonical store. Phase 2+
+    # code uses this directly; phase 1 legacy paths go through
+    # state.persistent_sessions which is now a thin adapter over
+    # this. See docs/refactor-plan-2026-05-16.md.
+    session_store: "SessionStore | None" = None  # type: ignore[name-defined]
     secrets: SecretsStore = None
     narration_log: NarrationLog = None
     token_tracker: TokenTracker = None
@@ -313,8 +318,53 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.transcript_watcher = TranscriptWatcher(on_new_prose=_on_new_prose)
     # Latest virtual-eval report cached in memory for /api/virtual-eval/latest
     state.virtual_eval_latest = None
-    persistent_sessions = PersistentSessionStore()
-    state.persistent_sessions = persistent_sessions
+
+    # 2026-05-16 refactor (phase 1) — SessionStore replaces the
+    # YAML-backed PersistentSessionStore. We construct both:
+    #   * `session_store` is the new SQLite-backed canonical store.
+    #     New code (phase 2+) uses it directly.
+    #   * `persistent_sessions` is now a LegacyPersistentSessionAdapter
+    #     wrapping session_store, presenting the old dict-based API
+    #     so every existing caller in api.py / audio.py / hooks.py
+    #     keeps working without modification.
+    #
+    # First-run behavior: if the SQLite DB is empty AND a YAML
+    # directory exists with legacy sessions, run the migration once
+    # (with backup). This makes the cutover invisible to existing
+    # installs — the daemon comes back up with the same session
+    # state, just backed by a different store.
+    from claude_code_talker.store import (
+        LegacyPersistentSessionAdapter,
+        SessionStore,
+    )
+    # Derive the SQLite path from the existing DEFAULT_SESSIONS_DIR so
+    # tests that monkeypatch that constant (test_api.py and friends)
+    # also redirect the SessionStore — no separate isolation needed.
+    # The DB sits as a sibling of the YAML directory:
+    #   ~/.claude/scripts/codetalker/sessions/<sid>.yaml  (legacy)
+    #   ~/.claude/scripts/codetalker/sessions.db          (new)
+    import claude_code_talker.persistent_sessions as _ps
+    _yaml_dir = _ps.DEFAULT_SESSIONS_DIR
+    _db_path = _yaml_dir.parent / "sessions.db"
+    state.session_store = SessionStore(_db_path)
+    if state.session_store.count() == 0 and _yaml_dir.exists():
+        # First-run auto-migration. Reads the same YAML dir the test
+        # fixture monkeypatched so isolated test runs never touch
+        # real user data.
+        try:
+            from claude_code_talker.store.migrate_yaml import migrate
+            import logging
+            report = migrate(state.session_store, _yaml_dir, dry_run=False)
+            logging.info("SessionStore migration: %s", report.summary())
+            if report.failures:
+                for f in report.failures[:5]:
+                    logging.warning(
+                        "  migration failed: %s — %s", f.yaml_path.name, f.reason
+                    )
+        except Exception as exc:
+            import logging
+            logging.exception("SessionStore auto-migration error: %s", exc)
+    state.persistent_sessions = LegacyPersistentSessionAdapter(state.session_store)
     from claude_code_talker.characters import CharacterStore
     state.characters = CharacterStore()
     # Phase 25c — voice clone job tracker
@@ -329,7 +379,7 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.mesh_jobs = MeshJobTracker(_mesh_root / "_jobs")
     state.sessions = SessionRegistry(
         profile_store=profiles,
-        persistent_session_store=persistent_sessions,
+        persistent_session_store=state.persistent_sessions,
         base_cfg_provider=lambda: state.cfg,
         character_store=state.characters,
     )
@@ -592,6 +642,8 @@ def register_tools(server, state) -> None:
         return f"cadence set to {cadence}"
 
     async def tts_handle_stop(args):
+        if not state.cfg.get("enabled", True):
+            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         from claude_code_talker.hooks import handle_stop
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
@@ -633,6 +685,12 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_user_prompt_submit(args):
+        # 2026-05-16 -- master-switch guard with a DISTINCT skip reason so
+        # a silent narration drought caused by tts_config.yaml's
+        # `enabled: false` is identifiable in one glance instead of
+        # masquerading as "skipped: no text".
+        if not state.cfg.get("enabled", True):
+            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time as _t
         from claude_code_talker.hooks import handle_user_prompt_submit
         from claude_code_talker.sessions import evaluate_auto_mode
@@ -716,6 +774,8 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_notification(args):
+        if not state.cfg.get("enabled", True):
+            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         from claude_code_talker.hooks import handle_notification
         session_id = args.get("session_id") or "_unknown"
         state.sessions.touch(session_id)
@@ -746,6 +806,8 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_pretool(args):
+        if not state.cfg.get("enabled", True):
+            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
@@ -772,6 +834,8 @@ def register_tools(server, state) -> None:
         return "recorded"
 
     async def tts_handle_posttool(args):
+        if not state.cfg.get("enabled", True):
+            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time
         from claude_code_talker.sessions import evaluate_auto_mode
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
