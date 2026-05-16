@@ -73,6 +73,10 @@ export type Session = {
   is_speaking?: boolean;
   is_muted?: boolean;
   mode?: string;
+  /** 2026-05-16 -- daemon's per-session active_mode (live / brief / direct).
+   *  Surfaced on /api/sessions so the webui FilterChips can split the
+   *  Active bucket into Live vs Brief without a per-row config fetch. */
+  active_mode?: string;
   // v0.1.0 unification — fields exposed on /api/sessions to match the
   // Pro Android session model. All optional; null/missing means
   // "inherit fleet default" or "ungrouped".
@@ -135,4 +139,13 @@ export type NarrationEvent = {
   status: "queued" | "speaking" | "done" | "skipped" | "overflow";
 };
 
-export type DaemonHealth = { ok: boolean };
+export type DaemonHealth = {
+  ok: boolean;
+  /** 2026-05-16 -- master narration switch (~/.claude/scripts/tts_config.yaml).
+   *  When false, every hook-driven TTS path is silent across the fleet. */
+  narration_enabled?: boolean;
+  /** User-visible warning shown when narration is off; null when healthy. */
+  narration_warning?: string | null;
+};
+
+export type MasterEnabled = { enabled: boolean };

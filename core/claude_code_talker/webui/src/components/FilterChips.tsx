@@ -1,33 +1,33 @@
-// v1.0 filter pills — Active (default) / Live / Muted.
+// 2026-05-16 filter pills — Active / Live / Brief / Muted.
 //
-// Per-user direction: dormant sessions don't appear in the list anymore.
-// They only reappear once their Claude Code conversation re-opens (and
-// becomes is_live). The previous "Dormant" + "All" chips are gone — the
-// list intentionally hides closed CC conversations to keep focus on
-// what the user is doing right now.
+// Aligned with the Pro Android SessionListScreen filter model so the
+// two surfaces show the same set with the same semantics. A session is
+// Active iff it had any activity (transcript write, hook, or user
+// interaction) within the last RECENT_ACTIVITY_WINDOW_SEC. Within
+// Active, the Live / Brief / Muted pills further narrow to the
+// session's current state.
 //
-// - Active (DEFAULT)  — currently in use: is_speaking, or
-//                       last_user_interaction_at within 30s.
-// - Live              — every live CC session (escape hatch when the
-//                       Active narrow view is too restrictive).
-// - Muted             — sessions with enabled==false. Surfaced as a
-//                       filter so the user can find muted sessions and
-//                       turn them back on (otherwise they're invisible
-//                       in Active/Live by virtue of being silent).
+// - Active (DEFAULT) — sessions touched within the last hour
+// - Live             — Active AND active_mode == "live"
+// - Brief            — Active AND active_mode == "brief"
+// - Muted            — Active AND enabled == false
+//
+// The Mute toggle on a row moves it from Live/Brief into Muted by
+// flipping enabled=false; un-muting restores whichever mode it was in.
 import type { Session } from "../types";
 
-export type SessionFilter = "active" | "live" | "muted";
+export type SessionFilter = "active" | "live" | "brief" | "muted";
 
-/** Sessions are considered "active" if the user interacted with them in
- *  the last N seconds OR the daemon is currently narrating their audio.
- *  30s matches `evaluate_auto_mode`'s default idle threshold so the
- *  pill and the brief/live auto-flip line up on the same clock. */
-const ACTIVE_WINDOW_SEC = 30;
+/** 60-minute recency window. Matches the Pro Android filter and the
+ *  Active reconciliation in MainActivity so audio-subscriber set,
+ *  visibility filter, and reconciliation all agree. */
+const RECENT_ACTIVITY_WINDOW_SEC = 60 * 60;
 
 const PILLS: { key: SessionFilter; label: string; title: string }[] = [
-  { key: "active", label: "Active", title: `Sessions narrating audio or with user activity in the last ${ACTIVE_WINDOW_SEC}s (default)` },
-  { key: "live", label: "Live", title: "All Claude Code sessions currently open (broader than Active)" },
-  { key: "muted", label: "Muted", title: "Sessions with narration disabled (enabled=false). Open one and tap 'unmute' to resume." },
+  { key: "active", label: "Active", title: "Sessions touched within the last hour (default)" },
+  { key: "live", label: "Live", title: "Active sessions in Live speaking mode" },
+  { key: "brief", label: "Brief", title: "Active sessions in Brief speaking mode" },
+  { key: "muted", label: "Muted", title: "Active sessions with narration disabled. Tap 'unmute' on the row to resume." },
 ];
 
 type Props = {
@@ -47,28 +47,36 @@ export const DEFAULT_SESSION_FILTER: SessionFilter = "active";
 
 function isActiveNow(s: Session): boolean {
   if (s.is_speaking) return true;
+  if (s.is_live) return true;
+  const nowSec = Date.now() / 1000;
+  // Treat catalog mtime (last_modified) as activity within the recency
+  // window. Catches sessions where Claude is writing tool output but
+  // the strict 5-min is_live badge has rolled over.
+  const mod = s.last_modified || 0;
+  if (mod > 0 && (nowSec - mod) >= -2 && (nowSec - mod) < RECENT_ACTIVITY_WINDOW_SEC) return true;
   const last = s.last_user_interaction_at || 0;
-  if (!last) return false;
-  // last_user_interaction_at is epoch seconds (daemon-side wall clock).
-  // Date.now() is browser ms. Allow ±2s skew tolerance.
-  const ageSec = Date.now() / 1000 - last;
-  return ageSec >= -2 && ageSec < ACTIVE_WINDOW_SEC;
+  if (last <= 0) return false;
+  const ageSec = nowSec - last;
+  return ageSec >= -2 && ageSec < RECENT_ACTIVITY_WINDOW_SEC;
+}
+
+function activeMatchesPill(s: Session, pill: SessionFilter): boolean {
+  // Every non-Active pill is a SUBSET of Active, so first require recency.
+  if (!isActiveNow(s)) return false;
+  switch (pill) {
+    case "active":
+      return true;
+    case "live":
+      return (s.active_mode || "").toLowerCase() === "live";
+    case "brief":
+      return (s.active_mode || "").toLowerCase() === "brief";
+    case "muted":
+      return s.enabled === false;
+  }
 }
 
 function bucketCount(filter: SessionFilter, sessions: Session[]): number {
-  switch (filter) {
-    case "active":
-      // Active is a subset of live — dormant sessions never count.
-      return sessions.filter((s) => s.is_live && isActiveNow(s)).length;
-    case "live":
-      return sessions.filter((s) => s.is_live).length;
-    case "muted":
-      // Muted shows any session with enabled==false. Include dormant
-      // muted sessions too so the user can find historically-muted
-      // sessions and re-enable them. Otherwise muted dormant sessions
-      // would be permanently invisible.
-      return sessions.filter((s) => s.enabled === false).length;
-  }
+  return sessions.filter((s) => activeMatchesPill(s, filter)).length;
 }
 
 export function applySessionFilter(
@@ -76,14 +84,7 @@ export function applySessionFilter(
   filter: SessionFilter,
   _activeId?: string | null
 ): Session[] {
-  switch (filter) {
-    case "active":
-      return sessions.filter((s) => s.is_live && isActiveNow(s));
-    case "live":
-      return sessions.filter((s) => s.is_live);
-    case "muted":
-      return sessions.filter((s) => s.enabled === false);
-  }
+  return sessions.filter((s) => activeMatchesPill(s, filter));
 }
 
 export function FilterChips({ value, onChange, sessions }: Props) {

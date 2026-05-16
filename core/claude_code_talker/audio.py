@@ -176,6 +176,11 @@ class AudioJob:
     # so paired AR companions on a specific session receive only their session's
     # narration.  Empty string means "no specific session" (legacy callers).
     session_id: str = ""
+    # Phase 2 — id of the AudioJobRegistry entry tracking this job's
+    # state_history. Populated by AudioQueue.submit() when the daemon
+    # has wired a registry; remains empty on test fixtures that
+    # construct an AudioQueue without one.
+    registry_job_id: str = ""
 
 
 _PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
@@ -213,6 +218,7 @@ class AudioQueue:
         if not job.enqueued_at:
             import time
             job.enqueued_at = time.time()
+        self._register_job(job)
         with self._cv:
             self._seq += 1
             rank = _PRIORITY_RANK.get(job.priority, 1)
@@ -221,7 +227,66 @@ class AudioQueue:
             self._cv.notify()
         if job.priority == "alert":
             self._handle.stop()  # interrupt current playback
+        self._registry_transition(job, "queued", gate="dispatch")
         self._publish_event(job, "queued")
+
+    def _register_job(self, job: AudioJob) -> None:
+        """Phase 2 — create the AudioJobRegistry entry that owns this
+        job's state_history. No-op when state has no registry wired."""
+        if job.registry_job_id:
+            return
+        registry = getattr(self._state, "audio_job_registry", None)
+        if registry is None:
+            return
+        try:
+            from claude_code_talker.schemas import VoiceConfig
+            voice = VoiceConfig(
+                engine=job.engine_name if job.engine_name in (
+                    "piper", "edge", "elevenlabs", "openai", "xtts"
+                ) else "piper",
+                model=job.voice or "",
+                rate=float(job.rate) if 0.5 <= float(job.rate) <= 2.0 else 1.0,
+            )
+            entry = registry.create(
+                session_id=job.session_id or "",
+                text=job.text or "",
+                voice=voice,
+            )
+            job.registry_job_id = entry.job_id
+        except Exception:
+            # Registry failure is diagnostic-only — never block audio.
+            pass
+
+    def _registry_transition(
+        self,
+        job: AudioJob,
+        to_state: str,
+        *,
+        gate: str,
+        reason: str | None = None,
+        publish_key: str | None = None,
+        bytes_synthesized: int | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Phase 2 — append a StateTransition to this job's audit trail.
+        No-op when state has no registry or the job was never registered."""
+        if not job.registry_job_id:
+            return
+        registry = getattr(self._state, "audio_job_registry", None)
+        if registry is None:
+            return
+        try:
+            registry.transition(
+                job.registry_job_id,
+                to_state=to_state,
+                gate=gate,
+                reason=reason,
+                publish_key=publish_key,
+                bytes_synthesized=bytes_synthesized,
+                error=error,
+            )
+        except Exception:
+            pass
 
     def _enforce_depth_locked(self) -> None:
         """Caller holds self._cv. Drops non-alert items if over max_depth."""
@@ -305,6 +370,9 @@ class AudioQueue:
             # Drop stale non-alert jobs
             if job.priority != "alert" and (time.time() - job.enqueued_at) > self._staleness:
                 logging.debug("dropping stale audio job: %s", job.text[:40])
+                self._registry_transition(
+                    job, "skipped", gate="staleness", reason="stale"
+                )
                 self._publish_event(job, "skipped")
                 continue
             self._publish_event(job, "speaking")
@@ -357,66 +425,100 @@ class AudioQueue:
                 outputs = self._resolve_audio_outputs(job)
                 companion_wanted = "phone" in outputs or "glasses" in outputs
                 desktop_wanted = "desktop" in outputs
+                # v0.1.0 unification — multi-session round-robin routing.
+                # When companion is wanted, decide which hub key receives
+                # the audio (typically companion_active_session, so the
+                # phone — subscribed to that one stream — hears every
+                # opted-in session in turn) and whether to prepend an
+                # intro tag identifying the speaker.
+                route_key = ""
+                synth_text = job.text
+                if companion_wanted:
+                    route = self._decide_multi_session(job)
+                    route_key = route.publish_to_session_id
+                    if route.intro_text:
+                        synth_text = route.intro_text + job.text
+                    if not route_key:
+                        # Strategy says drop the companion path (e.g., no
+                        # companion-active session paired). Treat the same
+                        # as if companion wasn't requested.
+                        companion_wanted = False
+                # Record the routing decision in the audit trail.
+                self._registry_transition(
+                    job,
+                    "routing",
+                    gate="route",
+                    publish_key=route_key or None,
+                )
                 # 2026-05-11 backpressure: synth is the costly step (LLM-bound TTS).
                 # Skip it when the work would be discarded — empty outputs, or
                 # companion-only with no live audio_hub subscriber. Desktop play
                 # has no subscribe handshake, so its presence always forces synth.
                 if not desktop_wanted and not companion_wanted:
                     logging.debug("audio worker: skipping synth — no outputs (sid=%s)", (job.session_id or "")[:8])
-                    self._publish_event(job, "skipped")
-                    continue
-                if companion_wanted and not desktop_wanted and not self._hub_has_subscribers(job):
-                    # 2026-05-11 Tier-A.1 — WARN instead of DEBUG with action
-                    # hint. Silent skips here cost ~30 min of diagnostic time
-                    # because the daemon was correctly configured but the phone
-                    # hadn't subscribed to the session's audio-stream. Surface
-                    # the misalignment loudly so `tail -f codetalker.log` is
-                    # the one-step diagnostic.
-                    logging.warning(
-                        "CCT-AUDIO: audio_outputs=%s configured for sid=%s but no audio-stream subscriber — "
-                        "open this session on the phone (or tap 'Make active') to receive audio",
-                        sorted(outputs), (job.session_id or "")[:8],
+                    self._registry_transition(
+                        job,
+                        "skipped",
+                        gate="output_check",
+                        reason="no_audio_outputs",
                     )
                     self._publish_event(job, "skipped")
                     continue
-                # 2026-05-11 Tier-1: TTS-cache lookup before synth. Saves the
-                # full LLM-bound TTS call when an identical (text, voice,
-                # engine, rate, format) tuple was synthesized before. Cache
-                # hits typically save 200ms–2s per playback. Misses fall
-                # through to engine.synthesize and the bytes get cached for
-                # next time.
+                if companion_wanted and not desktop_wanted and not self._hub_has_subscribers_for_key(route_key):
+                    logging.warning(
+                        "CCT-AUDIO: audio_outputs=%s configured for sid=%s but no audio-stream subscriber on key=%s — "
+                        "open this session on the phone (or tap 'Make active') to receive audio",
+                        sorted(outputs), (job.session_id or "")[:8], (route_key or "")[:8],
+                    )
+                    self._registry_transition(
+                        job,
+                        "skipped",
+                        gate="subscriber_check",
+                        reason="no_subscribers",
+                    )
+                    self._publish_event(job, "skipped")
+                    continue
+                # 2026-05-11 Tier-1: TTS-cache lookup before synth.
+                self._registry_transition(job, "synthesizing", gate="synth")
                 wav = self._cache_get(job, voice)
                 cache_hit = wav is not None
                 if wav is None:
-                    wav = engine.synthesize(job.text, voice, job.rate)
+                    # Use synth_text (with optional intro prefix) so the
+                    # voice tag is part of the rendered audio.
+                    wav = engine.synthesize(synth_text, voice, job.rate)
                     self._cache_put(job, voice, wav)
-                # 2026-05-11 backpressure: only dispatch the hub publish when
-                # there is at least one open subscriber. The previous code
-                # always dispatched on companion_wanted regardless of who's
-                # listening, which (a) leaked the noisy "subscribers=0"
-                # warning into the daemon log on every synth and (b) burned
-                # asyncio scheduler cycles on no-op coroutines that could
-                # accumulate behind a slow event loop. Late subscribers don't
-                # get backfill; this matches the live-stream contract.
-                if companion_wanted and self._hub_has_subscribers(job):
-                    self._publish_to_audio_hub(job, wav)
+                self._registry_transition(
+                    job,
+                    "publishing",
+                    gate="hub",
+                    bytes_synthesized=len(wav) if wav else 0,
+                )
+                if companion_wanted and self._hub_has_subscribers_for_key(route_key):
+                    self._publish_to_audio_hub_keyed(route_key, wav)
+                    # Track last-played source session so the routing
+                    # strategy can suppress redundant intros for chatty
+                    # back-to-back jobs from the same workspace.
+                    try:
+                        setattr(self._state, "_last_played_session_id", job.session_id)
+                    except Exception:
+                        pass
                 elif companion_wanted:
-                    # Mixed-output case (desktop + companion, no subscribers).
-                    # Desktop still plays, but companion silently misses the
-                    # publish. Surface that so the user knows the phone is
-                    # configured but not receiving.
                     logging.warning(
-                        "CCT-AUDIO: companion sink in audio_outputs=%s for sid=%s but no subscriber — "
+                        "CCT-AUDIO: companion sink in audio_outputs=%s for sid=%s but no subscriber on key=%s — "
                         "desktop plays, phone/glasses silent. Open the session on the device to subscribe.",
-                        sorted(outputs), (job.session_id or "")[:8],
+                        sorted(outputs), (job.session_id or "")[:8], (route_key or "")[:8],
                     )
                 if desktop_wanted:
                     play_audio_bytes(wav, audio_format=job.audio_format, handle=self._handle)
                 if cache_hit:
                     logging.debug("audio worker: cache hit for %r voice=%s engine=%s", job.text[:40], voice, job.engine_name)
+                self._registry_transition(job, "played", gate="hub")
                 self._publish_event(job, "done")
             except Exception as e:
                 logging.warning("audio job failed: %s", e)
+                self._registry_transition(
+                    job, "errored", gate="synth", error=str(e)
+                )
                 self._publish_event(job, "skipped")
             finally:
                 self._set_speaking(job, False)
@@ -539,18 +641,141 @@ class AudioQueue:
 
     def _hub_has_subscribers(self, job) -> bool:
         """2026-05-11 backpressure: return True iff audio_hub has at least one
-        open subscriber queue for this job's session. Used to short-circuit
-        synthesis when the only configured output is companion-side but no
-        AR/phone client is currently listening — saves an LLM-bound TTS call
-        per dead-letter narration."""
-        sid = getattr(job, "session_id", "") or ""
-        if not sid:
+        open subscriber queue for this job's session."""
+        return self._hub_has_subscribers_for_key(getattr(job, "session_id", "") or "")
+
+    def _hub_has_subscribers_for_key(self, key: str) -> bool:
+        """v0.1.0 unification — same as _hub_has_subscribers but for an
+        arbitrary hub key (not necessarily the job's source session). Used
+        when multi-session routing fans audio into the active session's
+        stream rather than the source session's stream."""
+        if not key:
             return False
         hub = getattr(self._state, "audio_hub", None)
         if hub is None:
             return False
-        subs = getattr(hub, "_subscribers", {}).get(sid, [])
+        subs = getattr(hub, "_subscribers", {}).get(key, [])
         return bool(subs)
+
+    def _decide_multi_session(self, job):
+        """v0.1.0 unification — consult the routing strategy for this job.
+
+        Returns a RoutingDecision telling the worker which hub key to
+        publish to and whether to prepend a spoken intro tag identifying
+        the speaker. Strategy lives in
+        claude_code_talker.companion.multi_session_routing — replace it
+        there to change behavior without touching audio.py.
+        """
+        import time as _t
+        from claude_code_talker.companion.multi_session_routing import (
+            decide_multi_session_route,
+            RoutingDecision,
+        )
+        try:
+            # Build the inputs the strategy needs.
+            #
+            # 2026-05-16 root-cause fix — `opted_in` was previously
+            # computed by intersecting in-memory live sessions
+            # (state.sessions.list_active()) with persistent overlay
+            # entries that had phone/glasses in audio_outputs. That made
+            # routing fragile: after a daemon restart, state.sessions is
+            # empty until each session's hook fires, so opted_in stayed
+            # empty and Strategy C dropped every WAV via its
+            # `job_session_id not in opted_in_sessions` guard. The phone
+            # had hub subscribers (audio_misaligned reported 0!) but
+            # those subscribers received nothing because the publish
+            # never happened.
+            #
+            # Persistent overlay is the canonical opt-in signal — a user
+            # sets audio_outputs=[phone] on a session and that fact
+            # survives daemon restart, in-memory eviction, etc. Use it
+            # directly. The downstream `_hub_has_subscribers_for_key`
+            # check already prevents synth for sessions with no live
+            # subscriber, so reading all opted-in sessions from
+            # persistent overlay can't cause spurious work.
+            ps = getattr(self._state, "persistent_sessions", None)
+            opted_in: list[str] = []
+            if ps is not None:
+                try:
+                    sids = ps.list()
+                except Exception:
+                    sids = []
+                for sid in sids:
+                    persistent = ps.get(sid)
+                    if not persistent:
+                        continue
+                    outs = persistent.get("audio_outputs") or []
+                    if isinstance(outs, (list, tuple)) and (
+                        "phone" in outs or "glasses" in outs
+                    ):
+                        opted_in.append(sid)
+            companion_active = getattr(self._state, "companion_active_session", None)
+            workspace_group = None
+            if ps is not None:
+                try:
+                    persistent = ps.get(getattr(job, "session_id", "") or "")
+                    if persistent:
+                        workspace_group = persistent.get("workspace_group")
+                except Exception:
+                    workspace_group = None
+            # Evidence-gathering log so the routing decision is visible
+            # in the daemon's stderr for every audio job. Keeps the
+            # debugging cycle short the next time a "no audio" report
+            # comes in -- one log line shows opted_in size, job sid,
+            # active sid, and the resolved publish key.
+            decision = decide_multi_session_route(
+                job_session_id=getattr(job, "session_id", "") or "",
+                job_workspace_group=workspace_group,
+                opted_in_sessions=opted_in,
+                companion_active_session=companion_active,
+                last_played_session_id=getattr(self._state, "_last_played_session_id", None),
+                now=_t.time(),
+            )
+            logging.warning(
+                "CCT-AUDIO route: job_sid=%s opted_in=%d active=%s -> publish_key=%s intro=%r",
+                (getattr(job, "session_id", "") or "")[:8],
+                len(opted_in),
+                (companion_active or "<none>")[:8],
+                (decision.publish_to_session_id or "<DROP>")[:8],
+                decision.intro_text,
+            )
+            return decision
+        except Exception as e:
+            logging.warning("CCT-AUDIO: multi-session route decision failed: %s; "
+                            "falling back to per-session publish", e)
+            return RoutingDecision(
+                publish_to_session_id=getattr(job, "session_id", "") or "",
+            )
+
+    def _publish_to_audio_hub_keyed(self, key: str, wav: bytes) -> None:
+        """v0.1.0 unification — publish to an arbitrary hub key.
+
+        Like _publish_to_audio_hub but lets the worker choose a different
+        hub key from the source session_id, so the multi-session strategy
+        can fan all opted-in sessions into one stream.
+        """
+        if not wav or not key:
+            return
+        hub = getattr(self._state, "audio_hub", None)
+        if hub is None:
+            return
+        loop = getattr(self._state, "audio_hub_loop", None)
+        if loop is None:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop_policy().get_event_loop()
+            except Exception:
+                return
+        subs = getattr(hub, "_subscribers", {}).get(key, [])
+        logging.info(
+            "CCT-AUDIO: publish keyed → %d bytes to key=%s subscribers=%d",
+            len(wav), key[:8], len(subs),
+        )
+        try:
+            import asyncio
+            asyncio.run_coroutine_threadsafe(hub.publish(key, wav), loop)
+        except Exception as e:
+            logging.warning("CCT-AUDIO: keyed publish dispatch failed: %s", e)
 
     def _publish_to_audio_hub(self, job, wav: bytes) -> None:
         """CCT-31 — best-effort fan-out of synthesized audio to AudioStreamHub.

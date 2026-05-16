@@ -60,6 +60,10 @@ class ServerState:
     # state.persistent_sessions which is now a thin adapter over
     # this. See docs/refactor-plan-2026-05-16.md.
     session_store: "SessionStore | None" = None  # type: ignore[name-defined]
+    # Phase 2 — single audit-trail registry. Every audio job born
+    # from a hook / buddy inject / direct synth is registered here
+    # with a state machine. /api/audio-jobs/{id} returns the trace.
+    audio_job_registry: "AudioJobRegistry | None" = None  # type: ignore[name-defined]
     secrets: SecretsStore = None
     narration_log: NarrationLog = None
     token_tracker: TokenTracker = None
@@ -365,6 +369,12 @@ def build_server_state(cwd: str | None = None) -> ServerState:
             import logging
             logging.exception("SessionStore auto-migration error: %s", exc)
     state.persistent_sessions = LegacyPersistentSessionAdapter(state.session_store)
+
+    # Phase 2 — AudioJobRegistry. Every audio gate logs to this; the
+    # /api/audio-jobs endpoints (phase 3) and Diagnostics views
+    # (phase 5) read from it. Bounded ring buffer; pure in-memory.
+    from claude_code_talker.audio_decisions import AudioJobRegistry
+    state.audio_job_registry = AudioJobRegistry()
     from claude_code_talker.characters import CharacterStore
     state.characters = CharacterStore()
     # Phase 25c — voice clone job tracker
@@ -540,12 +550,78 @@ def register_tools(server, state) -> None:
     around the mcp SDK FastMCP server (production, lands in Phase 2A.3).
     """
 
+    # Phase 2 — single audibility helper. Replaces the 5 scattered
+    # `cfg.get("enabled")` checks that previously lived inline in
+    # each tts_handle_*. Every handler that produces audio calls
+    # this first. The returned status carries a NAMED reason so
+    # the dispatch result is no longer the ambiguous
+    # "skipped: no text". See audio_decisions/audibility.py.
+    def _audibility_for(session_id: str):
+        """
+        Return (is_audible, skip_reason_string). When the session
+        passes all gates, returns (True, ""). When a gate fires,
+        returns (False, "skipped: <named_reason>").
+
+        Resolves the session by checking the in-memory SessionRegistry
+        first (mute/unmute toggles land there transiently), falling
+        back to the SQLite SessionStore, and finally to a default
+        audible Session for first-hook-fire sessions that have not
+        been registered yet.
+        """
+        from claude_code_talker.audio_decisions import is_session_audible
+        from claude_code_talker.schemas import MasterConfig, Session
+
+        # Master config materialized from state.cfg (the in-memory
+        # YAML deep-merge). Only `enabled` matters for the audibility
+        # check; default other fields so the model validates.
+        try:
+            master = MasterConfig(
+                enabled=bool(state.cfg.get("enabled", True)),
+            )
+        except Exception:
+            master = MasterConfig()
+
+        # Prefer the live in-memory SessionRegistry — mute/unmute,
+        # active_mode, character attach all mutate there. SessionStore
+        # is the cold-storage canonical source; the registry overlays
+        # transient state. When neither has the session yet (very
+        # first hook fire), construct a default-audible Session so
+        # the handler can proceed to touch + persist it.
+        session: Session | None = None
+        legacy = None
+        try:
+            legacy = state.sessions.get(session_id) if state.sessions is not None else None
+        except Exception:
+            legacy = None
+        if legacy is not None:
+            session = Session(
+                session_id=session_id,
+                display_name=session_id[:12],
+                enabled=bool(getattr(legacy, "enabled", True)),
+            )
+        elif state.session_store is not None:
+            session = state.session_store.get(session_id)
+        if session is None:
+            session = Session(session_id=session_id, display_name=session_id[:12])
+
+        status = is_session_audible(
+            session, master, require_audio_outputs=False
+        )
+        if status.audible:
+            return True, ""
+        return False, f"skipped: {status.reason}"
+
     async def tts_speak(args):
         text = args.get("text", "")
         if not text:
             return "skipped: no text"
-        if not state.cfg.get("enabled", True):
-            return "skipped: muted"
+        session_id = args.get("session_id", "") or ""
+        if session_id:
+            audible, skip_reason = _audibility_for(session_id)
+            if not audible:
+                return skip_reason
+        elif not state.cfg.get("enabled", True):
+            return "skipped: master_disabled"
         engine_name = (state.cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
         if not engine:
@@ -642,8 +718,6 @@ def register_tools(server, state) -> None:
         return f"cadence set to {cadence}"
 
     async def tts_handle_stop(args):
-        if not state.cfg.get("enabled", True):
-            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         from claude_code_talker.hooks import handle_stop
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
@@ -653,12 +727,13 @@ def register_tools(server, state) -> None:
         if transcript_path and state.transcript_watcher is not None:
             from pathlib import Path as _Path
             state.transcript_watcher.watch(session_id, _Path(transcript_path))
-        s = state.sessions.get(session_id)
-        if s is not None and not s.enabled:
-            return "skipped: per-session disabled"
+        # Phase 2 — single audibility gate. Replaces three previously
+        # scattered checks (master, per-session SessionState.enabled,
+        # resolved cfg.enabled). The returned skip reason is named.
+        audible, skip_reason = _audibility_for(session_id)
+        if not audible:
+            return skip_reason
         cfg = state.sessions.config_for(session_id)
-        if not cfg.get("enabled", True):
-            return "skipped: muted"
         text = await handle_stop(
             payload={"transcript_path": transcript_path, "cwd": cwd},
             cfg=cfg,
@@ -685,12 +760,6 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_user_prompt_submit(args):
-        # 2026-05-16 -- master-switch guard with a DISTINCT skip reason so
-        # a silent narration drought caused by tts_config.yaml's
-        # `enabled: false` is identifiable in one glance instead of
-        # masquerading as "skipped: no text".
-        if not state.cfg.get("enabled", True):
-            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time as _t
         from claude_code_talker.hooks import handle_user_prompt_submit
         from claude_code_talker.sessions import evaluate_auto_mode
@@ -715,9 +784,10 @@ def register_tools(server, state) -> None:
                     state.transcript_watcher.watch(session_id, _Path(tp))
             except Exception:
                 pass  # best-effort; Stop handler will register when transcript_path is in args
-        s = state.sessions.get(session_id)
-        if s is not None and not s.enabled:
-            return "skipped: per-session disabled"
+        # Phase 2 — single audibility gate.
+        audible, skip_reason = _audibility_for(session_id)
+        if not audible:
+            return skip_reason
         cfg = state.sessions.config_for(session_id)
         # Push USER_PROMPT into the live buffer so subsequent tool events have
         # the user's intent as context for WHY-focused narration.
@@ -774,14 +844,12 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_notification(args):
-        if not state.cfg.get("enabled", True):
-            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         from claude_code_talker.hooks import handle_notification
         session_id = args.get("session_id") or "_unknown"
         state.sessions.touch(session_id)
-        s = state.sessions.get(session_id)
-        if s is not None and not s.enabled:
-            return "skipped: per-session disabled"
+        audible, skip_reason = _audibility_for(session_id)
+        if not audible:
+            return skip_reason
         cfg = state.sessions.config_for(session_id)
         text = handle_notification(
             payload={"message": args.get("message", "")},
@@ -806,15 +874,13 @@ def register_tools(server, state) -> None:
         return f"queued: {len(text)} chars"
 
     async def tts_handle_pretool(args):
-        if not state.cfg.get("enabled", True):
-            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
         cwd = args.get("cwd", "")
         state.sessions.touch(session_id, cwd=cwd)
-        s = state.sessions.get(session_id)
-        if s is not None and not s.enabled:
-            return "skipped: per-session disabled"
+        audible, skip_reason = _audibility_for(session_id)
+        if not audible:
+            return skip_reason
         cfg = state.sessions.config_for(session_id)
         keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         ev = Event(
@@ -834,8 +900,6 @@ def register_tools(server, state) -> None:
         return "recorded"
 
     async def tts_handle_posttool(args):
-        if not state.cfg.get("enabled", True):
-            return "skipped: master disabled (set enabled: true in tts_config.yaml)"
         import time
         from claude_code_talker.sessions import evaluate_auto_mode
         session_id = args.get("session_id") or args.get("cwd") or "_unknown"
@@ -844,9 +908,9 @@ def register_tools(server, state) -> None:
         # v0.1.0 unification — re-evaluate auto-mode at the end of each tool
         # so a long stretch of background work eventually flips to brief.
         evaluate_auto_mode(state, session_id)
-        s = state.sessions.get(session_id)
-        if s is not None and not s.enabled:
-            return "skipped: per-session disabled"
+        audible, skip_reason = _audibility_for(session_id)
+        if not audible:
+            return skip_reason
         cfg = state.sessions.config_for(session_id)
         keywords = ((cfg.get("content_filter") or {}).get("speak_keywords") or [])
         response = args.get("tool_response", {}) or {}

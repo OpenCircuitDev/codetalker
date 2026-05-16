@@ -85,29 +85,12 @@ async def _send_keys_to_foreground(text: str) -> None:
         raise RuntimeError(f"SendKeys failed (exit {proc.returncode}): {err}")
 
 
-def _derive_workspace_group(display_name: str | None) -> str | None:
-    """Best-effort default workspace_group from display_name pattern.
-
-    Returns None if no pattern matches — caller treats that as Ungrouped.
-    Explicit `persistent.workspace_group` overlay always wins over this
-    derivation; this only fires when the overlay is absent.
-
-    2026-05-12 introduced because the catalog accumulates session entries
-    over time and the user's existing project structure (OCR-*, CodeTalker,
-    OCM, etc.) would otherwise show as a wall of ungrouped sessions on
-    the phone. Adjust this map (or wire it to a cfg file) as the user's
-    workspace organization evolves.
-    """
-    if not display_name:
-        return None
-    name = display_name.lower()
-    if name.startswith("ocr-") or name == "ocr":
-        return "OCRacing"
-    if name in {"ocm", "codetalker", "ctdev", "ctweb"}:
-        return "OCDev"
-    if name == "blueprintforge" or name.startswith("blueprintforge"):
-        return "BlueprintForge"
-    return None
+# 2026-05-16 -- delegate to the single canonical implementation in
+# api.py so the two surfaces NEVER drift. Previously this file held a
+# copy that had to be hand-mirrored every time a new project family was
+# added; the next "showing as Ungrouped on phone but grouped on web"
+# bug was effectively guaranteed under that pattern.
+from claude_code_talker.api import _derive_workspace_group  # noqa: F401
 
 
 def _best_reachable_url(port: int = DAEMON_PORT) -> str:
@@ -213,7 +196,7 @@ def make_routes(state) -> list[Route]:
         # cwd (so the companion can mirror Claude Code's per-cwd grouping —
         # codetalker's project_slug collapses distinct workspaces under shared
         # parent directory names).
-        def _row(sid: str, display_name: str, project_slug: str, cwd: str, project_dir: str = "") -> dict:
+        def _row(sid: str, display_name: str, project_slug: str, cwd: str, project_dir: str = "", last_modified: float = 0.0) -> dict:
             live_match = live_by_sid.get(sid)
             persistent = (
                 state.persistent_sessions.get(sid)
@@ -268,6 +251,27 @@ def make_routes(state) -> list[Route]:
             audio_outputs = (
                 persistent.get("audio_outputs") if persistent else None
             )
+            # 2026-05-16 -- fields added to bring this endpoint to parity
+            # with /api/sessions (the webui-facing list). Webui has used
+            # these for months; Pro app couldn't show pinned-first sort,
+            # cadence on the row, or the emotive listening state because
+            # the data simply wasn't reaching it.
+            pinned = (
+                bool(persistent.get("pinned", False)) if persistent else False
+            )
+            cadence = None
+            try:
+                if state.sessions is not None and live_match is not None:
+                    _cfg = state.sessions.config_for(sid)
+                    cadence = (_cfg.get("live") or {}).get("cadence")
+            except Exception:
+                cadence = None
+            if not cadence and persistent:
+                cadence = ((persistent.get("live_overlay") or {}).get("live") or {}).get("cadence")
+            last_user_interaction_at = (
+                float(getattr(live_match, "last_user_interaction_at", 0.0))
+                if live_match else 0.0
+            )
             # 2026-05-11 Tier-A.2 — companion-side mirror of the
             # audio_misaligned flag used by /api/sessions. True iff this
             # session has a companion sink configured (phone/glasses) but
@@ -303,12 +307,24 @@ def make_routes(state) -> list[Route]:
                 "enabled": enabled,
                 "active_mode": active_mode,
                 "last_hook_at": last_hook_at,
+                # 2026-05-16 -- expose the catalog's transcript mtime so the
+                # phone's "Active" filter can include sessions touched in
+                # the last 30 minutes (Claude Code is_live uses a 5-minute
+                # window which is too narrow for the user's mental model
+                # of "I'm working in this session"). The phone uses this
+                # to decide row visibility independent of the strict live
+                # badge. Epoch seconds; 0.0 when no transcript known.
+                "last_modified": float(last_modified or 0.0),
                 "is_companion_active": (sid in active_sids),
                 "is_speaking": is_speaking,
                 "auto_mode_enabled": auto_mode_enabled,
                 "audio_outputs": audio_outputs,
                 "audio_misaligned": audio_misaligned,
                 "attached_character": _resolve_character(sid),
+                # 2026-05-16 -- parity with /api/sessions row.
+                "pinned": pinned,
+                "cadence": cadence,
+                "last_user_interaction_at": last_user_interaction_at,
             }
 
         # v0.1.0 polish — align display_name precedence with the broader
@@ -348,7 +364,11 @@ def make_routes(state) -> list[Route]:
         # /api/sessions/{sid} for accessing history; only the list view
         # is filtered. Matches the same filter in /api/sessions list.
         import time as _t
-        SESSION_VISIBILITY_WINDOW_SEC = 24 * 3600
+        # 2026-05-16 -- bumped from 24h to 30d to match Claude Code's
+        # session-list visibility. See same constant in api.py for the
+        # rationale; this companion handler must stay in sync so the
+        # phone and webui see the same set.
+        SESSION_VISIBILITY_WINDOW_SEC = 30 * 24 * 3600
         TRANSCRIPT_LIVE_WINDOW_SEC = 300
         _now = _t.time()
         visible_entries = [
@@ -387,13 +407,18 @@ def make_routes(state) -> list[Route]:
                 e.project_slug,
                 getattr(e, "cwd", "") or "",
                 project_dir,
+                getattr(e, "last_modified", 0.0) or 0.0,
             ))
             seen.add(e.session_id)
         # Sessions that are live but not yet in the catalog (newly spawned).
         for sid, live_match in live_by_sid.items():
             if sid in seen:
                 continue
-            rows.append(_row(sid, sid[:12], "", live_match.cwd or "", ""))
+            # Newly spawned (no catalog yet); last_hook_at proxies as
+            # last_modified so the phone's recent-activity filter still
+            # picks it up immediately.
+            _lm = float(getattr(live_match, "last_hook_at", 0.0) or 0.0)
+            rows.append(_row(sid, sid[:12], "", live_match.cwd or "", "", _lm))
         return JSONResponse(rows)
 
     async def start_buddy(request: Request) -> Response:
@@ -450,7 +475,18 @@ def make_routes(state) -> list[Route]:
         # through the local TTS pipeline so the companion's audio-stream
         # subscriber actually receives synthesized speech. Without this, the
         # AR companion would see captions but hear silence.
-        active_sid = getattr(state, "companion_active_session", None) or bid
+        #
+        # 2026-05-16 root-cause fix — was using `companion_active_session
+        # OR bid` to tag the audio job. When CAS is set to a sid that has
+        # NO audio_outputs configured (a freshly-spawned session, or one
+        # the user explicitly cleared), the audio worker's Strategy-C
+        # router sees `job_session_id NOT in opted_in_sessions` and drops
+        # the WAV silently. Using `bid` (the buddy's own session, which
+        # is the user_session_id the user explicitly invoked) ensures
+        # job.session_id is a real, opted-in session. Strategy C will
+        # still fan the audio into CAS's hub key when CAS is set;
+        # that's a separate concern handled inside the routing strategy.
+        audio_source_sid = bid
 
         async def gen():
             final_text = ""
@@ -467,9 +503,9 @@ def make_routes(state) -> list[Route]:
                 try:
                     from claude_code_talker.audio import AudioJob
                     cfg = {}
-                    if state.sessions is not None and active_sid:
+                    if state.sessions is not None and audio_source_sid:
                         try:
-                            cfg = state.sessions.config_for(active_sid)
+                            cfg = state.sessions.config_for(audio_source_sid)
                         except Exception:
                             cfg = {}
                     voice_cfg = cfg.get("voice") or {}
@@ -483,7 +519,7 @@ def make_routes(state) -> list[Route]:
                             rate=float(voice_cfg.get("rate", 1.0)),
                             engine_name=engine_name,
                             audio_format=getattr(engine, "audio_format", "wav"),
-                            session_id=active_sid or "",
+                            session_id=audio_source_sid or "",
                         ))
                 except Exception:
                     # Audio fan-out must not break the SSE response path.

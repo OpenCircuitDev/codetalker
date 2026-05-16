@@ -17,7 +17,7 @@ async def test_handle_stop_skipped_when_session_disabled():
         "transcript_path": "/t/disabled-sid.jsonl",
         "cwd": "/proj/a",
     })
-    assert "skipped: per-session disabled" in result
+    assert "skipped: session_muted" in result
     assert len(captured) == 0
 
 
@@ -34,7 +34,7 @@ async def test_handle_stop_proceeds_when_session_enabled():
         "transcript_path": "/t/nonexistent.jsonl",
         "cwd": "/proj/b",
     })
-    assert "per-session disabled" not in result
+    assert "session_muted" not in result
 
 
 @pytest.mark.asyncio
@@ -50,7 +50,7 @@ async def test_handle_notification_skipped_when_session_disabled():
         "session_id": "disabled-sid",
         "message": "hello",
     })
-    assert "skipped: per-session disabled" in result
+    assert "skipped: session_muted" in result
     assert len(captured) == 0
 
 
@@ -68,7 +68,7 @@ async def test_handle_pretool_skipped_and_no_event_buffer_push_when_disabled():
         "tool_input": {"file_path": "x.py"},
         "cwd": "/proj/c",
     })
-    assert "skipped: per-session disabled" in result
+    assert "skipped: session_muted" in result
     assert len(state.event_buffer.recent(1000)) == initial_buffer_size
 
 
@@ -87,5 +87,5 @@ async def test_handle_posttool_skipped_and_no_event_buffer_push_when_disabled():
         "tool_response": {"success": True},
         "cwd": "/proj/d",
     })
-    assert "skipped: per-session disabled" in result
+    assert "skipped: session_muted" in result
     assert len(state.event_buffer.recent(1000)) == initial_buffer_size

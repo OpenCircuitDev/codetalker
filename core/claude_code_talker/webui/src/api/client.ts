@@ -3,6 +3,7 @@ import type {
   SessionConfig,
   SessionOverlayPatch,
   DaemonHealth,
+  MasterEnabled,
 } from "../types";
 
 const BASE = ""; // same-origin; daemon serves /api/* and /ui-react/
@@ -43,6 +44,20 @@ export type CharacterRecord = {
 
 export const api = {
   health: () => fetchJson<DaemonHealth>("/api/health"),
+  // 2026-05-16 -- master narration switch. GET reads the current value;
+  // setMasterEnabled persists to tts_config.yaml so the change survives
+  // daemon restart and propagates to the Pro Android Preferences toggle
+  // through the same /api/health response.
+  masterEnabled: () => fetchJson<MasterEnabled>("/api/master-enabled"),
+  setMasterEnabled: async (enabled: boolean) => {
+    const r = await fetch(`/api/master-enabled`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!r.ok) throw new Error(`setMasterEnabled -> ${r.status}`);
+    return (await r.json()) as MasterEnabled;
+  },
   sessions: () => fetchJson<Session[]>("/api/sessions"),
   sessionConfig: async (id: string): Promise<SessionConfig> => {
     // The daemon's GET /api/sessions/{id} returns a wrapper:

@@ -65,8 +65,17 @@ def _derive_workspace_group(display_name: str | None) -> str | None:
         return "OCRacing"
     if name in {"ocm", "codetalker", "ctdev", "ctweb"}:
         return "OCDev"
+    # 2026-05-16 — keep companion/api.py copy in sync. BlueprintForge
+    # family covers user display names "BPF-Web", "BPFRefactor", etc.,
+    # and Clients bucket catches DigitalWish + future client projects.
     if name == "blueprintforge" or name.startswith("blueprintforge"):
         return "BlueprintForge"
+    if name.startswith("bpf-") or name.startswith("bpf "):
+        return "BlueprintForge"
+    if name.startswith("bpfrefactor") or name.startswith("bpfweb") or name.startswith("bpf"):
+        return "BlueprintForge"
+    if name in {"digitalwish", "digital-wish", "wish"} or name.startswith("wish-"):
+        return "Clients"
     return None
 
 _HOOK_EVENT_NAMES = ["Stop", "Notification", "PreToolUse", "PostToolUse", "UserPromptSubmit"]
@@ -196,8 +205,70 @@ def _read_pinned(persistent: dict | None) -> bool:
 def build_routes(state) -> list[Route]:
     """Build the list of Starlette Route objects bound to this server state."""
 
+    async def master_enabled_get(request: Request) -> JSONResponse:
+        """GET /api/master-enabled -- return the global narration master switch.
+        Mirrors the value the hook handlers read; webui + Pro app surface it
+        as a single toggle so the user never has to edit tts_config.yaml by
+        hand to silence/unsilence narration across the fleet."""
+        return JSONResponse({"enabled": bool(state.cfg.get("enabled", True))})
+
+    async def master_enabled_put(request: Request) -> JSONResponse:
+        """PUT /api/master-enabled {enabled: bool}
+        Toggle the master narration switch. Persists to
+        ~/.claude/scripts/tts_config.yaml so daemon restarts honor it."""
+        try:
+            payload = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        if not isinstance(payload, dict):
+            return _bad_request("body must be a JSON object")
+        if "enabled" not in payload:
+            return _bad_request("missing 'enabled' field")
+        new_enabled = bool(payload["enabled"])
+        # Update in-memory cfg so the next hook fires immediately with the
+        # new value (no daemon restart required).
+        state.cfg["enabled"] = new_enabled
+        # Persist to tts_config.yaml so daemon restart preserves it.
+        from claude_code_talker.config import DEFAULT_GLOBAL_PATH
+        import yaml as _yaml
+        try:
+            if DEFAULT_GLOBAL_PATH.exists():
+                with open(DEFAULT_GLOBAL_PATH, encoding="utf-8") as f:
+                    data = _yaml.safe_load(f) or {}
+            else:
+                data = {}
+            if not isinstance(data, dict):
+                data = {}
+            data["enabled"] = new_enabled
+            DEFAULT_GLOBAL_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(DEFAULT_GLOBAL_PATH, "w", encoding="utf-8") as f:
+                _yaml.safe_dump(data, f, sort_keys=False)
+        except Exception as e:
+            # In-memory change is already live; disk persist is best-effort
+            # but the user should know if it didn't stick.
+            return JSONResponse({"enabled": new_enabled, "warning": f"in-memory only: {e}"})
+        return JSONResponse({"enabled": new_enabled})
+
     async def health(request: Request) -> JSONResponse:
-        return JSONResponse({"ok": True})
+        # 2026-05-16 -- surface narration-pipeline gates so a silent
+        # audio drought caused by tts_config.yaml's `enabled: false` is
+        # one curl away. Diagnostic UIs (Pro Android, webui) read
+        # `narration_enabled` to render a visible warning when the
+        # master switch is off so the user never has to debug 5 days
+        # of silence wondering why hook events look fine.
+        narration_enabled = bool(state.cfg.get("enabled", True))
+        return JSONResponse({
+            "ok": True,
+            "narration_enabled": narration_enabled,
+            # 2026-05-16 -- only surface this when False to keep the
+            # default response lean. Truthy `narration_enabled` is the
+            # healthy case; the warning blob exists for the broken one.
+            "narration_warning": (
+                None
+                if narration_enabled
+                else "Master narration switch is off (~/.claude/scripts/tts_config.yaml enabled: false). No hook-driven TTS will play until set to true."
+            ),
+        })
 
     def _audio_misaligned(sid: str, audio_outputs) -> bool:
         """Tier-A.2 (2026-05-11) — True iff this session has a companion
@@ -256,7 +327,13 @@ def build_routes(state) -> list[Route]:
         # direct session_id lookup; only the list view is filtered.
         import time as _time
         TRANSCRIPT_LIVE_WINDOW_SEC = 300
-        SESSION_VISIBILITY_WINDOW_SEC = 24 * 3600
+        # 2026-05-16 -- bumped from 24h to 30d. The original 24h window
+        # was hiding workspaces the user opens weekly (OCM, BPF-Web,
+        # etc.) and forcing the Android list to look very different
+        # from Claude Code's own session list. 30d keeps the dedup-by-
+        # recency intent (very old session_id collisions still get
+        # pruned) while exposing the user's full workspace footprint.
+        SESSION_VISIBILITY_WINDOW_SEC = 30 * 24 * 3600
 
         live = state.sessions.list_active()
         live_by_sid = {s.session_id: s for s in live}
@@ -486,6 +563,21 @@ def build_routes(state) -> list[Route]:
         s = state.sessions.get(sid)
         if s is not None:
             cfg = state.sessions.config_for(sid)
+            # 2026-05-16 root-cause fix for "mute toggle didn't persist
+            # to the list view":
+            #   - SessionRow.tsx reads `config?.enabled === false` to
+            #     decide if a session shows the muted indicator
+            #   - That config comes from useSessionConfig -> /api/sessions/{id}
+            #     -> resolved_cfg
+            #   - But resolve_for_session() merges base+profile+overlay
+            #     into a config dict that NEVER includes `enabled`
+            #     (it's a session-state attribute, not a config key)
+            # Expose `enabled` in resolved_cfg so the webui's SessionRow
+            # and the Pro app's mute indicator both see the canonical
+            # value. The list endpoint already returns it per-session;
+            # this is the missing twin on the single-session endpoint.
+            cfg_with_enabled = dict(cfg) if isinstance(cfg, dict) else {}
+            cfg_with_enabled["enabled"] = bool(s.enabled)
             return JSONResponse({
                 "state": {
                     "session_id": s.session_id,
@@ -495,8 +587,9 @@ def build_routes(state) -> list[Route]:
                     "live_overlay": s.live_overlay,
                     "attached_profile": s.attached_profile,
                     "attached_character": s.attached_character,
+                    "enabled": bool(s.enabled),
                 },
-                "resolved_cfg": cfg,
+                "resolved_cfg": cfg_with_enabled,
             })
         # v0.1.0 unification — dormant fallback. Without this, opening the
         # detail panel for a session that's `is_live` via transcript-mtime
@@ -535,6 +628,11 @@ def build_routes(state) -> list[Route]:
             )
         except Exception:
             cfg = (persistent or {}) if isinstance(persistent, dict) else {}
+        # Mirror the live-branch fix: expose `enabled` in resolved_cfg so
+        # the webui's SessionRow muted indicator works for dormant
+        # sessions too.
+        cfg_with_enabled = dict(cfg) if isinstance(cfg, dict) else {}
+        cfg_with_enabled["enabled"] = bool(synthetic.enabled)
         return JSONResponse({
             "state": {
                 "session_id": sid,
@@ -544,9 +642,10 @@ def build_routes(state) -> list[Route]:
                 "live_overlay": synthetic.live_overlay,
                 "attached_profile": synthetic.attached_profile,
                 "attached_character": synthetic.attached_character,
+                "enabled": bool(synthetic.enabled),
                 "persistent_only": True,
             },
-            "resolved_cfg": cfg,
+            "resolved_cfg": cfg_with_enabled,
         })
 
     async def put_overlay(request: Request) -> JSONResponse:
@@ -3045,6 +3144,8 @@ Each emotive_states value: single short phrase describing pose + expression + ar
 
     routes = [
         Route("/api/health", health, methods=["GET"]),
+        Route("/api/master-enabled", master_enabled_get, methods=["GET"]),
+        Route("/api/master-enabled", master_enabled_put, methods=["PUT"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),

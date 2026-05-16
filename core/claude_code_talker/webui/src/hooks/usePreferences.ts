@@ -4,12 +4,10 @@
 // Sessions screen layout state survives page reloads.
 import { useCallback, useEffect, useState } from "react";
 
-// v1.0 — filter set simplified to Active / Live / Muted. Dormant
-// sessions no longer appear in any filter; they only re-emerge when
-// their Claude Code conversation reopens (is_live flips true). The
-// previous "all" / "dormant" filters are migrated to "active" on load
-// in load() below.
-export type SessionFilter = "active" | "live" | "muted";
+// 2026-05-16 -- filter set is Active / Live / Brief / Muted. Brief was
+// added so the user can isolate brief-mode sessions when scanning a
+// long active list. See FilterChips.tsx for the predicate semantics.
+export type SessionFilter = "active" | "live" | "brief" | "muted";
 
 export interface Preferences {
   soundEffects: boolean;

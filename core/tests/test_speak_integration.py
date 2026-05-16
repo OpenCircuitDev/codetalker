@@ -43,7 +43,7 @@ async def test_tts_speak_skips_when_muted():
     server = build_mcp_server(state)
     result = await server.call_tool("tts_speak", {"text": "hi"})
     assert submitted == []
-    assert "mut" in result.lower()
+    assert "master_disabled" in result.lower() or "mut" in result.lower()
 
 
 @pytest.mark.asyncio

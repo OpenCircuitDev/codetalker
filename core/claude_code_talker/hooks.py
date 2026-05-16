@@ -74,16 +74,22 @@ async def handle_user_prompt_submit(payload, cfg, provider):
     prompt = prompt.strip()
     if not prompt:
         return ""
+    snippet = prompt[:120].replace("\n", " ")
+    fallback = f"You just asked: {snippet}"
     if provider is None:
         # No LLM available — fall back to a literal summary.
-        snippet = prompt[:120].replace("\n", " ")
-        return f"You just asked: {snippet}"
+        return fallback
     try:
         text = await provider.complete(
             PROMPT_BRIEF_TEMPLATE.format(prompt=prompt[:1500]),
             max_tokens=80,
         )
-        return (text or "").strip()
+        stripped = (text or "").strip()
+        # 2026-05-16 -- previously a silent empty-string return from
+        # the LLM (quota, network blip, model rejection, etc.) caused
+        # the dispatch to log "skipped: no text" and the user heard
+        # nothing on the phone. Fall back to the literal summary so
+        # narration never silently disappears for valid user prompts.
+        return stripped or fallback
     except Exception:
-        snippet = prompt[:120].replace("\n", " ")
-        return f"You just asked: {snippet}"
+        return fallback
