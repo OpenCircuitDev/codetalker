@@ -194,7 +194,7 @@ class AudioQueue:
     pending normals/routines. FIFO within the same priority level.
     """
 
-    def __init__(self, state, max_depth: int = 5, staleness_seconds: float = 20.0, narration_stream=None) -> None:
+    def __init__(self, state, max_depth: int = 5, staleness_seconds: float = 8.0, narration_stream=None) -> None:
         self._state = state
         self._queue: list[tuple] = []  # heap of (priority_rank, seq, job)
         self._cv = threading.Condition()
@@ -219,14 +219,51 @@ class AudioQueue:
             import time
             job.enqueued_at = time.time()
         self._register_job(job)
+        # 2026-05-17 — drop-on-overlap for currency. When a non-alert job
+        # for session X arrives, drop any pending (not-yet-popped) non-alert
+        # jobs already in the queue for the same session. Rationale: with
+        # 12s cadence + multi-session pressure, the queue accumulated 5+
+        # narrations deep, and the user heard event commentary from 60s+
+        # ago — by the time it played, the events were ancient news. The
+        # newer narration supersedes the older one because each LLM call
+        # already covers the most-recent event window for its session.
+        # Alerts never get dropped (errors, notifications, etc.).
+        dropped_for_freshness: list[AudioJob] = []
         with self._cv:
             self._seq += 1
             rank = _PRIORITY_RANK.get(job.priority, 1)
+            if job.priority != "alert" and job.session_id:
+                kept: list[tuple] = []
+                for tup in self._queue:
+                    _, _, existing = tup
+                    if (
+                        existing.priority != "alert"
+                        and existing.session_id == job.session_id
+                    ):
+                        dropped_for_freshness.append(existing)
+                    else:
+                        kept.append(tup)
+                if dropped_for_freshness:
+                    self._queue = kept
+                    heapq.heapify(self._queue)
             heapq.heappush(self._queue, (rank, self._seq, job))
             self._enforce_depth_locked()
             self._cv.notify()
         if job.priority == "alert":
             self._handle.stop()  # interrupt current playback
+        # Audit each drop so the daemon log explains why prior narrations
+        # never reached the user. Without this the silent supersede looks
+        # identical to a stuck queue.
+        for stale in dropped_for_freshness:
+            logging.info(
+                "CCT-AUDIO: dropped stale-by-overlap sid=%s text=%r (superseded by newer job)",
+                (stale.session_id or "")[:8], (stale.text or "")[:60],
+            )
+            self._registry_transition(
+                stale, "skipped",
+                gate="overlap", reason="superseded_by_newer",
+            )
+            self._publish_event(stale, "skipped")
         self._registry_transition(job, "queued", gate="dispatch")
         self._publish_event(job, "queued")
 
@@ -392,9 +429,20 @@ class AudioQueue:
                 if not self._queue:
                     continue
                 rank, seq, job = heapq.heappop(self._queue)
-            # Drop stale non-alert jobs
+            # Drop stale non-alert jobs.
+            # 2026-05-17 — the staleness default tightened to 8s (server.py)
+            # so this becomes the per-job currency floor: even if a job
+            # survived overlap-dedup at submit time, it gets killed at
+            # pop-time if more than 8s have elapsed since enqueue.
+            # Kept at DEBUG (not INFO) so unit tests with sub-second
+            # staleness don't slow down under synchronous stderr handlers.
+            # The audit trail captures the drop via registry_transition.
             if job.priority != "alert" and (time.time() - job.enqueued_at) > self._staleness:
-                logging.debug("dropping stale audio job: %s", job.text[:40])
+                age = time.time() - job.enqueued_at
+                logging.debug(
+                    "CCT-AUDIO: dropped stale-by-age sid=%s age=%.1fs text=%r",
+                    (job.session_id or "")[:8], age, (job.text or "")[:60],
+                )
                 self._registry_transition(
                     job, "skipped", gate="staleness", reason="stale"
                 )

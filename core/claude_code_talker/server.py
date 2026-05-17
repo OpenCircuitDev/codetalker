@@ -412,10 +412,16 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     state.event_buffer = EventBuffer(max_size=int(live_cfg.get("buffer_size", 30)))
     from claude_code_talker.narration_stream import NarrationStream
     state.narration_stream = NarrationStream()
+    # 2026-05-17 — staleness default tightened from 20s → 8s for currency.
+    # Combined with drop-on-overlap (audio.py AudioQueue.submit), this caps
+    # how old the audio you actually hear can be. Older default caused
+    # "five-minute-old briefings" symptom because the queue held jobs from
+    # tool calls 30+ seconds prior. Override via cfg overlay if a use case
+    # genuinely needs longer.
     state.audio_queue = AudioQueue(
         state,
         max_depth=int(live_cfg.get("queue_max_depth", 5)),
-        staleness_seconds=float(live_cfg.get("staleness_seconds", 20.0)),
+        staleness_seconds=float(live_cfg.get("staleness_seconds", 8.0)),
         narration_stream=state.narration_stream,
     )
     state.audio_queue.start()

@@ -539,6 +539,23 @@ class LiveMode(ModeStrategy):
         # Filter to session-scoped events before rendering.
         scoped_events = events_for_session(events, session_id)
 
+        # 2026-05-17 — "since last narration" filter. If we narrated this
+        # session before, only include events strictly newer than the prior
+        # narration's timestamp. Cuts the event window from "last 30 of
+        # everything ever" to "what's actually new" so consecutive
+        # narrations stop re-describing the same Edit-to-auth.py story
+        # in different words. Falls back to the legacy [-30:] window for
+        # the very first narration of a session OR when no prior timestamp
+        # is tracked.
+        last_narrate_ts = (
+            self._last_narrate_by_session.get(session_id) if session_id else None
+        )
+        is_first_narration = last_narrate_ts is None
+        if last_narrate_ts is not None:
+            scoped_events = [
+                ev for ev in scoped_events if ev.timestamp > last_narrate_ts
+            ]
+
         # --- Static prefix: system instructions + teacher directives (Sub-task 1.2) ---
         # The teacher block is appended to the system portion BEFORE the events so
         # the static prefix grows (and stays byte-identical) when teacher mode is on.
@@ -547,6 +564,24 @@ class LiveMode(ModeStrategy):
         teacher_cfg = self._resolve_teacher_cfg(session_id)
         # Build the static section: system text + optional teacher block
         static_section = merge_teacher_into_prompt(LIVE_NARRATION_SYSTEM, teacher_cfg)
+
+        # 2026-05-17 — "since-last" directive. Instructs the LLM to cover
+        # ONLY what's new since the prior narration; if there is a prior,
+        # explicitly forbid re-stating older events. Density goes up,
+        # repetition goes down. The events list itself is already filtered
+        # (above) so the directive matches the data the LLM sees.
+        since_directive = ""
+        if not is_first_narration and scoped_events:
+            import time as _t
+            secs_ago = max(0.0, _t.time() - (last_narrate_ts or 0.0))
+            since_directive = (
+                f"\n\nCONTINUITY: You last narrated this session {secs_ago:.0f}s ago. "
+                "Cover ONLY the events listed below — they are strictly newer than "
+                "your prior narration. Do NOT restate, summarize, or reference older "
+                "events the listener has already heard about. If nothing new is "
+                "substantive, return one short sentence (e.g. \"Still on the same "
+                "task.\")."
+            )
 
         # --- Dynamic suffix: events list ---
         lines = []
@@ -594,6 +629,7 @@ class LiveMode(ModeStrategy):
 
         return (
             static_section
+            + since_directive
             + (("\n" + focus_block) if focus_block else "")
             + (prose_block if prose_block else "")
             + "\n\n"
