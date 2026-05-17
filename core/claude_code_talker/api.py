@@ -177,11 +177,39 @@ def _merge_into_persistent(state, sid: str, partial: dict, live=None) -> None:
             existing["attached_character"] = value
         elif key == "workspace_group":
             # v0.1.0 polish — user-defined workspace grouping (separate from
-            # cwd-derived project_dir). Empty string clears.
-            if value is None or value == "":
+            # cwd-derived project_dir).
+            #
+            # 2026-05-16 provenance fix — any write that arrives here is by
+            # definition the user's explicit choice (PATCH or PUT /overlay
+            # initiated by a UI action). Stamp source="user" so the read
+            # path in views.py honors it verbatim instead of re-deriving
+            # from display_name on the next poll.
+            #
+            # Semantics:
+            #   - value is None  → unlock: pop both value and source so the
+            #                       read path falls back to auto-derive.
+            #   - value == ""    → lock to "Ungrouped": pop the stored
+            #                       value but keep source="user" so the
+            #                       view emits the literal Ungrouped.
+            #   - value == "X"   → lock to X: store value, set source="user".
+            if value is None:
                 existing.pop("workspace_group", None)
+                existing.pop("workspace_group_source", None)
+            elif value == "":
+                existing.pop("workspace_group", None)
+                existing["workspace_group_source"] = "user"
             else:
                 existing["workspace_group"] = str(value)
+                existing["workspace_group_source"] = "user"
+        elif key == "workspace_group_source":
+            # 2026-05-16 — explicit provenance override. Callers can set
+            # this independently of workspace_group (e.g. to "auto" to
+            # re-enable auto-derive without changing the current group
+            # value). Anything other than "user" / "auto" drops the field.
+            if value in ("user", "auto"):
+                existing["workspace_group_source"] = value
+            else:
+                existing.pop("workspace_group_source", None)
         elif key == "audio_outputs":
             # v0.1.0 unification — multi-select audio destinations. List of
             # strings from {"desktop", "phone", "glasses"}. Empty list or
@@ -2947,6 +2975,55 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             cfg_markup[form] = entry
         return JSONResponse({"ok": True})
 
+    async def audio_jobs_recent(request: Request) -> JSONResponse:
+        """GET /api/audio-jobs/recent?limit=50&session_id=... — Phase 2 audit trail.
+
+        Returns recent AudioJob records from the in-memory ring buffer.
+        Each record carries `state_history` — the full gate-by-gate
+        trace of every decision the audio chain made. Use this to
+        debug "I didn't hear that" reports: scan the most-recent jobs,
+        find the one with text matching the expected narration, and
+        the terminal state + reason names the gate that dropped it.
+
+        Query params:
+          limit       — max jobs to return (default 50, max 200).
+          session_id  — filter to one session.
+        """
+        registry = getattr(state, "audio_job_registry", None)
+        if registry is None:
+            return JSONResponse(
+                {"error": "audio_job_registry not initialized"}, status_code=503
+            )
+        try:
+            limit = int(request.query_params.get("limit", "50"))
+        except ValueError:
+            limit = 50
+        limit = max(1, min(limit, 200))
+        sid = request.query_params.get("session_id", "").strip()
+        if sid:
+            jobs = registry.recent_for_session(sid, limit=limit)
+        else:
+            jobs = registry.recent(limit=limit)
+        return JSONResponse(
+            [j.model_dump(mode="json") for j in jobs]
+        )
+
+    async def audio_jobs_one(request: Request) -> JSONResponse:
+        """GET /api/audio-jobs/{job_id} — single-job trace.
+
+        Returns 404 when the job has been evicted from the ring buffer.
+        """
+        registry = getattr(state, "audio_job_registry", None)
+        if registry is None:
+            return JSONResponse(
+                {"error": "audio_job_registry not initialized"}, status_code=503
+            )
+        job_id = request.path_params["job_id"]
+        job = registry.get(job_id)
+        if job is None:
+            return _not_found(f"unknown audio job: {job_id}")
+        return JSONResponse(job.model_dump(mode="json"))
+
     async def events_stream_route(request: Request) -> Response:
         """GET /api/events — SSE feed of every daemon-emitted Event.
 
@@ -3268,6 +3345,8 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/markup/config", markup_config_put, methods=["PUT"]),
         Route("/api/narration-stream", narration_stream_route, methods=["GET"]),
         Route("/api/events", events_stream_route, methods=["GET"]),
+        Route("/api/audio-jobs/recent", audio_jobs_recent, methods=["GET"]),
+        Route("/api/audio-jobs/{job_id}", audio_jobs_one, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
         Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),

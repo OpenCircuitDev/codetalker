@@ -121,6 +121,43 @@ def _best_reachable_url(port: int = DAEMON_PORT) -> str:
         return f"http://127.0.0.1:{port}"
 
 
+def _ensure_phone_in_audio_outputs(state, sid: str) -> None:
+    """Append "phone" to a session's persisted audio_outputs if missing.
+
+    2026-05-16 — without this, marking a session active from the phone
+    has no audible effect. The audio worker's Strategy-C router (audio.py)
+    filters opted-in destinations from each session's audio_outputs and
+    drops the synthesized WAV silently when "phone" is absent. The default
+    for a new Session is ["desktop"] only (schemas/session.py), so the
+    grant must fire explicitly when the phone subscribes.
+
+    Idempotent — no-op when "phone" is already present, when the persistent
+    store isn't initialized, or when sid is empty. Routes through
+    _merge_into_persistent so the write follows the same validation
+    (allowlist + sort + dedupe) as a webui PATCH, and emits SessionChanged
+    so the webui's SSE subscribers see the row update without waiting
+    for the next 30s poll.
+
+    Sticky by design: removing a session from the active set does NOT
+    strip "phone". A user who explicitly wants phone-off for a session
+    can do so from the audio sinks UI; auto-grant should never feel
+    like it's fighting the user's explicit choice.
+    """
+    if not sid or state.persistent_sessions is None:
+        return
+    existing = state.persistent_sessions.get(sid) or {}
+    current = existing.get("audio_outputs") or []
+    if isinstance(current, (list, tuple)) and "phone" in current:
+        return
+    new_outputs = list(current) + ["phone"]
+    from claude_code_talker.api import _merge_into_persistent, _emit_session_changed
+    try:
+        _merge_into_persistent(state, sid, {"audio_outputs": new_outputs})
+    except Exception:
+        return
+    _emit_session_changed(state, sid, {"audio_outputs": new_outputs})
+
+
 def make_routes(state) -> list[Route]:
     async def pair(request: Request) -> Response:
         body = await request.json()
@@ -349,6 +386,10 @@ def make_routes(state) -> list[Route]:
             return JSONResponse({"error": "unauthorized"}, status_code=401)
         body = await request.json()
         sid = (body.get("session_id") or "").strip()
+        # 2026-05-16 — snapshot the active set BEFORE mutation so we can
+        # detect which sids were newly added and auto-grant phone audio
+        # to exactly those (idempotent for sids that were already active).
+        prior_active: set = set(getattr(state, "companion_active_sessions", None) or set())
         if "active" in body:
             active = bool(body.get("active"))
             current: set = getattr(state, "companion_active_sessions", None) or set()
@@ -366,6 +407,13 @@ def make_routes(state) -> list[Route]:
         # deterministic — first by lex order) so audio.py's check is stable.
         sids_sorted = sorted(state.companion_active_sessions)
         state.companion_active_session = sids_sorted[0] if sids_sorted else None
+        # 2026-05-16 — for every sid the phone just marked active that
+        # wasn't already active, ensure "phone" is in its persisted
+        # audio_outputs. Without this the audio worker drops the WAV
+        # silently because the session isn't an opted-in phone destination.
+        # See _ensure_phone_in_audio_outputs for the sticky-grant rationale.
+        for added_sid in state.companion_active_sessions - prior_active:
+            _ensure_phone_in_audio_outputs(state, added_sid)
         return JSONResponse({
             "ok": True,
             "active_session_id": state.companion_active_session,

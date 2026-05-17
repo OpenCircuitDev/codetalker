@@ -412,10 +412,33 @@ def build_session_view(
     auto_mode_enabled = bool(persistent.get("auto_mode_enabled", False)) if persistent else False
     pinned = bool(persistent.get("pinned", False)) if persistent else False
 
-    workspace_group = (
-        (persistent.get("workspace_group") if persistent else None)
-        or _derive_workspace_group(display_name)
-    )
+    # 2026-05-16 — provenance-aware read with lazy backfill.
+    #
+    # The previous `persistent.get(...) OR derive(...)` collapse caused the
+    # user's explicit group choice to be silently overridden by auto-derive
+    # whenever display_name changed (the derive function may bucket the
+    # renamed session differently). It also re-derived on every poll if the
+    # persisted value was empty string, so a "lock to Ungrouped" choice
+    # could never persist.
+    #
+    # Now: if the persistent overlay's workspace_group_source is "user",
+    # honor the stored value verbatim. An empty string locked by the user
+    # emits the literal "Ungrouped" so the webui's fallback chain (which
+    # would otherwise drop through to project_dir / cwd) renders the
+    # explicit choice.
+    #
+    # Lazy backfill: overlays written before workspace_group_source existed
+    # may have a non-null workspace_group but no source field. Treat those
+    # as user-set so existing user choices survive the upgrade with no
+    # migration script. (One extra in-memory read; no disk side effect.)
+    ws_value = persistent.get("workspace_group") if persistent else None
+    ws_source = persistent.get("workspace_group_source") if persistent else None
+    if ws_value is not None and ws_source is None:
+        ws_source = "user"
+    if ws_source == "user":
+        workspace_group = ws_value if (ws_value and ws_value.strip()) else "Ungrouped"
+    else:
+        workspace_group = _derive_workspace_group(display_name)
 
     audio_outputs_raw = persistent.get("audio_outputs") if persistent else None
     audio_outputs = None

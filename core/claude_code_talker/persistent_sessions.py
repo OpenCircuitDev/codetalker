@@ -47,6 +47,7 @@ def _require_valid_session_id(session_id: str) -> None:
 _PROMOTED_KEYS = (
     "pinned",
     "workspace_group",
+    "workspace_group_source",
     "audio_outputs",
     "auto_mode_enabled",
     "auto_mode_idle_threshold_secs",

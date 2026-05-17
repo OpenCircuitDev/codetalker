@@ -20,7 +20,7 @@ consume SessionView via codegen'd types (phase 5). End of drift.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -74,6 +74,16 @@ class Session(BaseModel):
             "User-defined workspace bucket (e.g. 'OCRacing', 'OCDev'). "
             "Persistent overlay wins over auto-derive from display_name. "
             "Null means 'Ungrouped'."
+        ),
+    )
+    workspace_group_source: Optional[Literal["user", "auto"]] = Field(
+        default=None,
+        description=(
+            "Provenance of workspace_group. 'user' = explicitly set via "
+            "PATCH; 'auto' or None = auto-derived from display_name. The "
+            "read path respects 'user' verbatim (including empty string, "
+            "which renders as the literal 'Ungrouped') so an explicit user "
+            "choice survives display_name renames and 30s poll cycles."
         ),
     )
 
