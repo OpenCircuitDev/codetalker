@@ -61,6 +61,44 @@ def app(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_put_overlay_emits_session_changed(app):
+    """Legacy PUT /api/sessions/{sid}/overlay must ALSO emit
+    SessionChanged so cross-tab webui sync works regardless of which
+    write endpoint the caller hits. Phase 6 deletes /overlay once all
+    clients migrate to PATCH; until then both paths must emit."""
+    application, state = app
+    state.sessions.touch("legacy-overlay-sid", cwd="/proj/lo")
+
+    received = []
+    sub = state.event_bus.subscribe(topics=["SessionChanged"])
+
+    async def consumer():
+        async for ev in sub:
+            received.append(ev)
+            return
+
+    task = asyncio.create_task(consumer())
+    await asyncio.sleep(0)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.put(
+            "/api/sessions/legacy-overlay-sid/overlay",
+            json={"enabled": False},
+        )
+        assert r.status_code == 200
+
+    await asyncio.wait_for(task, timeout=2.0)
+    await sub.aclose()
+
+    assert len(received) == 1
+    assert received[0].event_type == "SessionChanged"
+    assert received[0].session_id == "legacy-overlay-sid"
+    assert received[0].changed_fields["enabled"] is False
+
+
+@pytest.mark.asyncio
 async def test_patch_session_emits_session_changed(app):
     """PATCH /api/sessions/{sid} → SessionChanged on the bus."""
     application, state = app

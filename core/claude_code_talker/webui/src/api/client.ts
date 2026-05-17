@@ -6,6 +6,37 @@ import type {
   MasterEnabled,
 } from "../types";
 
+// Mirror of the daemon's Pydantic SessionPatch
+// (schemas/patches.py:SessionPatch). All fields optional; unknown
+// fields are rejected by the daemon with 400. Phase 5 will generate
+// this type from the Pydantic schema directly.
+export type SessionPatchPayload = {
+  display_name?: string;
+  workspace_group?: string;
+  active_mode?: "live" | "brief" | "direct";
+  cadence?:
+    | "periodic"
+    | "per_tool_call"
+    | "per_cluster"
+    | "significant_only"
+    | "hybrid";
+  enabled?: boolean;
+  auto_mode_enabled?: boolean;
+  audio_outputs?: ("desktop" | "phone" | "glasses")[];
+  voice?: { engine?: string; model?: string; rate?: number };
+  attached_profile?: string;
+  attached_character?: {
+    id: string;
+    display_name: string;
+    voice_ref?: string;
+    persona?: string;
+    mesh_path?: string | null;
+    mesh_provider?: string | null;
+    mesh_prompt?: string | null;
+  };
+  pinned?: boolean;
+};
+
 const BASE = ""; // same-origin; daemon serves /api/* and /ui-react/
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -85,6 +116,31 @@ export const api = {
     });
     if (!r.ok) throw new Error(`overlay PUT failed: ${r.status}`);
     return r.json();
+  },
+  // Phase 3 (2026-05-16) — typed entry point that mirrors the daemon's
+  // SessionPatch schema. Use this for session-level field writes
+  // (mute, mode, cadence, audio_outputs, workspace_group, pinned,
+  // attached_profile, attached_character). Returns the fresh
+  // SessionView so the caller can skip a follow-up GET.
+  //
+  // The legacy putOverlay still works and is required for the markup
+  // form treatments (nested under live_overlay.markup) — SessionPatch
+  // doesn't carry that key yet; Phase 5 schema codegen will close
+  // that last gap.
+  patchSession: async (
+    id: string,
+    partial: SessionPatchPayload,
+  ): Promise<Session> => {
+    const r = await fetch(`/api/sessions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(partial),
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => "");
+      throw new Error(`patchSession ${r.status}: ${text}`);
+    }
+    return (await r.json()) as Session;
   },
   audioDefaults: () => fetchJson<AudioDefaults>("/api/cfg/audio-defaults"),
   setAudioDefaults: async (companion_suppress_desktop: boolean) => {

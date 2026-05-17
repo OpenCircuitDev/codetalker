@@ -18,7 +18,9 @@ export function GlobalStatusBar() {
   const master = useQuery({
     queryKey: ["master-enabled"],
     queryFn: api.masterEnabled,
-    refetchInterval: 5000,
+    // Phase 4 — useDaemonEvents invalidates this on
+    // MasterConfigChanged events; polling is a safety net.
+    refetchInterval: 30000,
     retry: false,
   });
   const masterMutation = useMutation({

@@ -48,22 +48,48 @@ export function useDaemonEvents(
     // Listeners are added explicitly so the browser routes them; the
     // generic onmessage handler only fires for events without an
     // explicit `event:` field, which our daemon doesn't emit.
-    const onSessionChanged = () => {
+    //
+    // SessionChanged + LifecycleChanged carry a session_id in their
+    // payload; we use it to scope cache invalidation to just that
+    // session's per-session config query so unrelated panels don't
+    // re-render needlessly.
+    const onSessionChanged = (e: MessageEvent) => {
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      try {
+        const data = JSON.parse(e.data) as { session_id?: string };
+        if (data.session_id) {
+          qc.invalidateQueries({
+            queryKey: ["session-config", data.session_id],
+          });
+        }
+      } catch {
+        // malformed payload — fall back to broad invalidation
+        qc.invalidateQueries({ queryKey: ["session-config"] });
+      }
     };
     const onMasterChanged = () => {
       qc.invalidateQueries({ queryKey: ["master-enabled"] });
       qc.invalidateQueries({ queryKey: ["daemon-health"] });
     };
-    const onLifecycleChanged = () => {
-      // Lifecycle drives row-level animation; the snapshot's
-      // is_speaking / lifecycle field updates via SessionChanged so
-      // we just re-fetch sessions here.
+    const onLifecycleChanged = (e: MessageEvent) => {
+      // Lifecycle drives row-level animation; refresh the list and
+      // the per-session config if a session_id is present.
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      try {
+        const data = JSON.parse(e.data) as { session_id?: string };
+        if (data.session_id) {
+          qc.invalidateQueries({
+            queryKey: ["session-config", data.session_id],
+          });
+        }
+      } catch {
+        // ignore malformed payload
+      }
     };
     const onOverflow = () => {
       // We dropped events — re-fetch everything we depend on.
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["session-config"] });
       qc.invalidateQueries({ queryKey: ["master-enabled"] });
       qc.invalidateQueries({ queryKey: ["daemon-health"] });
     };

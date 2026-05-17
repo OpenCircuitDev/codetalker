@@ -94,6 +94,26 @@ export type Session = {
    *  state. 0 = never seen since daemon start (treated as not-listening).
    *  Transient — wiped on daemon restart, refreshed by next hook. */
   last_user_interaction_at?: number;
+  /** Phase 3 (2026-05-16) — daemon's per-session cadence for live mode.
+   *  Surfaced on /api/sessions so FilterChips + SessionDetailPanel can
+   *  render the row's current strategy without a per-row config fetch.
+   *  Only meaningful when active_mode === "live"; null/undefined means
+   *  inherit from master cfg.live.cadence. */
+  cadence?: string | null;
+  /** Phase 3 — true iff `phone` or `glasses` is configured in
+   *  audio_outputs but no audio_hub subscriber is currently listening
+   *  on this session's key. Drives the "configured but not receiving"
+   *  badge that prompts the user to open the session on the device. */
+  audio_misaligned?: boolean;
+  /** Phase 3 — per-listener: true on /api/companion/sessions rows when
+   *  this session is the active companion session for the requesting
+   *  device. Always false on /api/sessions rows (webui doesn't have a
+   *  companion-active concept). */
+  is_companion_active?: boolean;
+  /** Phase 3 — epoch seconds of last CC hook fire. Distinct from
+   *  last_modified (transcript mtime) and last_user_interaction_at
+   *  (UserPromptSubmit only). 0 means no hook this daemon run. */
+  last_hook_at?: number;
   // CCT-28 cat 3: removed `events?: SessionTickerEvent[]`. The backend never
   // populated this field; the dead per-card LiveTicker block was removed.
   // The global LiveTicker in ActivityTab feeds from the SSE stream instead.

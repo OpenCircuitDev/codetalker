@@ -9,7 +9,10 @@ export function useSessionConfig(sessionId: string) {
   return useQuery({
     queryKey: ["session-config", sessionId],
     queryFn: () => api.sessionConfig(sessionId),
-    refetchInterval: 5000,
+    // Phase 4 — useDaemonEvents invalidates this query when a
+    // SessionChanged event arrives for any session; the 30s polling
+    // is the safety-net fallback.
+    refetchInterval: 30000,
     refetchIntervalInBackground: false,
     enabled: Boolean(sessionId),
     placeholderData: keepPreviousData,

@@ -94,6 +94,29 @@ def _has_codetalker_hook(entries: list) -> bool:
     return False
 
 
+def _emit_session_changed(state, sid: str, changed_fields: dict) -> None:
+    """Phase 4 — best-effort SessionChanged emit, shared between PATCH
+    /api/sessions/{sid} and the legacy PUT /api/sessions/{sid}/overlay.
+
+    Both writers route here so the SSE-driven webui stays in sync no
+    matter which entry point the caller hit. Best-effort: an event-bus
+    error must never break the underlying write.
+    """
+    bus = getattr(state, "event_bus", None)
+    if bus is None or not changed_fields:
+        return
+    try:
+        from claude_code_talker.schemas import SessionChanged
+        import time as _t
+        bus.publish_threadsafe(SessionChanged(
+            at=_t.time(),
+            session_id=sid,
+            changed_fields=changed_fields,
+        ))
+    except Exception:
+        pass
+
+
 def _emit_master_changed(state, changed_fields: dict) -> None:
     """Phase 4 — best-effort MasterConfigChanged emit from a sync handler.
 
@@ -520,6 +543,11 @@ def build_routes(state) -> list[Route]:
                     _merge_into_persistent(state, sid, partial, s)
             except Exception:
                 pass
+            # Phase 4 — SSE consumers (webui useDaemonEvents + future
+            # Pro Android EventSource) merge changed_fields into their
+            # local session snapshot, so cross-tab + cross-device sync
+            # converges within ~50ms instead of the next poll.
+            _emit_session_changed(state, sid, partial)
             return JSONResponse({
                 "state": {
                     "session_id": s.session_id,
@@ -550,6 +578,10 @@ def build_routes(state) -> list[Route]:
         except Exception as e:
             return _bad_request(f"persistent overlay write failed: {e}")
         merged = state.persistent_sessions.get(sid) or {}
+        # Phase 4 — dormant overlay edits ALSO get a SessionChanged so
+        # the webui's catalog row updates in real time even when the
+        # session has no live in-memory state.
+        _emit_session_changed(state, sid, partial)
         return JSONResponse({
             "state": {
                 "session_id": sid,
@@ -659,22 +691,10 @@ def build_routes(state) -> list[Route]:
             persistent=persistent,
         )
 
-        # Phase 4 — emit SessionChanged so SSE subscribers (webui +
-        # Pro Android) update their local snapshot without waiting on
-        # the next 5s poll. Payload is the diff: only the fields the
-        # caller patched. Best-effort — never block the response on
-        # event bus state.
-        if state.event_bus is not None:
-            try:
-                from claude_code_talker.schemas import SessionChanged
-                import time as _t
-                await state.event_bus.publish(SessionChanged(
-                    at=_t.time(),
-                    session_id=sid,
-                    changed_fields=patch.model_dump(exclude_none=True),
-                ))
-            except Exception:
-                pass
+        # Phase 4 — SessionChanged emit (shared with PUT /overlay so
+        # both writers produce the same wire event). Payload is the
+        # diff: only the fields the caller patched.
+        _emit_session_changed(state, sid, patch.model_dump(exclude_none=True))
 
         return JSONResponse(view.model_dump(mode="json"))
 
