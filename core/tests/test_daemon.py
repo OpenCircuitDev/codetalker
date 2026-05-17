@@ -77,7 +77,11 @@ def test_daemon_constants():
 
 
 def test_daemon_url_has_sse_path():
-    assert daemon_url() == "http://127.0.0.1:17832/sse"
+    # daemon_url() honors CCT_DAEMON_HOST (default 127.0.0.1, override
+    # 0.0.0.0 in dev environments that allow LAN companion access).
+    # Both forms are valid; just assert the shape + port + path.
+    from claude_code_talker.daemon import DAEMON_HOST
+    assert daemon_url() == f"http://{DAEMON_HOST}:17832/sse"
 
 
 from unittest.mock import patch, MagicMock

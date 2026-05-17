@@ -141,285 +141,84 @@ def make_routes(state) -> list[Route]:
         })
 
     async def list_sessions(request: Request) -> Response:
+        """GET /api/companion/sessions — Pro Android session list.
+
+        Phase 3 (2026-05-16): row construction delegated to the shared
+        `views.build_session_view` so this endpoint emits the same
+        SessionView shape as the webui-facing /api/sessions. The only
+        companion-specific work is auth (pairing-token gate) and
+        passing the companion_active_sessions set so rows carry
+        is_companion_active=True for the right sid.
+        """
         if not _require_token(request, state.pairing):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
         catalog = state.catalog
         if catalog is None:
             return JSONResponse([])
 
-        # CCT-31 + CCT-28: resolve attached_character → full character record so
-        # the AR companion knows whose voice + persona + mesh is bound to each
-        # session. Voice cloning lands here naturally — when a character has a
-        # cloned voice_ref, the daemon's TTS pipeline already routes audio
-        # through that voice; the companion just needs to display "who's
-        # speaking" so the listener gets the visual + audio match.
         live_by_sid: dict[str, object] = {}
         try:
             for s in (state.sessions.list_active() if state.sessions else []):
                 live_by_sid[s.session_id] = s
         except AttributeError:
             pass
-        characters = state.characters
-        # 2026-05-11 — was `active_sid` (single). Now read the full set so
-        # `is_companion_active` reflects multi-active membership. Old single
-        # field still populated for legacy callers (audio.py + buddy).
+
+        # Multi-active aware: companion_active_sessions is a set; fall
+        # back to the legacy single-slot field for old callers that
+        # haven't migrated.
         active_sids = getattr(state, "companion_active_sessions", None) or set()
         if not active_sids:
             legacy = getattr(state, "companion_active_session", None)
             if legacy:
                 active_sids = {legacy}
 
-        def _resolve_character(sid: str) -> dict | None:
-            live = live_by_sid.get(sid)
-            cid = getattr(live, "attached_character", None) if live else None
-            if not cid and state.persistent_sessions is not None:
-                persistent = state.persistent_sessions.get(sid)
-                if persistent:
-                    cid = persistent.get("attached_character")
-            if not cid or characters is None:
-                return None
-            char = characters.get(cid)
-            if char is None:
-                return None
-            return {
-                "id": char.id,
-                "display_name": char.display_name,
-                "persona": getattr(char, "persona", None),
-                "voice_ref": char.voice_ref,
-                "mesh_path": getattr(char, "mesh_path", None),
-            }
-
-        # CCT-32 v0.1.0 polish — extra fields the Pro Sessions list redesign needs:
-        # project_slug (grouping), enabled (mute indicator + inline toggle),
-        # active_mode (brief/live quick pick), last_hook_at (speaking pulse proxy),
-        # is_companion_active (which row to badge "ACTIVE" on the phone),
-        # cwd (so the companion can mirror Claude Code's per-cwd grouping —
-        # codetalker's project_slug collapses distinct workspaces under shared
-        # parent directory names).
-        def _row(sid: str, display_name: str, project_slug: str, cwd: str, project_dir: str = "", last_modified: float = 0.0) -> dict:
-            live_match = live_by_sid.get(sid)
-            persistent = (
-                state.persistent_sessions.get(sid)
-                if state.persistent_sessions is not None
-                else None
-            )
-            enabled = (
-                persistent.get("enabled", True) if persistent else True
-            )
-            # Pull active_mode from the resolved config when sessions store is
-            # available; fallback to the persistent overlay or daemon default.
-            active_mode = None
-            try:
-                if state.sessions is not None and live_match is not None:
-                    cfg = state.sessions.config_for(sid)
-                    active_mode = cfg.get("active_mode")
-            except Exception:
-                active_mode = None
-            if not active_mode and persistent:
-                active_mode = (persistent.get("live_overlay") or {}).get("active_mode")
-            if not active_mode:
-                active_mode = getattr(state, "active_mode", None) or "live"
-            last_hook_at = (
-                getattr(live_match, "last_hook_at", 0.0) if live_match else 0.0
-            )
-            # Prefer the live session's cwd (always current); fall back to the
-            # catalog's recorded cwd when the session isn't currently running.
-            row_cwd = (
-                (live_match.cwd if live_match else None)
-                or cwd
-                or ""
-            )
-            # v0.1.0 polish — user-defined workspace group, persisted in
-            # persistent_sessions. Pro app + webui both group by this.
-            # 2026-05-12 — if not explicitly set, derive from display_name
-            # pattern so the user's existing project structure surfaces
-            # without requiring per-session overlay configuration. Explicit
-            # overlays still win; this is a fallback for ungrouped sessions.
-            workspace_group = (
-                persistent.get("workspace_group") if persistent else None
-            ) or _derive_workspace_group(display_name)
-            # v0.1.0 unification — speaking state, auto-mode toggle, and
-            # per-session audio routing for the unified UI.
-            is_speaking = (
-                bool(getattr(live_match, "is_speaking", False))
-                if live_match else False
-            )
-            auto_mode_enabled = (
-                bool(persistent.get("auto_mode_enabled", False))
-                if persistent else False
-            )
-            audio_outputs = (
-                persistent.get("audio_outputs") if persistent else None
-            )
-            # 2026-05-16 -- fields added to bring this endpoint to parity
-            # with /api/sessions (the webui-facing list). Webui has used
-            # these for months; Pro app couldn't show pinned-first sort,
-            # cadence on the row, or the emotive listening state because
-            # the data simply wasn't reaching it.
-            pinned = (
-                bool(persistent.get("pinned", False)) if persistent else False
-            )
-            cadence = None
-            try:
-                if state.sessions is not None and live_match is not None:
-                    _cfg = state.sessions.config_for(sid)
-                    cadence = (_cfg.get("live") or {}).get("cadence")
-            except Exception:
-                cadence = None
-            if not cadence and persistent:
-                cadence = ((persistent.get("live_overlay") or {}).get("live") or {}).get("cadence")
-            last_user_interaction_at = (
-                float(getattr(live_match, "last_user_interaction_at", 0.0))
-                if live_match else 0.0
-            )
-            # 2026-05-11 Tier-A.2 — companion-side mirror of the
-            # audio_misaligned flag used by /api/sessions. True iff this
-            # session has a companion sink configured (phone/glasses) but
-            # no live audio_hub subscriber. The Android app uses this to
-            # render a "configured but not receiving" badge AND to
-            # auto-subscribe on next poll (Tier-B).
-            audio_misaligned = False
-            try:
-                if audio_outputs and isinstance(audio_outputs, (list, tuple)):
-                    outs_lower = {str(o).lower() for o in audio_outputs}
-                    if outs_lower & {"phone", "glasses"}:
-                        hub = getattr(state, "audio_hub", None)
-                        subs = (
-                            getattr(hub, "_subscribers", {}).get(sid, [])
-                            if hub is not None else []
-                        )
-                        audio_misaligned = not subs
-            except Exception:
-                audio_misaligned = False
-            return {
-                "session_id": sid,
-                "display_name": display_name,
-                "project_slug": project_slug,
-                "cwd": row_cwd,
-                # v0.1.0 polish — Claude Code's project directory name
-                # (e.g. "C--Users-brand-Documents-Unreal-Projects-BlueprintForge-Workbench").
-                # This survives session eviction (catalog stores transcript_path
-                # whose parent IS this dir), so the Pro Sessions list can group
-                # dormant + live sessions consistently by workspace.
-                "project_dir": project_dir,
-                "workspace_group": workspace_group,
-                "is_live": (live_match is not None) or (sid in disk_active_sids),
-                "enabled": enabled,
-                "active_mode": active_mode,
-                "last_hook_at": last_hook_at,
-                # 2026-05-16 -- expose the catalog's transcript mtime so the
-                # phone's "Active" filter can include sessions touched in
-                # the last 30 minutes (Claude Code is_live uses a 5-minute
-                # window which is too narrow for the user's mental model
-                # of "I'm working in this session"). The phone uses this
-                # to decide row visibility independent of the strict live
-                # badge. Epoch seconds; 0.0 when no transcript known.
-                "last_modified": float(last_modified or 0.0),
-                "is_companion_active": (sid in active_sids),
-                "is_speaking": is_speaking,
-                "auto_mode_enabled": auto_mode_enabled,
-                "audio_outputs": audio_outputs,
-                "audio_misaligned": audio_misaligned,
-                "attached_character": _resolve_character(sid),
-                # 2026-05-16 -- parity with /api/sessions row.
-                "pinned": pinned,
-                "cadence": cadence,
-                "last_user_interaction_at": last_user_interaction_at,
-            }
-
-        # v0.1.0 polish — align display_name precedence with the broader
-        # /api/sessions endpoint so user `/title` renames (which land in
-        # persistent.display_name) take priority, and slug-derived names are
-        # used before the cached auto-title. Mirroring the chain documented
-        # in api.py's list_sessions handler:
-        #   persistent display_name (codetalker-set / user rename)
-        #   > Claude Code custom_title (verbatim)
-        #   > vscode panel label
-        #   > slug-derived display name
-        #   > catalog auto-title (cached first prompt)
-        #   > project_slug fallback
-        from claude_code_talker.catalog import _slug_to_display_name
-
-        def _resolve_display_name(e) -> str:
-            persistent = (
-                state.persistent_sessions.get(e.session_id)
-                if state.persistent_sessions is not None
-                else None
-            )
-            slug_display = _slug_to_display_name(e.slug) if e.slug else ""
-            return (
-                (persistent.get("display_name") if persistent else None)
-                or (e.custom_title or None)
-                or (e.vscode_label or None)
-                or (slug_display or None)
-                or (e.title or None)
-                or e.project_slug
-            )
-
-        # 2026-05-12 — drop historical catalog entries whose transcript
-        # hasn't been modified in SESSION_VISIBILITY_WINDOW_SEC. Without
-        # this, the phone's Sessions list returns every transcript ever
-        # indexed (95+ in one observed household, with six entries all
-        # named "CodeTalker"). Direct session_id lookups still work via
-        # /api/sessions/{sid} for accessing history; only the list view
-        # is filtered. Matches the same filter in /api/sessions list.
         import time as _t
-        # 2026-05-16 -- bumped from 24h to 30d to match Claude Code's
-        # session-list visibility. See same constant in api.py for the
-        # rationale; this companion handler must stay in sync so the
-        # phone and webui see the same set.
-        SESSION_VISIBILITY_WINDOW_SEC = 30 * 24 * 3600
-        TRANSCRIPT_LIVE_WINDOW_SEC = 300
+        from claude_code_talker.views import (
+            SESSION_VISIBILITY_WINDOW_SEC,
+            build_session_view,
+        )
+
         _now = _t.time()
         visible_entries = [
             e for e in catalog.entries()
             if (_now - getattr(e, "last_modified", 0.0)) < SESSION_VISIBILITY_WINDOW_SEC
         ]
-        # 2026-05-12 — broader live signal that matches /api/sessions:
-        # a session is "live" if it has an in-memory SessionState (hook
-        # fired recently) OR its transcript was modified within the live
-        # window. The strict in-memory-only check meant the phone showed
-        # "Live · 0" right after daemon restart even when active CC
-        # sessions were running (no hooks had fired YET against the new
-        # daemon process). The catalog-recency check covers that gap.
-        disk_active_sids: set[str] = {
-            e.session_id for e in visible_entries
-            if (_now - getattr(e, "last_modified", 0.0)) < TRANSCRIPT_LIVE_WINDOW_SEC
-        }
 
-        rows: list[dict] = []
+        views = []
         seen: set[str] = set()
         for e in visible_entries:
-            # The catalog Entry doesn't store cwd directly, but transcript_path
-            # lives at `~/.claude/projects/<encoded-cwd>/<session_id>.jsonl` so
-            # `transcript_path.parent.name` is the canonical Claude Code project
-            # directory — the right grouping key for the Sessions list.
-            project_dir = ""
-            try:
-                p = getattr(e, "transcript_path", None)
-                if p is not None:
-                    project_dir = p.parent.name
-            except Exception:
-                project_dir = ""
-            rows.append(_row(
-                e.session_id,
-                _resolve_display_name(e),
-                e.project_slug,
-                getattr(e, "cwd", "") or "",
-                project_dir,
-                getattr(e, "last_modified", 0.0) or 0.0,
+            sid = e.session_id
+            seen.add(sid)
+            persistent = (
+                state.persistent_sessions.get(sid)
+                if state.persistent_sessions is not None
+                else None
+            )
+            views.append(build_session_view(
+                state,
+                sid,
+                live_match=live_by_sid.get(sid),
+                catalog_entry=e,
+                persistent=persistent,
+                companion_active_sids=active_sids,
             ))
-            seen.add(e.session_id)
         # Sessions that are live but not yet in the catalog (newly spawned).
         for sid, live_match in live_by_sid.items():
             if sid in seen:
                 continue
-            # Newly spawned (no catalog yet); last_hook_at proxies as
-            # last_modified so the phone's recent-activity filter still
-            # picks it up immediately.
-            _lm = float(getattr(live_match, "last_hook_at", 0.0) or 0.0)
-            rows.append(_row(sid, sid[:12], "", live_match.cwd or "", "", _lm))
-        return JSONResponse(rows)
+            persistent = (
+                state.persistent_sessions.get(sid)
+                if state.persistent_sessions is not None
+                else None
+            )
+            views.append(build_session_view(
+                state,
+                sid,
+                live_match=live_match,
+                persistent=persistent,
+                companion_active_sids=active_sids,
+            ))
+        return JSONResponse([v.model_dump(mode="json") for v in views])
 
     async def start_buddy(request: Request) -> Response:
         if not _require_token(request, state.pairing):

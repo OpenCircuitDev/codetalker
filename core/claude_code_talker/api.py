@@ -295,268 +295,86 @@ def build_routes(state) -> list[Route]:
         return not subs
 
     async def list_sessions(request: Request) -> JSONResponse:
-        # v0.1.0 unification — broader liveness signal.
-        # The daemon's in-memory `SessionState` only exists for sessions
-        # that fired a hook recently (the `state.sessions.touch()` path).
-        # That misses two real-world cases:
-        #   (a) A CC session sitting idle without tool calls — its
-        #       transcript is being written but no PreToolUse hook fires.
-        #   (b) A new CC session that started after the last 30s catalog
-        #       watcher tick — not yet in the catalog at all.
-        # We classify a session as "live" if EITHER it has an in-memory
-        # SessionState OR its transcript file was modified within
-        # TRANSCRIPT_LIVE_WINDOW_SEC. This matches the user's mental model
-        # ("the session is open in CC right now") rather than the strict
-        # hook-driven model.
-        #
-        # 2026-05-12 widened — TRANSCRIPT_LIVE_WINDOW_SEC raised from 60s to
-        # 300s (5 min). The 60s window was too narrow: an active CC session
-        # that pauses for the user to read a response would flicker out of
-        # "live" within a minute, even though the process is alive and the
-        # user considers it active. Companion-android polls every ~15s, so
-        # 5 minutes gives ~20 polls of grace before a dormant-but-active
-        # session disappears from the user's live filter.
-        #
-        # 2026-05-12 added VISIBILITY filter — historical session
-        # transcripts pile up in `~/.claude/projects/<slug>/*.jsonl` and the
-        # catalog tracks them indefinitely (95 entries observed in one
-        # household). Without filtering, the session list returns six
-        # entries named "CodeTalker" (one current + five history) which is
-        # noise. Drop any entry whose transcript hasn't been touched in
-        # SESSION_VISIBILITY_WINDOW_SEC. History remains accessible by
-        # direct session_id lookup; only the list view is filtered.
+        """GET /api/sessions — merged catalog + live + persistent.
+
+        Phase 3 (2026-05-16): row construction delegated to the shared
+        `views.build_session_view` so /api/sessions and /api/companion/
+        sessions emit identical SessionView shapes. This handler only
+        does the catalog scan + live-tail refresh; everything else is
+        the shared builder.
+        """
         import time as _time
-        TRANSCRIPT_LIVE_WINDOW_SEC = 300
-        # 2026-05-16 -- bumped from 24h to 30d. The original 24h window
-        # was hiding workspaces the user opens weekly (OCM, BPF-Web,
-        # etc.) and forcing the Android list to look very different
-        # from Claude Code's own session list. 30d keeps the dedup-by-
-        # recency intent (very old session_id collisions still get
-        # pruned) while exposing the user's full workspace footprint.
-        SESSION_VISIBILITY_WINDOW_SEC = 30 * 24 * 3600
+        from claude_code_talker.views import (
+            SESSION_VISIBILITY_WINDOW_SEC,
+            TRANSCRIPT_LIVE_WINDOW_SEC,
+            build_session_view,
+        )
+        from claude_code_talker.catalog import _read_transcript_tail_names
 
-        live = state.sessions.list_active()
-        live_by_sid = {s.session_id: s for s in live}
-
-        # 2026-05-11 — replaced per-request `DEFAULT_PROJECTS_DIR.rglob("*.jsonl")`
-        # walk with an in-memory derivation from the catalog. py-spy diagnosis
-        # showed that walk was the second wedge in this handler (the first
-        # being a synchronous catalog.refresh, also removed): rglob iterates
-        # thousands of file stats inside the event loop, parking the daemon
-        # for tens of seconds per request. The catalog already tracks mtime
-        # per entry via its 30s background watcher, so liveness detection
-        # comes from those entries — same TRANSCRIPT_LIVE_WINDOW_SEC window,
-        # zero new disk I/O.
-        from claude_code_talker.catalog import _slug_to_display_name  # noqa: F401
-
+        live_by_sid = {s.session_id: s for s in state.sessions.list_active()}
+        catalog_entries = (
+            state.catalog.entries() if state.catalog is not None else []
+        )
         now = _time.time()
-        if state.catalog is not None:
-            catalog_entries = state.catalog.entries()
-        else:
-            catalog_entries = []
-        # 2026-05-12 — drop historical catalog entries whose transcript
-        # hasn't been modified in SESSION_VISIBILITY_WINDOW_SEC. This is
-        # the dedup-by-recency fix: instead of returning every transcript
-        # ever indexed (95+ in one observed household, with six entries
-        # all named "CodeTalker"), only sessions with activity in the
-        # visibility window appear. Direct session_id lookups still work
-        # via /api/sessions/{sid} for accessing history.
-        catalog_entries = [
+        # Dedup-by-recency: drop entries that haven't been touched within
+        # the visibility window. Direct session_id lookups still work via
+        # /api/sessions/{sid} for accessing history.
+        visible_entries = [
             e for e in catalog_entries
             if (now - e.last_modified) < SESSION_VISIBILITY_WINDOW_SEC
         ]
-        disk_active_sids: set[str] = {
-            e.session_id for e in catalog_entries
-            if (now - e.last_modified) < TRANSCRIPT_LIVE_WINDOW_SEC
-        }
-        merged = []
-        seen_sids = set()
 
-        # v0.1.0 unification — resolve attached_character (which is stored
-        # as a string ID on SessionState + persistent overlay) into the
-        # full character record so the webui can render the avatar +
-        # display name + voice ref without an extra round-trip per session.
-        # Accepts either a string ID (legacy/typical) or a pre-resolved
-        # dict (defensive — some code paths may pass the full record).
-        def _resolve_character(value):
-            if value is None or value == "":
-                return None
-            if isinstance(value, dict):
-                return value
-            if state.characters is None:
-                return {"id": str(value), "display_name": str(value)}
-            try:
-                c = state.characters.get(str(value))
-                if c is None:
-                    # Stale ID — character was deleted but session still
-                    # references it. Return a minimal stub so the UI shows
-                    # something instead of silently dropping the attachment.
-                    return {"id": str(value), "display_name": str(value)}
-                return c.to_dict()
-            except Exception:
-                return {"id": str(value), "display_name": str(value)}
-        # v0.1.0 unification — for LIVE sessions only, re-read the latest
-        # custom_title + slug from the transcript tail directly. The catalog
-        # watcher refreshes every 30s, which is too slow to feel reactive
-        # when the user runs `/title <name>` in Claude Code and immediately
-        # checks the webui. Live sessions are typically <= 5 transcripts at
-        # ~16KB tail each per request — trivial IO. Dormant sessions keep
-        # the cached watcher values.
-        from claude_code_talker.catalog import _read_transcript_tail_names
-        for c in catalog_entries:
-            sid = c.session_id
+        views = []
+        seen_sids: set[str] = set()
+        for entry in visible_entries:
+            sid = entry.session_id
             seen_sids.add(sid)
             live_match = live_by_sid.get(sid)
-            persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
-            # Live-session refresh: re-read tail to pick up `/title` renames
-            # within the webui's 5s poll cadence rather than waiting on the
-            # 30s catalog watcher. Best-effort — if the read fails (file
-            # locked etc.) we fall back to the catalog-cached values.
-            #
-            # FIX: The condition is `live_match OR sid in disk_active_sids`
-            # so we re-read for any session that's `is_live` via either
-            # path (in-memory SessionState OR transcript-mtime). The
-            # in-memory-only check missed sessions whose SessionState was
-            # wiped by daemon restart but whose transcript is still being
-            # actively written — exactly the case the transcript-mtime
-            # liveness fix was designed to surface.
+            persistent = (
+                state.persistent_sessions.get(sid)
+                if state.persistent_sessions else None
+            )
+            # Live-session refresh: re-read transcript tail so /title
+            # renames appear within the webui's next poll rather than
+            # waiting on the 30s catalog watcher. Best-effort.
             live_custom_title = ""
             live_slug = ""
-            if live_match is not None or sid in disk_active_sids:
+            transcript_is_fresh = (now - entry.last_modified) < TRANSCRIPT_LIVE_WINDOW_SEC
+            if live_match is not None or transcript_is_fresh:
                 try:
                     live_custom_title, live_slug = _read_transcript_tail_names(
-                        c.transcript_path
+                        entry.transcript_path
                     )
                 except Exception:
                     pass
-            # v0.1.0 unification — expose project_dir (the Claude Code
-            # transcript folder name like "C--Users-brand-...-codetalker")
-            # so the webui can group sessions by Claude project, matching
-            # what the Pro Android app already does via the companion endpoint.
-            project_dir = ""
-            try:
-                tp = getattr(c, "transcript_path", None)
-                if tp is not None:
-                    project_dir = tp.parent.name
-            except Exception:
-                project_dir = ""
-            # Display priority:
-            #   persistent display_name (codetalker-set)
-            #   > Claude Code custom_title (user's /title rename — verbatim)
-            #   > Claude Code panel label (vscode_label)
-            #   > slug-derived display name (auto-generated, tracks renames)
-            #   > catalog auto-title (cached first prompt)
-            #   > project_slug
-            # For live sessions, prefer the freshly-read tail values over
-            # the catalog-cached versions.
-            effective_custom_title = live_custom_title or c.custom_title
-            effective_slug = live_slug or c.slug
-            slug_display = _slug_to_display_name(effective_slug) if effective_slug else ""
-            display_name = (
-                (persistent.get("display_name") if persistent else None)
-                or (effective_custom_title or None)
-                or (c.vscode_label or None)
-                or (slug_display or None)
-                or (c.title or None)
-                or c.project_slug
-            )
-            # Resolve active_mode + cadence. Only call the expensive
-            # config_for() merge when the session has its own overlay or
-            # is live; otherwise inherit the daemon's global default
-            # (which is what config_for would resolve to anyway with no
-            # per-session override). Skipping the merge for ~85 dormant
-            # sessions cuts /api/sessions latency from ~3s to ~30ms.
-            _live_overlay = (persistent.get("live_overlay") if persistent else None) or {}
-            if live_match is not None or _live_overlay:
-                try:
-                    _resolved = state.sessions.config_for(sid) or {}
-                except Exception:
-                    _resolved = {}
-                _active_mode = _resolved.get("active_mode") or getattr(state, "active_mode", None)
-                _cadence = (_resolved.get("live") or {}).get("cadence")
-            else:
-                _active_mode = getattr(state, "active_mode", None)
-                _cadence = ((getattr(state, "cfg", {}) or {}).get("live") or {}).get("cadence")
-            merged.append({
-                "session_id": sid,
-                "cwd": (live_match.cwd if live_match else "") or "",
-                "project_slug": c.project_slug,
-                "project_dir": project_dir,
-                "title": c.title,
-                "display_name": display_name,
-                "last_modified": max(
-                    c.last_modified,
-                    live_match.last_hook_at if live_match else 0.0,
-                ),
-                "is_live": (live_match is not None) or (sid in disk_active_sids),
-                "enabled": (persistent.get("enabled", True) if persistent else True),
-                "active_mode": _active_mode,
-                "cadence": _cadence,
-                "attached_profile": (
-                    live_match.attached_profile if live_match else (
-                        persistent.get("attached_profile") if persistent else None
-                    )
-                ),
-                "attached_character": _resolve_character(
-                    live_match.attached_character if live_match else (
-                        persistent.get("attached_character") if persistent else None
-                    )
-                ),
-                "has_persistent_settings": persistent is not None,
-                # v0.1.0 unification — fields the webui's unified session UI needs.
-                "workspace_group": (persistent.get("workspace_group") if persistent else None) or _derive_workspace_group(display_name),
-                "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
-                "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
-                "audio_misaligned": _audio_misaligned(c.session_id, persistent.get("audio_outputs") if persistent else None),
-                "is_speaking": bool(getattr(live_match, "is_speaking", False)) if live_match else False,
-                "pinned": _read_pinned(persistent),
-                # v0.1.0 Tier 2 emotive state machine — expose the
-                # transient last_user_interaction_at so the webui's
-                # useCharacterPose can drive the `listening` state
-                # accurately. 0 means "no recorded interaction since
-                # daemon start" (treated as not-listening by the hook).
-                "last_user_interaction_at": float(
-                    getattr(live_match, "last_user_interaction_at", 0.0)
-                ) if live_match else 0.0,
-            })
-        # Live sessions not in the catalog (newly created since last scan)
+            views.append(build_session_view(
+                state,
+                sid,
+                live_match=live_match,
+                catalog_entry=entry,
+                persistent=persistent,
+                live_custom_title=live_custom_title,
+                live_slug=live_slug,
+            ))
+
+        # Live sessions not yet in the catalog (newly created since last
+        # 30s watcher tick).
         for sid, live_match in live_by_sid.items():
             if sid in seen_sids:
                 continue
-            persistent = state.persistent_sessions.get(sid) if state.persistent_sessions else None
-            try:
-                _resolved2 = state.sessions.config_for(sid) or {}
-            except Exception:
-                _resolved2 = {}
-            _active_mode2 = _resolved2.get("active_mode") or getattr(state, "active_mode", None)
-            _cadence2 = (_resolved2.get("live") or {}).get("cadence")
-            _display_name2 = (persistent.get("display_name") if persistent else None) or sid[:12]
-            merged.append({
-                "session_id": sid,
-                "cwd": live_match.cwd or "",
-                "project_slug": "",
-                "display_name": _display_name2,
-                "last_modified": live_match.last_hook_at,
-                "is_live": True,
-                "enabled": (persistent.get("enabled", True) if persistent else True),
-                "active_mode": _active_mode2,
-                "cadence": _cadence2,
-                "attached_profile": live_match.attached_profile,
-                "attached_character": _resolve_character(live_match.attached_character),
-                "has_persistent_settings": persistent is not None,
-                "pinned": _read_pinned(persistent),
-                # v0.1.0 unification — fields the webui's unified session UI needs.
-                "workspace_group": (persistent.get("workspace_group") if persistent else None) or _derive_workspace_group(_display_name2),
-                "auto_mode_enabled": (bool(persistent.get("auto_mode_enabled", False)) if persistent else False),
-                "audio_outputs": (persistent.get("audio_outputs") if persistent else None),
-                "audio_misaligned": _audio_misaligned(sid, persistent.get("audio_outputs") if persistent else None),
-                "is_speaking": bool(getattr(live_match, "is_speaking", False)),
-                "last_user_interaction_at": float(
-                    getattr(live_match, "last_user_interaction_at", 0.0)
-                ),
-            })
-        merged.sort(key=lambda e: e["last_modified"], reverse=True)
-        return JSONResponse(merged)
+            persistent = (
+                state.persistent_sessions.get(sid)
+                if state.persistent_sessions else None
+            )
+            views.append(build_session_view(
+                state,
+                sid,
+                live_match=live_match,
+                persistent=persistent,
+            ))
+
+        views.sort(key=lambda v: v.last_modified, reverse=True)
+        return JSONResponse([v.model_dump(mode="json") for v in views])
 
     async def get_session(request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
@@ -716,6 +534,106 @@ def build_routes(state) -> list[Route]:
             },
             "resolved_cfg": merged,
         })
+
+    async def patch_session(request: Request) -> JSONResponse:
+        """PATCH /api/sessions/{sid} — typed partial update.
+
+        Phase 3 (2026-05-16): the canonical entry point for editing a
+        session. Accepts a SessionPatch (Pydantic-validated; unknown
+        fields rejected with 400). Translates to the legacy partial
+        shape understood by `_merge_into_persistent` and the in-memory
+        registry's `update_overlay`, then returns the fresh SessionView.
+
+        The older PUT /api/sessions/{sid}/overlay still works for
+        backward compatibility (webui's existing client.ts uses it),
+        and is slated for removal in Phase 6. New clients should
+        prefer PATCH.
+        """
+        from claude_code_talker.schemas import SessionPatch
+        from claude_code_talker.views import build_session_view
+        from pydantic import ValidationError
+
+        sid = request.path_params["session_id"]
+        try:
+            body = await _read_json(request)
+        except ValueError as e:
+            return _bad_request(str(e))
+        if not isinstance(body, dict):
+            return _bad_request("body must be a JSON object")
+        try:
+            patch = SessionPatch.model_validate(body)
+        except ValidationError as e:
+            return _bad_request(f"invalid SessionPatch: {e.errors()}")
+
+        # Translate SessionPatch into the partial-dict shape that
+        # _merge_into_persistent + state.sessions.update_overlay accept.
+        # Both surfaces expect cadence under `live.cadence` rather than
+        # top-level; voice/character round-trip as dicts.
+        partial: dict = {}
+        for field_name, value in patch.model_dump(exclude_none=True).items():
+            if field_name == "cadence":
+                partial.setdefault("live", {})["cadence"] = value
+            elif field_name == "voice":
+                partial["voice"] = value if isinstance(value, dict) else dict(value)
+            elif field_name == "attached_character":
+                partial["attached_character"] = value
+            else:
+                partial[field_name] = value
+
+        # Live session path: mirror to in-memory + persistent.
+        live = state.sessions.get(sid)
+        if live is not None:
+            try:
+                state.sessions.update_overlay(sid, partial)
+            except KeyError:
+                return _not_found(f"unknown session: {sid}")
+            state.sessions.invalidate(sid)
+            if state.persistent_sessions is not None:
+                try:
+                    _merge_into_persistent(state, sid, partial, state.sessions.get(sid))
+                except Exception:
+                    pass
+        else:
+            # Dormant path: write directly to persistent overlay. Gated
+            # on the SID being known so typos don't create ghost entries.
+            if state.persistent_sessions is None:
+                return _not_found(f"unknown session: {sid}")
+            try:
+                has_persistent = state.persistent_sessions.exists(sid)
+            except Exception:
+                return _not_found(f"unknown session: {sid}")
+            has_catalog = (
+                state.catalog is not None
+                and state.catalog.entry_for(sid) is not None
+            )
+            if not (has_persistent or has_catalog):
+                return _not_found(f"unknown session: {sid}")
+            try:
+                _merge_into_persistent(state, sid, partial, None)
+            except Exception as e:
+                return _bad_request(f"persistent overlay write failed: {e}")
+
+        # Return the fresh SessionView so the caller sees the new state
+        # without a follow-up GET. Same projection as /api/sessions
+        # rows, so clients can drop it straight into their session list
+        # cache.
+        persistent = (
+            state.persistent_sessions.get(sid)
+            if state.persistent_sessions is not None
+            else None
+        )
+        live_match = state.sessions.get(sid)
+        catalog_entry = (
+            state.catalog.entry_for(sid) if state.catalog is not None else None
+        )
+        view = build_session_view(
+            state,
+            sid,
+            live_match=live_match,
+            catalog_entry=catalog_entry,
+            persistent=persistent,
+        )
+        return JSONResponse(view.model_dump(mode="json"))
 
     async def delete_overlay_keypath(request: Request) -> JSONResponse:
         sid = request.path_params["session_id"]
@@ -3167,6 +3085,7 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/sessions/bulk", bulk_session_op, methods=["POST"]),
         Route("/api/sessions", list_sessions, methods=["GET"]),
         Route("/api/sessions/{session_id}", get_session, methods=["GET"]),
+        Route("/api/sessions/{session_id}", patch_session, methods=["PATCH"]),
         Route("/api/sessions/{session_id}/overlay", put_overlay, methods=["PUT"]),
         Route("/api/sessions/{session_id}/overlay/{keypath:path}", delete_overlay_keypath, methods=["DELETE"]),
         Route("/api/sessions/{session_id}/attach-profile", attach_profile, methods=["POST"]),

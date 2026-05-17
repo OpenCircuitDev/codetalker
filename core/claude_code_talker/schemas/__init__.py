@@ -58,6 +58,7 @@ from .narration import (
 )
 from .patches import MasterConfigPatch, SessionPatch
 from .session import Session
+from .session_view import SessionView
 from .voice import VoiceConfig
 
 __all__ = [
@@ -74,6 +75,7 @@ __all__ = [
     "VoiceEngine",
     # domain
     "Session",
+    "SessionView",
     "SessionPatch",
     "MasterConfig",
     "MasterConfigPatch",
