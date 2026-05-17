@@ -247,7 +247,7 @@ def _extract_voice(live_overlay: Dict[str, Any]) -> VoiceConfig:
 def _extract_active_mode(live_overlay: Dict[str, Any]) -> str:
     """Pull active_mode; fall back to brief if missing or invalid."""
     am = live_overlay.get("active_mode", "brief")
-    if am in ("live", "brief", "direct"):
+    if am in ("live", "brief", "direct", "teacher"):
         return am
     return "brief"
 

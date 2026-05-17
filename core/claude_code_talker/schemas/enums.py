@@ -8,10 +8,15 @@ finite, well-typed choices. Defining them here once means clients
 Decisions captured here came from explicit user direction on
 2026-05-16 during the architecture refactor:
 
-  * SpeakingMode: 3 first-class modes only (live / brief / direct).
-    Earlier exploratory modes (trigger, teacher) are intentionally
-    excluded — adding them later requires a schema migration, which
-    forces a conscious decision rather than accidental sprawl.
+  * SpeakingMode: 4 first-class modes (live / brief / direct / teacher).
+    2026-05-17 migration: "teacher" added after the Android ModePicker
+    began offering it as a peer of the others and the auto-tuner began
+    configuring teacher_mode cfg. Symptoms before migration: setting a
+    session to "teacher" via ModePicker → daemon's SessionView Pydantic
+    validation rejected it → /api/companion/sessions returned HTTP 500
+    → entire Android session list disappeared every time the user
+    touched mode settings. The "conscious decision" anticipated in the
+    earlier docstring is this one.
 
   * AudioOutput: unordered set, multiple sinks receive audio
     simultaneously. The list value is treated as a set; order does
@@ -37,15 +42,21 @@ from typing import Literal
 # Speaking mode — per-session narration verbosity.
 # ---------------------------------------------------------------------------
 
-SpeakingMode = Literal["live", "brief", "direct"]
+SpeakingMode = Literal["live", "brief", "direct", "teacher"]
 """
-- live:   continuous prose narration with cadence-driven mid-response speech
-- brief:  short one-sentence summaries at significant events only
-- direct: tool-output-as-spoken (terse, immediate, no LLM rewrite)
+- live:    continuous prose narration with cadence-driven mid-response speech
+- brief:   short one-sentence summaries at significant events only
+- direct:  tool-output-as-spoken (terse, immediate, no LLM rewrite)
+- teacher: live-style continuous narration re-framed for a non-expert
+           audience via the per-session teacher_mode config (depth_level,
+           substitution, glossary, reframe, prompt_directive_extras).
+           Backend strategy: ride the existing LiveMode pipeline with the
+           teacher_mode cfg block applied at prompt-build time. Pro
+           ModePicker has offered this since CCT-32 v0.1.0 polish.
 
 These are the only modes the schema validates. Hook handlers, mode
 pickers, and routing logic all read this Literal and must handle
-every value. Adding a fourth mode requires:
+every value. Adding a fifth mode requires:
   1. Add to this Literal.
   2. Implement the mode strategy in core/claude_code_talker/modes/.
   3. Regenerate webui + Pro Android client types.

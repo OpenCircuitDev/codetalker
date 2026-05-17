@@ -212,7 +212,7 @@ def legacy_dict_to_session(session_id: str, payload: Dict[str, Any]) -> Session:
 
     # Active mode
     am = live_overlay.get("active_mode", "brief")
-    if am not in ("live", "brief", "direct"):
+    if am not in ("live", "brief", "direct", "teacher"):
         am = "brief"
 
     # Cadence
