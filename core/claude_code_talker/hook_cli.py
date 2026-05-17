@@ -52,10 +52,27 @@ _SPAWN_LOG = Path.home() / ".claude" / "scripts" / "codetalker_spawn_attempts.lo
 def _daemon_base_url() -> str:
     """Derive the daemon's REST base from the same URL daemon.py uses
     for its MCP SSE endpoint. ``daemon_url()`` returns the SSE path
-    (``http://127.0.0.1:17832/sse``); strip the suffix to get base."""
+    (``http://0.0.0.0:17832/sse`` when the daemon binds to all
+    interfaces); strip the suffix to get base.
+
+    2026-05-17 — normalize the BIND host (``0.0.0.0`` / ``::``) into a
+    CONNECT host (``127.0.0.1``). On Windows, urllib cannot connect to
+    ``0.0.0.0`` — it raises ``WinError 10049: The requested address is
+    not valid in its context``. The hook_cli's ``_post_hook`` swallows
+    that error silently, retries via ``_ensure_daemon``, and the next
+    hook hits the same wall. That was the multi-day silence root cause:
+    87,000+ hook invocations logged in five days, every one rejected
+    client-side before reaching the daemon. The previous fix attempts
+    (routing, audio_outputs, cadence verbosity) were all phantom
+    because no hook events ever made it into the event_buffer in the
+    first place.
+    """
     url = daemon_url().rstrip("/")
     if url.endswith("/sse"):
         url = url[: -len("/sse")]
+    # Replace bind-only hosts with their loopback equivalents.
+    url = url.replace("://0.0.0.0:", "://127.0.0.1:")
+    url = url.replace("://[::]:", "://[::1]:")
     return url
 
 
