@@ -215,9 +215,21 @@ class LiveMode(ModeStrategy):
                         decision.events, self._last_narrate_by_session, now
                     )
                     for sid, session_events in per_session:
-                        self._last_narrate_by_session[sid] = now
+                        # 2026-05-17 — set _last_narrate_by_session AFTER
+                        # _narrate, not before. With the new "since-last"
+                        # event-window filter in _build_prompt (which
+                        # filters events to those strictly newer than the
+                        # last narration timestamp), setting it BEFORE
+                        # _narrate would filter the events being narrated
+                        # out of their own prompt — every event in
+                        # session_events has timestamp <= now, and a
+                        # `> now` filter eliminates them all → empty
+                        # narrations. Setting it AFTER means the NEXT
+                        # tick's filter sees this tick's flush time as
+                        # the cutoff, which is what we want.
                         await self._narrate(session_events, priority="normal",
                                             session_id=sid)
+                        self._last_narrate_by_session[sid] = now
             except asyncio.CancelledError:
                 break
             except Exception as e:
