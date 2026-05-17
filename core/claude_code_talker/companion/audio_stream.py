@@ -27,10 +27,20 @@ class AudioStreamHub:
     def __init__(self) -> None:
         self._subscribers: dict[str, list[asyncio.Queue[bytes | None]]] = {}
         # 2026-05-16 — per-sid bounded ring of recently-published WAVs.
-        # Each entry is (publish_ts, wav_bytes). Drained into every new
-        # subscriber's queue at subscribe time so reconnects after a
-        # network blip don't drop audio.
+        # Each entry is (publish_ts, wav_bytes). Drained into NEW
+        # subscribers' queues at subscribe time IFF there's been an
+        # actual gap (no subscribers for >REPLAY_GAP_THRESHOLD_SEC).
+        # This catches genuine disconnects (Wi-Fi roam, Doze, daemon
+        # restart) without replaying on every routine 55s long-poll
+        # cycle, which would cause the same narration to play over
+        # and over each time the phone's poller re-subscribed.
         self._replay: dict[str, deque[tuple[float, bytes]]] = {}
+        # 2026-05-17 — track per-sid the timestamp of the LAST FRAME
+        # delivered (either via live publish or replay). On new
+        # subscribe, only replay frames newer than this — guarantees
+        # at-most-once delivery per frame per sid. Without this the
+        # buffer replayed on every routine poll cycle.
+        self._last_delivered_ts: dict[str, float] = {}
 
     def _trim_replay(self, session_id: str) -> None:
         """Evict entries older than retention window or beyond max count."""
@@ -46,16 +56,21 @@ class AudioStreamHub:
     def subscribe(self, session_id: str) -> AsyncIterator[bytes]:
         q: asyncio.Queue[bytes | None] = asyncio.Queue()
         self._subscribers.setdefault(session_id, []).append(q)
-        # Replay any recently-published WAVs into the new queue so a
-        # subscriber that reconnects after a brief outage immediately
-        # receives the audio it missed (rather than waiting for the
-        # next publish, which may not come for minutes).
+        # Replay frames published since this sid's last successful
+        # delivery. Tracking last_delivered_ts gives at-most-once
+        # delivery: a poller cycling through routine 55s long-polls
+        # gets fresh frames via the live publish path, and only
+        # genuinely-missed frames (published when no subscriber
+        # existed) get replayed on the next connect.
         self._trim_replay(session_id)
-        for _ts, wav in self._replay.get(session_id, ()):
-            try:
-                q.put_nowait(wav)
-            except asyncio.QueueFull:
-                break
+        last_delivered = self._last_delivered_ts.get(session_id, 0.0)
+        for ts, wav in self._replay.get(session_id, ()):
+            if ts > last_delivered:
+                try:
+                    q.put_nowait(wav)
+                    self._last_delivered_ts[session_id] = ts
+                except asyncio.QueueFull:
+                    break
 
         async def _gen() -> AsyncIterator[bytes]:
             try:
@@ -74,12 +89,16 @@ class AudioStreamHub:
         # Record into the replay buffer BEFORE fanning out so any
         # subscriber that joins between publish-time and the next
         # subscribe() call still gets this frame on connect.
+        ts = time.time()
         buf = self._replay.setdefault(session_id, deque(maxlen=_REPLAY_MAX_COUNT * 2))
-        buf.append((time.time(), frame))
+        buf.append((ts, frame))
         self._trim_replay(session_id)
         for q in self._subscribers.get(session_id, []):
             try:
                 q.put_nowait(frame)
+                # Update last-delivered on each live-publish enqueue
+                # so the next subscribe doesn't re-replay this frame.
+                self._last_delivered_ts[session_id] = ts
             except asyncio.QueueFull:
                 pass
 
