@@ -94,30 +94,27 @@ def decide_multi_session_route(
 
     Write the body below, replacing the `raise NotImplementedError`.
     """
-    # === Strategy C with graceful fallback ===
+    # === Per-session routing (Strategy A, simplified) ===
     #
-    # AudioQueue is single-threaded and FIFO, so the natural order is
-    # already serial. We fan EVERY opted-in session's audio into the
-    # companion_active_session's hub key so the phone (subscribed to that
-    # one stream) hears them all in turn. A short voice tag prefix tells
-    # the listener which workspace is currently speaking.
+    # 2026-05-17 — dropped the lex-first fan-in. The previous code routed
+    # every opted-in session's audio onto `companion_active_session`, which
+    # was set deterministically to `sorted(companion_active_sessions)[0]`
+    # by companion/api.py. That meant only the lex-first session's hub
+    # subscription ever received bytes — every other "active" session on
+    # the phone got silence. With multiple sessions active (e.g. CodeTalker
+    # 87b24267 + BF Skills 96e480c1), the lex-first sid (87b24267) owned
+    # the entire pipe and all BF Skills audio got published to the wrong
+    # hub key, never reaching the BF Skills subscription. That was the
+    # multi-day silence pattern.
     #
-    # 2026-05-16 — when companion_active_session is unset (e.g. fresh
-    # daemon, phone hasn't pushed its DataStore-restored active set yet,
-    # or a non-paired install is just consuming hub bytes), fall back to
-    # publishing on the SOURCE session's own key. That preserves audio
-    # for the simple case ("phone subscribes to TEST-OCR-Web, hears
-    # TEST-OCR-Web's narration") while keeping the round-robin behavior
-    # active whenever an active session IS set. Treat it as "Strategy A
-    # if no active set, Strategy C if there is one" — both honor the
-    # session's audio_outputs opt-in.
-    # 2026-05-16 (phase 1 refactor): when NO session has opted into
-    # multi-session routing (the common case for fresh installs and
-    # for any session whose persistent overlay doesn't set
-    # audio_outputs), fall through to source-sid routing instead of
-    # dropping. Previously this case dropped the audio silently —
-    # which made "no audio" the default outcome until a user
-    # explicitly configured per-session audio_outputs.
+    # The phone subscribes to N hub keys via setActiveSessions() and the
+    # Android TTSPlayer fans them in client-side. So the daemon should
+    # just publish each session's audio to that session's own hub key.
+    # No lex-ownership, no silent subscriptions.
+    #
+    # The `companion_active_session` and `last_played_session_id`
+    # parameters are kept in the signature for backwards-compat with
+    # callers, but no longer influence the publish key.
     if not opted_in_sessions:
         return RoutingDecision(
             publish_to_session_id=job_session_id,
@@ -125,18 +122,17 @@ def decide_multi_session_route(
         )
     if job_session_id not in opted_in_sessions:
         return RoutingDecision(publish_to_session_id="")
-    if not companion_active_session:
-        return RoutingDecision(
-            publish_to_session_id=job_session_id,
-            intro_text="",
-        )
-    # Drop the intro when the same session speaks twice in a row — avoids
-    # repeating "OCDev: ... OCDev: ..." for a chatty session.
+    # Intro tag identifies the speaker when MULTIPLE sessions could be
+    # heard simultaneously, but only when the speaker just changed (so
+    # a chatty session doesn't repeat "BF Skills: ... BF Skills: ...").
     intro = ""
-    if job_session_id != last_played_session_id:
+    if (
+        len(opted_in_sessions) > 1
+        and job_session_id != last_played_session_id
+    ):
         intro = _short_tag(job_workspace_group)
     return RoutingDecision(
-        publish_to_session_id=companion_active_session,
+        publish_to_session_id=job_session_id,
         intro_text=intro,
     )
 

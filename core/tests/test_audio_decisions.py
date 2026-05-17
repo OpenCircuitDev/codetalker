@@ -135,17 +135,24 @@ def test_route_publishes_to_source_when_no_opted_in():
     assert decision.publish_to_session_id == "a"
 
 
-def test_route_publishes_to_companion_active_when_set():
-    """With opted_in sessions + a companion_active_session set,
-    Strategy C fans all audio into the active session's stream."""
+def test_route_publishes_to_source_session_even_when_companion_active_set():
+    """2026-05-17 — dropped the lex-first fan-in. With multiple opted-in
+    sessions, EACH session's audio publishes to its OWN hub key. The phone
+    subscribes to N keys via setActiveSessions() and fans them in client-
+    side. The old behavior published every session's audio to a single
+    `companion_active_session` hub key (set deterministically to the
+    lex-first member), which meant every other "active" session's
+    subscription received zero bytes — the multi-day silence pattern."""
     s1 = Session(
         session_id="a",
         display_name="A",
+        workspace_group="GroupA",
         audio_outputs=["phone"],
     )
     s2 = Session(
         session_id="b",
         display_name="B",
+        workspace_group="GroupB",
         audio_outputs=["phone"],
     )
     decision = route_audio_publish_key(
@@ -155,7 +162,11 @@ def test_route_publishes_to_companion_active_when_set():
         last_played_session_id=None,
         now=0.0,
     )
-    assert decision.publish_to_session_id == "b"
+    assert decision.publish_to_session_id == "a"
+    # With multiple sessions opted in and a workspace_group on the source,
+    # the intro tag identifies the speaker so the listener knows which
+    # workspace is talking.
+    assert decision.intro_text == "GroupA: "
 
 
 def test_route_drops_when_source_not_opted_in_and_others_are():

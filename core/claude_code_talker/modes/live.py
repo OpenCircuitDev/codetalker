@@ -378,7 +378,16 @@ class LiveMode(ModeStrategy):
                 timeout=stream_budget,
             )
         except (asyncio.TimeoutError, Exception) as e:
-            logging.debug("live streaming narration skipped: %s", e)
+            # 2026-05-17 — promoted DEBUG → WARNING. Silent drops here were
+            # the reason multi-day silence kept "looking like" a routing
+            # bug. With WARNING the daemon log captures the failure mode
+            # (LLM timeout, provider error, network blip) per-sid so the
+            # next "I don't hear narrations for session X" report can be
+            # diagnosed in one grep instead of a fresh debugging session.
+            logging.warning(
+                "CCT-LIVE: streaming narration dropped for sid=%s: %s",
+                (session_id or "")[:8], e,
+            )
 
     # ------------------------------------------------------------------
     # Main narration entry point — dispatches to streaming or non-streaming
@@ -456,16 +465,26 @@ class LiveMode(ModeStrategy):
                 timeout=budget,
             )
         except (asyncio.TimeoutError, Exception) as e:
-            logging.debug("live narration skipped: %s", e)
+            logging.warning(
+                "CCT-LIVE: non-streaming narration dropped for sid=%s: %s",
+                (session_id or "")[:8], e,
+            )
             return
 
         text = (text or "").strip()
         if not text:
+            logging.warning(
+                "CCT-LIVE: provider returned empty text for sid=%s",
+                (session_id or "")[:8],
+            )
             return
 
         voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
-            logging.debug("live narration skipped: no voice configured")
+            logging.warning(
+                "CCT-LIVE: narration dropped for sid=%s: no voice configured",
+                (session_id or "")[:8],
+            )
             return
 
         self.audio_queue.submit(AudioJob(
