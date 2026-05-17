@@ -113,7 +113,14 @@ def session_to_legacy_dict(session: Session) -> Dict[str, Any]:
         out["workspace_group"] = session.workspace_group
     if session.auto_mode_enabled:
         out["auto_mode_enabled"] = True
-    if session.audio_outputs and session.audio_outputs != ["desktop"]:
+    # 2026-05-17 — always emit audio_outputs (was: omitted when equal to
+    # the schema default ["desktop"]). That omission tripped
+    # _ensure_phone_in_audio_outputs into reading None and overwriting the
+    # field with ["phone"]-only, silently destroying the desktop fallback
+    # and causing multi-day stretches of silent narration for sessions
+    # that briefly lost their phone subscriber. Always serializing the
+    # actual value keeps every consumer in the same source-of-truth space.
+    if session.audio_outputs:
         out["audio_outputs"] = list(session.audio_outputs)
     if session.attached_profile is not None:
         out["attached_profile"] = session.attached_profile

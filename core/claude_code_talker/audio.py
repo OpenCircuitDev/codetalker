@@ -489,20 +489,32 @@ class AudioQueue:
                     )
                     self._publish_event(job, "skipped")
                     continue
-                if companion_wanted and not desktop_wanted and not self._hub_has_subscribers_for_key(route_key):
-                    logging.warning(
-                        "CCT-AUDIO: audio_outputs=%s configured for sid=%s but no audio-stream subscriber on key=%s — "
-                        "open this session on the phone (or tap 'Make active') to receive audio",
-                        sorted(outputs), (job.session_id or "")[:8], (route_key or "")[:8],
-                    )
-                    self._registry_transition(
-                        job,
-                        "skipped",
-                        gate="subscriber_check",
-                        reason="no_subscribers",
-                    )
-                    self._publish_event(job, "skipped")
-                    continue
+                # 2026-05-17 — desktop fallback. The previous behavior dropped
+                # the WAV entirely when the user's audio_outputs was companion-
+                # only AND the phone subscriber was momentarily absent (long-
+                # poll race, Wi-Fi blip, Doze). That caused multi-day silence
+                # for any session whose audio_outputs got set to ['phone']
+                # by the SessionDetailScreen audio destination picker — every
+                # missed subscriber moment lost a real narration.
+                #
+                # Desktop has no subscriber handshake (winsound.PlaySound goes
+                # to the default audio output) and is a reliable last-mile
+                # delivery channel. When the configured-companion path has
+                # no subscriber, opt into desktop fallback for THIS job so
+                # the user always hears their narration on the PC, even if
+                # the phone happened to be between polls. The audio_outputs
+                # setting is honored on the next job (where the phone may
+                # again be subscribed); this only adds a fallback per-job,
+                # not a permanent state change.
+                if companion_wanted and not self._hub_has_subscribers_for_key(route_key):
+                    if not desktop_wanted:
+                        logging.warning(
+                            "CCT-AUDIO: audio_outputs=%s configured for sid=%s but no audio-stream "
+                            "subscriber on key=%s — falling back to DESKTOP for this job so the user "
+                            "still hears the narration",
+                            sorted(outputs), (job.session_id or "")[:8], (route_key or "")[:8],
+                        )
+                        desktop_wanted = True
                 # 2026-05-11 Tier-1: TTS-cache lookup before synth.
                 self._registry_transition(job, "synthesizing", gate="synth")
                 wav = self._cache_get(job, voice)

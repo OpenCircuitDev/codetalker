@@ -146,8 +146,19 @@ def _ensure_phone_in_audio_outputs(state, sid: str) -> None:
     if not sid or state.persistent_sessions is None:
         return
     existing = state.persistent_sessions.get(sid) or {}
-    current = existing.get("audio_outputs") or []
-    if isinstance(current, (list, tuple)) and "phone" in current:
+    # 2026-05-17 — when audio_outputs is missing from the persistent dict,
+    # default to the Session schema default ["desktop"] rather than [].
+    # The legacy adapter's session_to_legacy_dict OMITS the field when
+    # it equals the default to save bytes, so a freshly-created session
+    # (which has audio_outputs=["desktop"]) shows up here as missing.
+    # Treating missing as [] caused this function to overwrite it with
+    # ["phone"] only — silently destroying desktop fallback and leaving
+    # the user with no audio whenever the phone subscriber was briefly
+    # missing. THIS is the multi-day silence root cause.
+    current = existing.get("audio_outputs")
+    if not isinstance(current, (list, tuple)) or not current:
+        current = ["desktop"]
+    if "phone" in current:
         return
     new_outputs = list(current) + ["phone"]
     from claude_code_talker.api import _merge_into_persistent, _emit_session_changed
