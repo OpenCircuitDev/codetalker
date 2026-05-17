@@ -38,8 +38,14 @@ def _event(ts=0.0, ev_type="POST_TOOL", tool="Read"):
 
 
 def _static_prefix(prompt: str) -> str:
-    """Extract everything before the RECENT EVENTS marker."""
-    marker = "RECENT EVENTS"
+    """Extract everything before the events block marker.
+
+    2026-05-17 — marker renamed from "RECENT EVENTS" to "CURRENT EVENTS"
+    when the interpreter-style prompt rewrite started tagging the focus
+    + reasoning blocks as BACKGROUND CONTEXT. The contrast with
+    "CURRENT EVENTS" is the whole point of the new tagging.
+    """
+    marker = "CURRENT EVENTS"
     idx = prompt.index(marker)
     return prompt[:idx]
 
@@ -105,11 +111,14 @@ def test_events_header_comes_after_system_text():
     events = [_event()]
     prompt = mode._build_prompt(events)
 
-    system_idx = prompt.index("narrating Claude Code")
-    events_idx = prompt.index("RECENT EVENTS")
+    # 2026-05-17 — system prompt rewritten to interpreter-style. The
+    # phrase "INTERPRETER for the user" anchors the new persona and is
+    # what we now check for to confirm system instructions are present.
+    system_idx = prompt.index("INTERPRETER for the user")
+    events_idx = prompt.index("CURRENT EVENTS")
 
     assert system_idx < events_idx, (
-        "System instructions must appear before RECENT EVENTS marker"
+        "System instructions must appear before CURRENT EVENTS marker"
     )
 
 
@@ -124,7 +133,7 @@ def test_teacher_directives_before_events():
     prompt = mode._build_prompt(events)
 
     teacher_idx = prompt.index("TEACHER MODE")
-    events_idx = prompt.index("RECENT EVENTS")
+    events_idx = prompt.index("CURRENT EVENTS")
 
     assert teacher_idx < events_idx, (
         "Teacher directives must appear before RECENT EVENTS marker "

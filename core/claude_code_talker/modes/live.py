@@ -69,28 +69,75 @@ def _sanitize_chunk(chunk: str, cfg: dict | None = None) -> str:
 # teacher_cfg. Dynamic content (events) is appended AFTER this block via
 # _build_prompt so the static prefix is byte-identical across calls.
 LIVE_NARRATION_SYSTEM = """\
-You are narrating Claude Code's work in real time for an audio listener.
+You are an INTERPRETER for the user — narrating, by voice, what their
+Claude Code instance is doing in a way that helps them understand it.
 
-Default behavior is play-by-play: report what Claude is doing right now —
-which tools are firing, what files are being touched, which steps just
-completed, any findings or errors. Lean factual.
+You are not a transcript writer. You are not a play-by-play caller. You
+are the layer that translates technical execution into "is what's
+happening matching what I asked for, and if not, why not." Your job is
+to help the user feel oriented to the work, not buried in its mechanics.
 
-Rules:
-- Up to 2-3 sentences (max 60 words) of spoken English. Present or past tense.
-- Mention tool actions and file targets briefly ("editing auth.py", "running
-  tests", "reading the spec").
-- Surface findings, errors, and decisions when they appear in the events.
-- Skip pure noise (long stretches of identical reads); compress them
-  ("scanning a few config files") rather than enumerate.
-- No markdown, no lists. Just spoken English.
+THREE THINGS YOU DO:
 
-If TEACHER MODE directives appear below, follow them — they will reshape this
-narration to also explain WHY the actions matter, anchored to the user's
-most recent USER_PROMPT."""
+1. CONFIRM or DISAMBIGUATE.
+   When the current action matches what the user asked for, say so in
+   plain terms — "this is the schema migration you asked about earlier,
+   now running." When the action is something the user may not have
+   recognized from the technical name, translate it — "Claude's
+   checking a JSON config that controls which test files get skipped,"
+   not "Claude is reading test-config.json."
+
+2. CALIBRATE — going-as-expected vs. going-off-plan.
+   The user has expectations. Help them see when reality matches
+   ("the CI checks went green on the rebased branches like you hoped"),
+   and especially when it diverges ("the rebase hit a conflict on the
+   shared config file — Claude is resolving it manually instead of
+   auto-merging like the earlier ones"). Flag the divergence as the
+   news, not the routine.
+
+3. ILLUMINATE the issue, not just the action.
+   If Claude is working on a problem the user may not fully understand,
+   explain what the PROBLEM is — what's actually broken, why it matters,
+   what success looks like — not just which file is being edited. The
+   user often knows the symptom but not the underlying mechanic.
+
+WHAT YOU DO NOT DO:
+
+- DO NOT restate, paraphrase, or summarize anything from the BACKGROUND
+  sections below. The listener has already heard about all of it. Use
+  it as the FRAME for the current moment, never as material to re-narrate.
+- DO NOT enumerate every tool call. Group small steps into one beat
+  ("getting oriented in the codebase"), not a list of file names.
+- DO NOT fill silence. If nothing substantive happened since you last
+  spoke, return EXACTLY: "Still on the same task." If LITERALLY nothing
+  is happening, return an empty narration. Silence beats "standing by"
+  or "still monitoring."
+- DO NOT lean on file names, command names, function names, or other
+  technical identifiers as the primary content. Mention them only when
+  the IDENTITY of the file or command IS the news. Otherwise describe
+  by FUNCTION (what it does for the user's goal), not by NAME.
+
+STYLE:
+- 1-3 sentences, max ~60 words.
+- Plain spoken English. Tense flows naturally with the moment.
+- The voice of a thoughtful colleague keeping you oriented — calm,
+  contextual, generous with translation but stingy with noise.
+
+If TEACHER MODE directives appear below, apply them within these
+constraints; they reshape voice/audience but do not override rules
+about background-vs-current, silence-over-padding, or interpretation-
+over-transcription."""
 
 # Separator before the dynamic events block. Presence of this exact string is
 # used by tests to locate the boundary between static prefix and dynamic suffix.
-_EVENTS_HEADER = "---\nRECENT EVENTS (most recent last; USER lines = what the user asked for):\n"
+# 2026-05-17 — relabeled to "CURRENT EVENTS — NARRATE THESE" to pair with the
+# new "BACKGROUND CONTEXT" tags on focus/prose blocks. The contrast makes the
+# narrate-vs-frame distinction unambiguous in the prompt.
+_EVENTS_HEADER = (
+    "---\nCURRENT EVENTS — NARRATE THESE (most recent last; USER lines = what "
+    "the user just asked for; these events are strictly newer than your prior "
+    "narration):\n"
+)
 
 # For backward-compat: the old LIVE_NARRATION_PROMPT constant is kept so
 # external code that imported it won't break. It is no longer used internally.
@@ -577,22 +624,41 @@ class LiveMode(ModeStrategy):
         # Build the static section: system text + optional teacher block
         static_section = merge_teacher_into_prompt(LIVE_NARRATION_SYSTEM, teacher_cfg)
 
-        # 2026-05-17 — "since-last" directive. Instructs the LLM to cover
-        # ONLY what's new since the prior narration; if there is a prior,
-        # explicitly forbid re-stating older events. Density goes up,
-        # repetition goes down. The events list itself is already filtered
-        # (above) so the directive matches the data the LLM sees.
+        # 2026-05-17 — "since-last" directive + explicit BACKGROUND framing.
+        # The interpreter-style prompt needs to make this distinction crystal
+        # clear: the focus block + assistant-prose block are PAST CONTEXT,
+        # they were what the user already heard or what Claude was thinking
+        # one or more cadence ticks ago. Without strong tagging the LLM
+        # treats those blocks as fair material for the current narration
+        # and re-narrates them — including stale reasoning that is no
+        # longer valid by the time the cadence fires (a real failure mode
+        # the user explicitly flagged).
         since_directive = ""
         if not is_first_narration and scoped_events:
             import time as _t
             secs_ago = max(0.0, _t.time() - (last_narrate_ts or 0.0))
             since_directive = (
-                f"\n\nCONTINUITY: You last narrated this session {secs_ago:.0f}s ago. "
-                "Cover ONLY the events listed below — they are strictly newer than "
-                "your prior narration. Do NOT restate, summarize, or reference older "
-                "events the listener has already heard about. If nothing new is "
-                "substantive, return one short sentence (e.g. \"Still on the same "
-                "task.\")."
+                f"\n\nCONTINUITY DIRECTIVE: You last narrated this session "
+                f"{secs_ago:.0f}s ago. The BACKGROUND sections below are PAST "
+                "context — the listener has already heard about that material, "
+                "and some of it may be stale by now (decisions already executed, "
+                "reasoning already acted on). Use it ONLY to FRAME what's new. "
+                "Cover ONLY the events listed in CURRENT EVENTS below — they are "
+                "strictly newer than your prior narration. Do NOT restate, "
+                "paraphrase, or even quietly recap older events. If nothing in "
+                "CURRENT EVENTS is substantive, return EXACTLY: \"Still on the "
+                "same task.\" Or return an empty string."
+            )
+        elif is_first_narration and scoped_events:
+            # First narration of a session: no prior context to frame against;
+            # explicitly tell the LLM this so it gives a fuller opener than
+            # the steady-state interpreter would.
+            since_directive = (
+                "\n\nFIRST-NARRATION DIRECTIVE: This is the first time you are "
+                "narrating this session. Give a 1-3 sentence orientation — what "
+                "the user appears to be working on (from the events + recent "
+                "prose) and what just happened. Subsequent narrations will be "
+                "incremental updates against this opener."
             )
 
         # --- Dynamic suffix: events list ---
@@ -625,19 +691,43 @@ class LiveMode(ModeStrategy):
                     out_summary = summarize_tool_response(tool, meta.get('response', ''), success)
                     lines.append(f"[T+{dt:.1f}s tool← {tool} {out_summary}]")
 
-        # Phase 13.5B: inject per-session SESSION FOCUS block (WHY/CONTEXT)
+        # Phase 13.5B: inject per-session SESSION FOCUS block (WHY/CONTEXT).
+        # 2026-05-17 — wrapped in an explicit BACKGROUND CONTEXT header so
+        # the LLM treats it as past framing rather than narration material.
         focus_block = ""
         if self.session_focus is not None and session_id:
-            focus_block = self.session_focus.get_or_create(session_id).render_block()
+            raw_focus = self.session_focus.get_or_create(session_id).render_block()
+            if raw_focus:
+                focus_block = (
+                    "\n=== BACKGROUND CONTEXT — SESSION FOCUS (already-heard "
+                    "context; use to frame, NEVER narrate) ===\n"
+                    f"{raw_focus}"
+                )
 
-        # Phase 13.7: inject RECENT ASSISTANT REASONING from transcript
+        # Phase 13.7: inject RECENT ASSISTANT REASONING from transcript.
+        # 2026-05-17 — reduced from 10 → 4 messages and explicitly tagged as
+        # BACKGROUND. The 10-message window was a major source of "narrator
+        # re-narrates stale assistant prose as if it were current news" —
+        # the user explicitly flagged that the reasoning fed in here was
+        # often stale by the time the cadence fired (e.g. Claude said "PR
+        # #412 merged" in its prose, that became prior reasoning, the
+        # narrator then re-announced "PR #412 has merged" four times across
+        # consecutive cadence ticks). 4 messages still gives the LLM enough
+        # to identify "what the user appears to be working on" without
+        # creating that re-narration vector.
         prose_block = ""
         if self.catalog is not None and session_id:
-            prose_lines = recent_assistant_prose(session_id, self.catalog,
-                                                 max_messages=10, max_chars_per_message=1500)
+            prose_lines = recent_assistant_prose(
+                session_id, self.catalog,
+                max_messages=4, max_chars_per_message=600,
+            )
             if prose_lines:
-                prose_block = "\nRECENT ASSISTANT REASONING (most recent last):\n" + \
-                              "\n".join(f'- "{p}"' for p in prose_lines)
+                prose_block = (
+                    "\n=== BACKGROUND CONTEXT — RECENT ASSISTANT REASONING "
+                    "(already-heard; use ONLY to frame what the user is "
+                    "working on, NEVER restate or recap) ===\n"
+                    + "\n".join(f'- "{p}"' for p in prose_lines)
+                )
 
         return (
             static_section

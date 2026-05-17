@@ -333,11 +333,18 @@ def test_live_narration_system_has_doubled_word_limit():
     assert "30 words" not in LIVE_NARRATION_SYSTEM
 
 
-def test_build_prompt_uses_10_recent_messages(tmp_path):
-    """_build_prompt should call recent_assistant_prose with max_messages=10."""
+def test_build_prompt_uses_recent_messages_capped(tmp_path):
+    """_build_prompt should call recent_assistant_prose with a small max_messages.
+
+    2026-05-17 — cap lowered from 10 → 4 after the user explicitly flagged that
+    the 10-message window was a major source of "narrator re-narrates stale
+    assistant prose as if it were current news." With max_messages=4 we should
+    see messages 8–11 (last 4 of 12), not 0..7. The interpreter-style prompt
+    rewrite + BACKGROUND-tag on this block means the LLM uses these only as
+    framing, never as narration material — so we need fewer of them.
+    """
     import json as _json
     transcript = tmp_path / "sess.jsonl"
-    # Write 12 messages so we can verify truncation to 10
     entries = [
         {"type": "assistant", "message": {"content": [
             {"type": "text", "text": f"Message {i}"},
@@ -359,10 +366,11 @@ def test_build_prompt_uses_10_recent_messages(tmp_path):
 
     events = [_make_event(ts=1.0, session_id="sess-A")]
     prompt = mode._build_prompt(events, session_id="sess-A")
-    # With max_messages=10 we should see messages 2–11 (last 10 of 12), not 0 or 1
-    # Messages appear as `- "Message N"` in the prose block
+    # With max_messages=4 we should see messages 8–11 (last 4 of 12).
     assert '- "Message 11"' in prompt
-    assert '- "Message 2"' in prompt
-    # Use exact line prefix to avoid "Message 1" substring collision with "Message 11"
+    assert '- "Message 8"' in prompt
+    # Older messages should be excluded.
+    assert '- "Message 7"' not in prompt
     assert '- "Message 0"' not in prompt
-    assert '- "Message 1"' not in prompt
+    # And the BACKGROUND tag must be present so the LLM knows not to re-narrate.
+    assert "BACKGROUND CONTEXT" in prompt
