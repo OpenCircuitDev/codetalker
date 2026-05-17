@@ -232,41 +232,83 @@ def make_routes(state) -> list[Route]:
             if (_now - getattr(e, "last_modified", 0.0)) < SESSION_VISIBILITY_WINDOW_SEC
         ]
 
+        # 2026-05-17 — per-row exception handling. Previously one bad
+        # session (e.g. a persistent overlay with a value that failed
+        # Pydantic SessionView validation, or a corrupted live_match
+        # after a PATCH) crashed the entire endpoint with HTTP 500.
+        # User reported "ANY time I change any session setting, my
+        # sessions disappear" — the underlying cause: the PATCH
+        # succeeded server-side but the next list_sessions call
+        # blew up on the bad row, hiding ALL rows. With this guard
+        # the bad row is skipped and logged; the rest of the list
+        # returns normally. The exception is logged at ERROR so the
+        # daemon log surfaces which sid + which error triggered it.
         views = []
+        failed: list[tuple[str, str]] = []
         seen: set[str] = set()
         for e in visible_entries:
             sid = e.session_id
             seen.add(sid)
-            persistent = (
-                state.persistent_sessions.get(sid)
-                if state.persistent_sessions is not None
-                else None
-            )
-            views.append(build_session_view(
-                state,
-                sid,
-                live_match=live_by_sid.get(sid),
-                catalog_entry=e,
-                persistent=persistent,
-                companion_active_sids=active_sids,
-            ))
+            try:
+                persistent = (
+                    state.persistent_sessions.get(sid)
+                    if state.persistent_sessions is not None
+                    else None
+                )
+                views.append(build_session_view(
+                    state,
+                    sid,
+                    live_match=live_by_sid.get(sid),
+                    catalog_entry=e,
+                    persistent=persistent,
+                    companion_active_sids=active_sids,
+                ))
+            except Exception as exc:
+                import logging as _log
+                _log.error(
+                    "CCT-API: list_sessions skipped sid=%s: %s: %s",
+                    sid[:12], type(exc).__name__, str(exc)[:200],
+                )
+                failed.append((sid, f"{type(exc).__name__}: {str(exc)[:120]}"))
         # Sessions that are live but not yet in the catalog (newly spawned).
         for sid, live_match in live_by_sid.items():
             if sid in seen:
                 continue
-            persistent = (
-                state.persistent_sessions.get(sid)
-                if state.persistent_sessions is not None
-                else None
+            try:
+                persistent = (
+                    state.persistent_sessions.get(sid)
+                    if state.persistent_sessions is not None
+                    else None
+                )
+                views.append(build_session_view(
+                    state,
+                    sid,
+                    live_match=live_match,
+                    persistent=persistent,
+                    companion_active_sids=active_sids,
+                ))
+            except Exception as exc:
+                import logging as _log
+                _log.error(
+                    "CCT-API: list_sessions skipped (live-only) sid=%s: %s: %s",
+                    sid[:12], type(exc).__name__, str(exc)[:200],
+                )
+                failed.append((sid, f"{type(exc).__name__}: {str(exc)[:120]}"))
+        try:
+            return JSONResponse([v.model_dump(mode="json") for v in views])
+        except Exception as exc:
+            # Serialization itself failed — surface that distinctly so the
+            # next debugging cycle sees "the views built but couldn't
+            # serialize" vs. "build_session_view raised on every row."
+            import logging as _log
+            _log.error(
+                "CCT-API: list_sessions serialization failed (built %d views, %d failed earlier): %s",
+                len(views), len(failed), exc,
             )
-            views.append(build_session_view(
-                state,
-                sid,
-                live_match=live_match,
-                persistent=persistent,
-                companion_active_sids=active_sids,
-            ))
-        return JSONResponse([v.model_dump(mode="json") for v in views])
+            return JSONResponse(
+                {"error": f"serialization: {type(exc).__name__}: {str(exc)[:200]}"},
+                status_code=500,
+            )
 
     async def start_buddy(request: Request) -> Response:
         if not _require_token(request, state.pairing):
