@@ -42,6 +42,7 @@ from .enums import (
 from .events import (
     AudioJobStateChanged,
     CharacterPoseChanged,
+    CompanionActiveSessionsChanged,
     Event,
     LifecycleChanged,
     MasterConfigChanged,
@@ -98,4 +99,5 @@ __all__ = [
     "MasterConfigChanged",
     "SubscriptionChanged",
     "CharacterPoseChanged",
+    "CompanionActiveSessionsChanged",
 ]

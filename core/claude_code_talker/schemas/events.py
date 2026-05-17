@@ -170,3 +170,35 @@ class CharacterPoseChanged(Event):
     session_id: str
     character_id: str
     pose: CharacterPose
+
+
+# ---------------------------------------------------------------------------
+# CompanionActiveSessionsChanged — bidirectional sync of the companion's
+# active session set. Daemon emits whenever state.companion_active_sessions
+# changes (POST /api/companion/active-session, daemon restore, etc.) so
+# every connected client mirrors the canonical set without polling. Phone
+# uses this to update its local activeSessionIds → spawns/cancels TTSPlayer
+# pollers automatically. Replaces the brittle reconciliation that kept
+# wiping local state when the daemon's set transiently disagreed.
+# ---------------------------------------------------------------------------
+
+
+class CompanionActiveSessionsChanged(Event):
+    """
+    Emitted whenever the daemon's companion_active_sessions set changes.
+    Payload carries the full new set so clients overwrite locally without
+    diff-merging.
+
+    Bidirectional sync model:
+      - Client POSTs to /api/companion/active-session to push a change
+      - Daemon mutates state.companion_active_sessions
+      - Daemon emits this event with the new full set
+      - All connected clients (including the originator) update local
+        state to match
+      - No polling, no reconciliation drift
+    """
+
+    event_type: Literal["CompanionActiveSessionsChanged"] = "CompanionActiveSessionsChanged"
+    active_session_ids: list[str] = Field(
+        description="Full new active set (sorted). Clients overwrite local state.",
+    )

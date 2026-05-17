@@ -414,6 +414,24 @@ def make_routes(state) -> list[Route]:
         # See _ensure_phone_in_audio_outputs for the sticky-grant rationale.
         for added_sid in state.companion_active_sessions - prior_active:
             _ensure_phone_in_audio_outputs(state, added_sid)
+        # 2026-05-16 (Option C bidirectional sync) — emit
+        # CompanionActiveSessionsChanged so every connected client mirrors
+        # the canonical set immediately. Replaces the brittle one-shot
+        # reconciliation that kept getting stale across daemon restarts +
+        # transient network blips. The originating client receives its own
+        # echo (idempotent — applying the same set is a no-op).
+        if state.companion_active_sessions != prior_active:
+            bus = getattr(state, "event_bus", None)
+            if bus is not None:
+                try:
+                    from claude_code_talker.schemas import CompanionActiveSessionsChanged
+                    import time as _t
+                    bus.publish_threadsafe(CompanionActiveSessionsChanged(
+                        at=_t.time(),
+                        active_session_ids=sids_sorted,
+                    ))
+                except Exception:
+                    pass
         return JSONResponse({
             "ok": True,
             "active_session_id": state.companion_active_session,
