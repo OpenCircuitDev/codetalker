@@ -68,7 +68,8 @@ def _resolve_display_name(
 
     Precedence (first non-empty wins):
 
-      1. persistent override (`display_name` key)
+      1. persistent override (`display_name` key, ignored when it equals
+         the auto-derived sid-prefix placeholder)
       2. CC `/title` custom title (catalog.custom_title)
       3. VS Code panel label (catalog.vscode_label)
       4. slug-derived (slug→Title Case)
@@ -79,6 +80,17 @@ def _resolve_display_name(
     persistent_name = (
         (persistent.get("display_name") if persistent else None) or None
     )
+    # 2026-05-16 — every new Session round-trips through
+    # legacy_dict_to_session, which sets display_name to session_id[:12]
+    # when no other value is present. That placeholder then masquerades
+    # as a "user override" here and clobbers the catalog chain (title,
+    # custom_title, slug), surfacing the raw UUID prefix instead of any
+    # readable name. Treat the placeholder as if no override exists so
+    # the catalog data wins. The legitimate degenerate case (user
+    # explicitly renamed a session to its own UUID prefix) loses, which
+    # is acceptable.
+    if persistent_name == fallback_sid[:12]:
+        persistent_name = None
     if persistent_name:
         return persistent_name
     if catalog_entry is not None:

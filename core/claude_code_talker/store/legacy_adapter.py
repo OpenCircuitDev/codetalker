@@ -97,9 +97,17 @@ def session_to_legacy_dict(session: Session) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "live_overlay": live_overlay,
         "enabled": session.enabled,
-        "display_name": session.display_name,
         "last_modified": session.last_modified,
     }
+    # 2026-05-16 — only emit display_name when it's a real user choice,
+    # not the session_id[:12] placeholder that legacy_dict_to_session
+    # auto-fills when payload lacks one. The placeholder otherwise
+    # round-trips through persistent storage and is then treated as a
+    # "user override" by views._resolve_display_name, clobbering the
+    # catalog title/slug chain. Skip it here so reads see the catalog
+    # data; users who genuinely want UUID-as-name lose, acceptably.
+    if session.display_name and session.display_name != session.session_id[:12]:
+        out["display_name"] = session.display_name
     # Optional top-level fields — emitted only when set.
     if session.workspace_group is not None:
         out["workspace_group"] = session.workspace_group
