@@ -94,6 +94,29 @@ def _has_codetalker_hook(entries: list) -> bool:
     return False
 
 
+def _emit_master_changed(state, changed_fields: dict) -> None:
+    """Phase 4 — best-effort MasterConfigChanged emit from a sync handler.
+
+    The handler is async (so it could await publish) but
+    publish_threadsafe is the safer call: it works whether or not
+    a subscriber has registered yet, and never raises when the loop
+    isn't running. Sync callers (rare; the mute/unmute MCP tools) can
+    use the same entry point.
+    """
+    bus = getattr(state, "event_bus", None)
+    if bus is None:
+        return
+    try:
+        from claude_code_talker.schemas import MasterConfigChanged
+        import time as _t
+        bus.publish_threadsafe(MasterConfigChanged(
+            at=_t.time(),
+            changed_fields=changed_fields,
+        ))
+    except Exception:
+        pass
+
+
 def _merge_into_persistent(state, sid: str, partial: dict, live=None) -> None:
     """v0.1.0 polish — merge an overlay partial into persistent_sessions storage.
 
@@ -246,7 +269,9 @@ def build_routes(state) -> list[Route]:
         except Exception as e:
             # In-memory change is already live; disk persist is best-effort
             # but the user should know if it didn't stick.
+            _emit_master_changed(state, {"enabled": new_enabled})
             return JSONResponse({"enabled": new_enabled, "warning": f"in-memory only: {e}"})
+        _emit_master_changed(state, {"enabled": new_enabled})
         return JSONResponse({"enabled": new_enabled})
 
     async def health(request: Request) -> JSONResponse:
@@ -633,6 +658,24 @@ def build_routes(state) -> list[Route]:
             catalog_entry=catalog_entry,
             persistent=persistent,
         )
+
+        # Phase 4 — emit SessionChanged so SSE subscribers (webui +
+        # Pro Android) update their local snapshot without waiting on
+        # the next 5s poll. Payload is the diff: only the fields the
+        # caller patched. Best-effort — never block the response on
+        # event bus state.
+        if state.event_bus is not None:
+            try:
+                from claude_code_talker.schemas import SessionChanged
+                import time as _t
+                await state.event_bus.publish(SessionChanged(
+                    at=_t.time(),
+                    session_id=sid,
+                    changed_fields=patch.model_dump(exclude_none=True),
+                ))
+            except Exception:
+                pass
+
         return JSONResponse(view.model_dump(mode="json"))
 
     async def delete_overlay_keypath(request: Request) -> JSONResponse:
@@ -2884,6 +2927,56 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             cfg_markup[form] = entry
         return JSONResponse({"ok": True})
 
+    async def events_stream_route(request: Request) -> Response:
+        """GET /api/events — SSE feed of every daemon-emitted Event.
+
+        Phase 4 (2026-05-16): single push channel that replaces the 8
+        polling loops. Both webui and Pro Android subscribe; cross-
+        device sync latency drops from multi-second to ~50ms.
+
+        Query params:
+          topics  — comma-separated list of event_type values to filter
+                    (e.g. "SessionChanged,MasterConfigChanged"). Omit
+                    to receive every event the daemon emits.
+
+        Wire format: standard SSE. Each line is
+          event: <event_type>
+          data: <json blob with the full Event payload>
+
+        Clients dispatch on `event` and merge `data` into local state.
+        The connection stays open until the client disconnects; on
+        disconnect, Starlette closes the async generator which triggers
+        the EventBus's deregistration finally clause.
+        """
+        from starlette.responses import StreamingResponse
+
+        if state.event_bus is None:
+            return JSONResponse({"error": "event bus not initialized"}, status_code=503)
+
+        topics_param = request.query_params.get("topics", "") or ""
+        topics = [t.strip() for t in topics_param.split(",") if t.strip()] or None
+
+        async def _gen():
+            sub = state.event_bus.subscribe(topics=topics)
+            try:
+                yield ": connected\n\n"
+                async for ev in sub:
+                    payload = ev.model_dump_json()
+                    yield f"event: {ev.event_type}\ndata: {payload}\n\n"
+            except (asyncio.CancelledError, GeneratorExit):
+                return
+            finally:
+                await sub.aclose()
+
+        return StreamingResponse(
+            _gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     async def narration_stream_route(request: Request) -> Response:
         """GET /api/narration-stream — Server-Sent Events feed of narrations."""
         from starlette.responses import StreamingResponse
@@ -3154,6 +3247,7 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/markup/config", markup_config_get, methods=["GET"]),
         Route("/api/markup/config", markup_config_put, methods=["PUT"]),
         Route("/api/narration-stream", narration_stream_route, methods=["GET"]),
+        Route("/api/events", events_stream_route, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_get_tag, methods=["GET"]),
         Route("/api/triggers/tags/{tag_id}", triggers_put_tag, methods=["PUT"]),
         Route("/api/triggers/tags/{tag_id}", triggers_delete_tag, methods=["DELETE"]),

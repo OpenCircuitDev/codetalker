@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useDaemonEvents } from "./hooks/useDaemonEvents";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
 import { SessionGrid } from "./components/SessionGrid";
 import { NarrationFeed } from "./components/NarrationFeed";
@@ -97,6 +98,11 @@ function SessionsPane({
   );
 }
 
+function DaemonEventsBridge() {
+  useDaemonEvents();
+  return null;
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>("sessions");
   // Owned at App level so it survives tab switches (B7 fix). When the
@@ -122,6 +128,12 @@ export default function App() {
           the container could be SHORTER than the viewport when flex
           children didn't naturally grow, leaving the bottom of the
           screen black — the "40% / half-screen" symptom. */}
+      {/* Phase 4 — one SSE subscription, mounted inside the
+          QueryClientProvider so the hook can invalidate the right caches.
+          Replaces (via cache invalidation) the per-query 5s polling
+          loops; the underlying refetchInterval timers remain as a
+          safety net until Phase 6 deletes them. */}
+      <DaemonEventsBridge />
       <div className="h-screen flex flex-col bg-[var(--color-surface-0)]">
         <GlobalStatusBar />
         <nav className="flex gap-1 px-4 py-2 border-b border-zinc-800 bg-[var(--color-surface-1)]">

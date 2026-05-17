@@ -64,6 +64,10 @@ class ServerState:
     # from a hook / buddy inject / direct synth is registered here
     # with a state machine. /api/audio-jobs/{id} returns the trace.
     audio_job_registry: "AudioJobRegistry | None" = None  # type: ignore[name-defined]
+    # Phase 4 — single SSE pub/sub channel for daemon-emitted events.
+    # GET /api/events streams these to webui + Pro Android subscribers.
+    # Replaces the 8 polling loops with one push channel.
+    event_bus: "EventBus | None" = None  # type: ignore[name-defined]
     secrets: SecretsStore = None
     narration_log: NarrationLog = None
     token_tracker: TokenTracker = None
@@ -375,6 +379,11 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     # (phase 5) read from it. Bounded ring buffer; pure in-memory.
     from claude_code_talker.audio_decisions import AudioJobRegistry
     state.audio_job_registry = AudioJobRegistry()
+    # Phase 4 — single EventBus. SessionChanged + MasterConfigChanged
+    # + AudioJobStateChanged emitters write through this; the SSE
+    # endpoint at GET /api/events fans events out to subscribers.
+    from claude_code_talker.event_bus import EventBus
+    state.event_bus = EventBus()
     from claude_code_talker.characters import CharacterStore
     state.characters = CharacterStore()
     # Phase 25c — voice clone job tracker
@@ -611,6 +620,25 @@ def register_tools(server, state) -> None:
             return True, ""
         return False, f"skipped: {status.reason}"
 
+    def _emit_master_event(new_enabled: bool) -> None:
+        """Phase 4 — best-effort MasterConfigChanged emit from the
+        MCP tts_mute / tts_unmute handlers. Mirrors the API-side
+        _emit_master_changed; same wire shape so SSE consumers see
+        identical events regardless of which surface flipped the
+        master switch."""
+        bus = getattr(state, "event_bus", None)
+        if bus is None:
+            return
+        try:
+            from claude_code_talker.schemas import MasterConfigChanged
+            import time as _t
+            bus.publish_threadsafe(MasterConfigChanged(
+                at=_t.time(),
+                changed_fields={"enabled": new_enabled},
+            ))
+        except Exception:
+            pass
+
     async def tts_speak(args):
         text = args.get("text", "")
         if not text:
@@ -673,10 +701,12 @@ def register_tools(server, state) -> None:
 
     async def tts_mute(args):
         state.cfg["enabled"] = False
+        _emit_master_event(False)
         return "muted"
 
     async def tts_unmute(args):
         state.cfg["enabled"] = True
+        _emit_master_event(True)
         return "unmuted"
 
     async def tts_list_voices(args):

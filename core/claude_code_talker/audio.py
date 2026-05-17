@@ -269,14 +269,16 @@ class AudioQueue:
         error: str | None = None,
     ) -> None:
         """Phase 2 — append a StateTransition to this job's audit trail.
-        No-op when state has no registry or the job was never registered."""
+        Phase 4 — also emit AudioJobStateChanged so SSE subscribers see
+        gate decisions live. No-op when state has no registry or the
+        job was never registered."""
         if not job.registry_job_id:
             return
         registry = getattr(self._state, "audio_job_registry", None)
         if registry is None:
             return
         try:
-            registry.transition(
+            updated = registry.transition(
                 job.registry_job_id,
                 to_state=to_state,
                 gate=gate,
@@ -285,6 +287,29 @@ class AudioQueue:
                 bytes_synthesized=bytes_synthesized,
                 error=error,
             )
+        except Exception:
+            return
+        # Phase 4 — emit AudioJobStateChanged. publish_threadsafe is
+        # required: the worker runs in a thread, not the daemon loop.
+        bus = getattr(self._state, "event_bus", None)
+        if bus is None or updated is None:
+            return
+        try:
+            from claude_code_talker.schemas import AudioJobStateChanged
+            import time as _t
+            from_state = (
+                updated.state_history[-1].from_state
+                if updated.state_history else "created"
+            )
+            bus.publish_threadsafe(AudioJobStateChanged(
+                at=_t.time(),
+                job_id=job.registry_job_id,
+                session_id=job.session_id or "",
+                from_state=from_state,
+                to_state=to_state,
+                gate=gate,
+                reason=reason,
+            ))
         except Exception:
             pass
 
