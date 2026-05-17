@@ -205,7 +205,9 @@ async def test_prompt_prefix_identical_across_event_sequences():
     prompt_a = mode_a._build_prompt(events_a)
     prompt_b = mode_b._build_prompt(events_b)
 
-    marker = "RECENT EVENTS"
+    # 2026-05-17 — marker renamed to "CURRENT EVENTS" as part of the
+    # interpreter-style prompt rewrite (background-vs-current distinction).
+    marker = "CURRENT EVENTS"
     idx_a = prompt_a.index(marker)
     idx_b = prompt_b.index(marker)
 
