@@ -146,6 +146,11 @@ OTHER RULES:
 - DO NOT pad with "standing by", "still monitoring", or
   "(silent tick)". If the tick is low-signal, find the THROUGH-LINE
   and narrate THAT.
+- DO NOT use bare continuation phrases like "Still on the same task"
+  without naming WHAT the task is. If you say "still working", you
+  must say what — e.g. "Still working through the rebase cascade you
+  set up" not "Still on the same task". Anchor every continuation
+  to the active goal from SESSION FOCUS.
 - DO NOT emit parenthetical stage directions. The listener hears your
   raw output through TTS; speak in normal sentences only.
 
@@ -725,8 +730,15 @@ class LiveMode(ModeStrategy):
                 "Cover ONLY the events listed in CURRENT EVENTS below — they are "
                 "strictly newer than your prior narration. Do NOT restate, "
                 "paraphrase, or even quietly recap older events. If nothing in "
-                "CURRENT EVENTS is substantive, return EXACTLY: \"Still on the "
-                "same task.\" Or return an empty string."
+                "CURRENT EVENTS is substantive, return a SHORT continuation "
+                "sentence that NAMES the active task in plain terms (pulled from "
+                "SESSION FOCUS) — e.g. \"Still on the rebase cascade you set "
+                "up\" or \"Still working through the schema migration — running "
+                "the post-migration checks now.\" Never return the bare phrase "
+                "\"Still on the same task\" — always anchor it to WHAT the task "
+                "is so the listener gets useful context. If you literally cannot "
+                "identify the active task from the background, return an empty "
+                "string instead of a naked continuation."
             )
         elif is_first_narration and scoped_events:
             # First narration of a session: no prior context to frame against;
