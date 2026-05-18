@@ -326,10 +326,18 @@ def test_sanitize_chunk_normal_prose_passthrough():
 # Phase 13.8 R4: verbosity defaults bump — prompt content check
 # ---------------------------------------------------------------------------
 
-def test_live_narration_system_has_doubled_word_limit():
-    """System prompt should allow up to 60 words (was 30)."""
+def test_live_narration_system_has_appropriate_word_limit():
+    """System prompt's word limit lives in the STYLE block.
+
+    2026-05-18 — interpreter-style prompt rewrite. Allowed range nudged
+    slightly upward (60 → 70 words) to accommodate the new decision-
+    first + arc-link + agent-asks-user-special-shape rules without
+    pinching the LLM into incomplete sentences.
+    """
     from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
-    assert "60 words" in LIVE_NARRATION_SYSTEM
+    # Word limit cap should be present in the STYLE section.
+    assert "70 words" in LIVE_NARRATION_SYSTEM
+    # Old smaller limit should be gone.
     assert "30 words" not in LIVE_NARRATION_SYSTEM
 
 

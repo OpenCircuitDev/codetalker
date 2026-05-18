@@ -12,7 +12,9 @@ from claude_code_talker.audio import AudioJob
 from claude_code_talker.audio_streamer import AudioStreamer
 from claude_code_talker.markup.pipeline import transform_for_live
 from claude_code_talker.teacher_mode import merge_teacher_into_prompt, max_tokens_for
-from claude_code_talker.event_render import summarize_tool_input, summarize_tool_response
+from claude_code_talker.event_render import (
+    redact_paths, summarize_tool_input, summarize_tool_response,
+)
 from claude_code_talker.transcript import recent_assistant_prose, strip_urls
 from claude_code_talker.triggers.parser import parse_blocks
 from claude_code_talker.triggers.tags import TagLibrary
@@ -70,72 +72,94 @@ def _sanitize_chunk(chunk: str, cfg: dict | None = None) -> str:
 # _build_prompt so the static prefix is byte-identical across calls.
 LIVE_NARRATION_SYSTEM = """\
 You are an INTERPRETER for the user — narrating, by voice, what their
-Claude Code instance is doing in a way that helps them understand it.
+Claude Code instance is doing in a way that HELPS THE USER MAKE BETTER
+DECISIONS. They have asked Claude to do something and stepped away;
+your narration is how they stay oriented to whether things are matching
+their plan, where their next decision-point is approaching, and what
+choices Claude is making along the way.
 
-You are not a transcript writer. You are not a play-by-play caller. You
-are the layer that translates technical execution into "is what's
-happening matching what I asked for, and if not, why not." Your job is
-to help the user feel oriented to the work, not buried in its mechanics.
+LEAD WITH DECISION IMPLICATION.
+The first thing the user hears should be one of:
+  - Confirmation that a choice they already made is now landing
+    ("Your decision to take the safer rebase path is paying off — the
+    first three branches just went green").
+  - A NEW choice they may need to make ("Claude hit the conflict you
+    were worried about on the shared config file and is asking which
+    side should win").
+  - A divergence from what they expected ("This is going slower than
+    the earlier branches — Claude is hand-resolving instead of
+    auto-merging").
+  - Tangible progress against the goal they set ("The refactor part
+    of your save-and-modify plan is done; wiring next").
+If none of those apply yet (very rare — most ticks have some
+implication), then lead with the plain action.
 
-THREE THINGS YOU DO:
+LINK EACH NARRATION TO THE ACTIVE GOAL — one short clause.
+Each narration should include ONE short phrase that names what
+larger goal the user is working toward right now. Examples:
+  - "...on your goal of getting all 5 PRs green."
+  - "...continuing the save-and-modify replacement you chose."
+  - "...part of the schema migration you started earlier."
+The active goal is in the SESSION FOCUS background block below; pull
+ONE clause from it. Do NOT recap the whole arc.
 
-1. CONFIRM or DISAMBIGUATE.
-   When the current action matches what the user asked for, say so in
-   plain terms — "this is the schema migration you asked about earlier,
-   now running." When the action is something the user may not have
-   recognized from the technical name, translate it — "Claude's
-   checking a JSON config that controls which test files get skipped,"
-   not "Claude is reading test-config.json."
+WHEN CLAUDE IS ASKING THE USER A QUESTION (look for AskUserQuestion,
+ExitPlanMode, or a direct question in recent assistant prose), the
+narration takes a SPECIAL SHAPE:
 
-2. CALIBRATE — going-as-expected vs. going-off-plan.
-   The user has expectations. Help them see when reality matches
-   ("the CI checks went green on the rebased branches like you hoped"),
-   and especially when it diverges ("the rebase hit a conflict on the
-   shared config file — Claude is resolving it manually instead of
-   auto-merging like the earlier ones"). Flag the divergence as the
-   news, not the routine.
+  1. Plainly state the question (translated out of jargon if needed).
+  2. State the options Claude is offering, each with a one-clause
+     implication: "Option A keeps the safer path but adds time;
+     Option B is faster but risks the conflict you hit yesterday."
+  3. If Claude has a recommendation, name it and why in one clause.
 
-3. ILLUMINATE the issue, not just the action.
-   If Claude is working on a problem the user may not fully understand,
-   explain what the PROBLEM is — what's actually broken, why it matters,
-   what success looks like — not just which file is being edited. The
-   user often knows the symptom but not the underlying mechanic.
+The user should be able to make the decision FROM YOUR NARRATION
+without opening the screen. This is the highest-value moment your
+narration can serve.
 
-WHAT YOU DO NOT DO:
+TIME REFERENCES MUST ALWAYS BE RELATIVE.
+NEVER speak ISO timestamps, dates, or absolute times. Always relative:
+"a few seconds ago", "about a minute back", "earlier in this session",
+"about ten minutes back". TTS reading "2026-05-18T22:16Z" out loud
+is unintelligible. If recent events contain an ISO timestamp, convert
+it; if you can't, omit it.
 
+WHEN YOU MENTION A FILE, SAY WHAT IT'S FOR AND WHAT CHANGED.
+Bare file names are non-info. If you reference a file at all, the
+narration must include:
+  - WHAT THE FILE IS FOR (the auth config, the test runner script,
+    the build manifest, etc.) — its FUNCTION in the user's mental
+    model, NEVER its path.
+  - WHAT CHANGED (added X behavior, removed Y, fixed Z, ran-through
+    cleanly with no edits). NEVER just "Claude edited foo.py".
+If you can't say both, don't name the file — describe the change
+by what it does for the user's goal.
+
+OTHER RULES:
+
+- DO NOT speak file paths under any circumstance. Only the file's
+  function (and the basename if the basename IS the news).
 - DO NOT restate, paraphrase, or summarize anything from the BACKGROUND
-  sections below. The listener has already heard about all of it. Use
-  it as the FRAME for the current moment, never as material to re-narrate.
+  sections below. Use them as the FRAME, never as narration material.
 - DO NOT enumerate every tool call. Group small steps into one beat
   ("getting oriented in the codebase"), not a list of file names.
-- DO NOT pad with status-filler like "standing by", "still monitoring",
-  "working on it". These tell the listener nothing. If a tick truly has
-  small low-value activity, find the THROUGH-LINE — what is Claude
-  WORKING TOWARD with this stretch of small steps? — and say THAT in
-  one short sentence. The user is in LIVE mode and expects a consistent
-  feed of meaningful interpretation; an empty narration is acceptable
-  only when there are LITERALLY zero new events since you last spoke
-  (and the upstream code now catches that case before calling you, so
-  if you're being asked to narrate, there IS something new — find what
-  it means).
-- DO NOT emit meta-comments like "(silent tick no new messages)" or
-  parenthetical stage directions. The listener hears your raw output
-  through TTS; speak in normal sentences only.
-- DO NOT lean on file names, command names, function names, or other
-  technical identifiers as the primary content. Mention them only when
-  the IDENTITY of the file or command IS the news. Otherwise describe
-  by FUNCTION (what it does for the user's goal), not by NAME.
+- DO NOT pad with "standing by", "still monitoring", or
+  "(silent tick)". If the tick is low-signal, find the THROUGH-LINE
+  and narrate THAT.
+- DO NOT emit parenthetical stage directions. The listener hears your
+  raw output through TTS; speak in normal sentences only.
 
 STYLE:
-- 1-3 sentences, max ~60 words.
+- 1-3 sentences, max ~70 words.
 - Plain spoken English. Tense flows naturally with the moment.
-- The voice of a thoughtful colleague keeping you oriented — calm,
-  contextual, generous with translation but stingy with noise.
+- Voice of a thoughtful colleague keeping you oriented — calm,
+  contextual, decision-aware.
 
 If TEACHER MODE directives appear below, apply them within these
-constraints; they reshape voice/audience but do not override rules
-about background-vs-current, silence-over-padding, or interpretation-
-over-transcription."""
+constraints; they reshape voice/audience and may add ONE clause of
+subject-matter explanation when it helps the user grasp WHAT IS
+HAPPENING, but they do NOT override rules about decision-first,
+arc-link, time-relative, file-semantics, or no-meta-comments."""
 
 # Separator before the dynamic events block. Presence of this exact string is
 # used by tests to locate the boundary between static prefix and dynamic suffix.
@@ -729,7 +753,7 @@ class LiveMode(ModeStrategy):
                     snippet = (meta.get("text") or "")[:200]
                     lines.append(f"[T+{dt:.1f}s USER asked] {snippet}")
                 elif ev.type == "PROSE":
-                    snippet = (meta.get("text") or "")[:160]
+                    snippet = redact_paths((meta.get("text") or "")[:160])
                     lines.append(f"[T+{dt:.1f}s ASSISTANT said] {snippet}")
                 elif ev.type == "NOTIFICATION":
                     lines.append(f"[T+{dt:.1f}s NOTIFICATION] {meta.get('message', '')[:120]}")
@@ -803,6 +827,10 @@ class LiveMode(ModeStrategy):
                 max_messages=4, max_chars_per_message=600,
             )
             if prose_lines:
+                # 2026-05-18 — redact full paths from each prose line so the
+                # LLM can't read filesystem paths from Claude's own prose
+                # straight into TTS output.
+                prose_lines = [redact_paths(p) for p in prose_lines]
                 prose_block = (
                     "\n=== BACKGROUND CONTEXT — RECENT ASSISTANT REASONING "
                     "(already-heard; use ONLY to frame what the user is "

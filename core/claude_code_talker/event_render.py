@@ -20,6 +20,41 @@ _FILE_PATH_TOOLS = {"Edit", "Write", "Read", "NotebookEdit", "MultiEdit"}
 _PATTERN_TOOLS = {"Glob", "Grep"}
 
 
+# 2026-05-18 — path redactor. User reported "I'm getting a lot of file path
+# readouts" despite per-session paths_handling=filename. The markup pipeline
+# applies on the LLM OUTPUT side (transform_for_live → _sanitize_chunk), but
+# leaves full paths in the PROMPT visible to the LLM, which the LLM then
+# happily reads aloud. Redacting at ingest means the LLM never sees the
+# paths in the first place. Conservative regex: matches Windows
+# `C:\...\name` or `C:/.../name` and POSIX `/foo/bar/name`. Replaces the
+# whole match with just the trailing basename.
+_PATH_REGEX = re.compile(
+    r"""(?P<path>
+        (?:[A-Za-z]:)?           # optional Windows drive letter
+        [\\/]                    # leading separator
+        (?:[^\s\\/'"<>:|*?]+[\\/])+   # at least one segment + separator
+        [^\s\\/'"<>:|*?]+        # basename
+    )""",
+    re.VERBOSE,
+)
+
+
+def redact_paths(text: str) -> str:
+    """Collapse any full filesystem path in ``text`` to just its basename.
+
+    Conservative — only acts on tokens that look unambiguously like file
+    paths (drive-rooted or absolute-rooted with at least one intermediate
+    segment). Relative paths like ``src/foo.py`` are left alone since the
+    short relative form is usually fine for the narrator to convert.
+    """
+    if not text:
+        return text
+    def _to_basename(m: re.Match) -> str:
+        path = m.group("path").replace("\\", "/")
+        return path.rsplit("/", 1)[-1] or path
+    return _PATH_REGEX.sub(_to_basename, text)
+
+
 def _safe_parse_dict(raw: str) -> dict | None:
     """Parse the str(dict) representation captured at ingest. Returns None on failure."""
     raw = (raw or "").strip()
@@ -49,12 +84,43 @@ def summarize_tool_input(tool_name: str, raw_input: str) -> str:
     if d is None:
         # Fallback: truncate the raw string
         return raw_input[:80]
+    # 2026-05-18 — special-case AskUserQuestion / ExitPlanMode so the
+    # narrator gets a richly-structured prompt about decisions the agent
+    # is asking the user to make. Per user direction these are the
+    # highest-value narration moments: the narration should let the user
+    # decide WITHOUT opening the screen, so the prompt needs question +
+    # options + each option's implication in a form the LLM can render
+    # as a single decision-aware sentence.
+    if tool_name == "AskUserQuestion":
+        # Pydantic AskUserQuestion payload is `{"questions": [{"question": ...,
+        # "options": [{"label": ..., "description": ...}, ...]}, ...]}`.
+        questions = d.get("questions") or []
+        if isinstance(questions, list) and questions:
+            q0 = questions[0]
+            if isinstance(q0, dict):
+                qtext = str(q0.get("question", ""))[:120]
+                opts = q0.get("options") or []
+                opt_strs = []
+                if isinstance(opts, list):
+                    for o in opts[:4]:
+                        if isinstance(o, dict):
+                            lbl = str(o.get("label", ""))[:30]
+                            desc = str(o.get("description", ""))[:80]
+                            opt_strs.append(f"{lbl} ({desc})" if desc else lbl)
+                opts_joined = "; ".join(opt_strs)
+                # The "ASK_USER" marker tips the LLM into the special
+                # decision-aware narration shape defined in the prompt.
+                return f"ASK_USER: {qtext} | options: {opts_joined}"[:400]
+        return f"ASK_USER: {str(d)[:200]}"[:400]
+    if tool_name == "ExitPlanMode":
+        plan = str(d.get("plan", ""))[:400]
+        return f"PLAN_APPROVE: {plan}"[:480]
     if tool_name in _FILE_PATH_TOOLS:
         fp = d.get("file_path") or d.get("notebook_path") or ""
         return basename(str(fp))[:80] if fp else str(d)[:80]
     if tool_name == "Bash":
         cmd = str(d.get("command", ""))
-        return strip_urls(cmd)[:80]
+        return redact_paths(strip_urls(cmd))[:80]
     if tool_name in _PATTERN_TOOLS:
         pat = str(d.get("pattern", ""))
         path = str(d.get("path", ""))
