@@ -45,6 +45,7 @@ def decide_multi_session_route(
     companion_active_session: str | None,
     last_played_session_id: str | None,
     now: float,
+    job_display_name: str | None = None,
 ) -> RoutingDecision:
     """Pick the routing for this audio job in a multi-session world.
 
@@ -125,24 +126,64 @@ def decide_multi_session_route(
     # Intro tag identifies the speaker when MULTIPLE sessions could be
     # heard simultaneously, but only when the speaker just changed (so
     # a chatty session doesn't repeat "BF Skills: ... BF Skills: ...").
+    #
+    # 2026-05-18 — prefer the SESSION display_name for the intro, fall
+    # back to workspace_group only if display_name is missing or looks
+    # like the UUID-prefix placeholder. User flagged: "It's calling in
+    # from the group name not from the session name." Group name (e.g.
+    # 'TestGroup-2026-05-16') describes a bucket of sessions, not the
+    # individual one talking; display_name (e.g. 'CodeTalker',
+    # 'OCR-Web') is what the user identifies the session by.
     intro = ""
     if (
         len(opted_in_sessions) > 1
         and job_session_id != last_played_session_id
     ):
-        intro = _short_tag(job_workspace_group)
+        intro = _short_tag(_pick_speaker_label(
+            display_name=job_display_name,
+            workspace_group=job_workspace_group,
+            session_id=job_session_id,
+        ))
     return RoutingDecision(
         publish_to_session_id=job_session_id,
         intro_text=intro,
     )
 
 
-def _short_tag(workspace_group: str | None) -> str:
+def _pick_speaker_label(
+    *,
+    display_name: str | None,
+    workspace_group: str | None,
+    session_id: str,
+) -> str | None:
+    """2026-05-18 — pick the most user-meaningful label for the spoken intro.
+
+    Priority:
+      1. display_name (the user's own name for the session, e.g. "CodeTalker",
+         "OCR-Web"). The session-level identity wins because it's what the
+         user thinks of when picturing this session.
+      2. workspace_group, when display_name is missing or is the UUID-prefix
+         placeholder (`session_id[:12]`). The group is a bucket label;
+         lower-fidelity but still better than reading a UUID aloud.
+      3. None when neither is set — the caller renders no intro tag at all.
+
+    Filters out the UUID-prefix placeholder explicitly so the audio stream
+    never speaks something like "87b24267-c8f:" as the speaker name.
+    """
+    placeholder = session_id[:12] if session_id else ""
+    if display_name and display_name.strip() and display_name != placeholder:
+        return display_name.strip()
+    if workspace_group and workspace_group.strip():
+        return workspace_group.strip()
+    return None
+
+
+def _short_tag(speaker_label: str | None) -> str:
     """One-word voice prefix so the listener identifies the speaker.
 
-    Returns "" when the source session has no workspace_group — better
-    silence than reading a long auto-generated label aloud.
+    Returns "" when [speaker_label] is None — better silence than reading
+    a placeholder aloud.
     """
-    if not workspace_group:
+    if not speaker_label:
         return ""
-    return f"{workspace_group}: "
+    return f"{speaker_label}: "

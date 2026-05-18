@@ -62,6 +62,7 @@ def route_audio_publish_key(
     return decide_multi_session_route(
         job_session_id=job_session.session_id,
         job_workspace_group=job_session.workspace_group,
+        job_display_name=job_session.display_name,
         opted_in_sessions=opted_in,
         companion_active_session=companion_active_session_id,
         last_played_session_id=last_played_session_id,

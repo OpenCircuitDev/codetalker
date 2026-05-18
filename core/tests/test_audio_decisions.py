@@ -163,10 +163,13 @@ def test_route_publishes_to_source_session_even_when_companion_active_set():
         now=0.0,
     )
     assert decision.publish_to_session_id == "a"
-    # With multiple sessions opted in and a workspace_group on the source,
-    # the intro tag identifies the speaker so the listener knows which
-    # workspace is talking.
-    assert decision.intro_text == "GroupA: "
+    # 2026-05-18 — intro tag prefers display_name over workspace_group
+    # because user reported hearing the group ("TestGroup-2026-05-16: ")
+    # when they expected the session name ("CodeTalker: "). The group is
+    # a bucket label; display_name is what the user identifies the
+    # session by. With s1.display_name="A", the intro is "A: " not
+    # "GroupA: ".
+    assert decision.intro_text == "A: "
 
 
 def test_route_drops_when_source_not_opted_in_and_others_are():

@@ -796,21 +796,52 @@ class AudioQueue:
                         opted_in.append(sid)
             companion_active = getattr(self._state, "companion_active_session", None)
             workspace_group = None
+            # 2026-05-18 — resolve display_name via the same priority chain
+            # the UI uses (views._resolve_display_name): persistent override
+            # → CC custom_title → VS Code label → slug → catalog title →
+            # project_slug → UUID prefix. The raw persistent.display_name
+            # is the UUID-prefix placeholder for unmodified sessions, so
+            # using it directly would speak "87b24267-c8f:" — the priority
+            # chain falls back to catalog data for those cases.
+            display_name = None
+            sid = getattr(job, "session_id", "") or ""
+            persistent_for_sid = None
             if ps is not None:
                 try:
-                    persistent = ps.get(getattr(job, "session_id", "") or "")
-                    if persistent:
-                        workspace_group = persistent.get("workspace_group")
+                    persistent_for_sid = ps.get(sid)
+                    if persistent_for_sid:
+                        workspace_group = persistent_for_sid.get("workspace_group")
                 except Exception:
-                    workspace_group = None
+                    persistent_for_sid = None
+            try:
+                from claude_code_talker.views import _resolve_display_name
+                catalog = getattr(self._state, "catalog", None)
+                catalog_entry = None
+                if catalog is not None and sid:
+                    try:
+                        catalog_entry = catalog.entry_for(sid)
+                    except Exception:
+                        catalog_entry = None
+                display_name = _resolve_display_name(
+                    persistent=persistent_for_sid,
+                    catalog_entry=catalog_entry,
+                    fallback_sid=sid,
+                )
+                # _resolve_display_name returns sid[:12] as last-resort;
+                # treat that as "no real name" for the intro-tag purposes.
+                if display_name == sid[:12]:
+                    display_name = None
+            except Exception:
+                display_name = None
             # Evidence-gathering log so the routing decision is visible
             # in the daemon's stderr for every audio job. Keeps the
             # debugging cycle short the next time a "no audio" report
             # comes in -- one log line shows opted_in size, job sid,
             # active sid, and the resolved publish key.
             decision = decide_multi_session_route(
-                job_session_id=getattr(job, "session_id", "") or "",
+                job_session_id=sid,
                 job_workspace_group=workspace_group,
+                job_display_name=display_name,
                 opted_in_sessions=opted_in,
                 companion_active_session=companion_active,
                 last_played_session_id=getattr(self._state, "_last_played_session_id", None),
