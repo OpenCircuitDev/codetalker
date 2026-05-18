@@ -108,10 +108,19 @@ WHAT YOU DO NOT DO:
   it as the FRAME for the current moment, never as material to re-narrate.
 - DO NOT enumerate every tool call. Group small steps into one beat
   ("getting oriented in the codebase"), not a list of file names.
-- DO NOT fill silence. If nothing substantive happened since you last
-  spoke, return EXACTLY: "Still on the same task." If LITERALLY nothing
-  is happening, return an empty narration. Silence beats "standing by"
-  or "still monitoring."
+- DO NOT pad with status-filler like "standing by", "still monitoring",
+  "working on it". These tell the listener nothing. If a tick truly has
+  small low-value activity, find the THROUGH-LINE — what is Claude
+  WORKING TOWARD with this stretch of small steps? — and say THAT in
+  one short sentence. The user is in LIVE mode and expects a consistent
+  feed of meaningful interpretation; an empty narration is acceptable
+  only when there are LITERALLY zero new events since you last spoke
+  (and the upstream code now catches that case before calling you, so
+  if you're being asked to narrate, there IS something new — find what
+  it means).
+- DO NOT emit meta-comments like "(silent tick no new messages)" or
+  parenthetical stage directions. The listener hears your raw output
+  through TTS; speak in normal sentences only.
 - DO NOT lean on file names, command names, function names, or other
   technical identifiers as the primary content. Mention them only when
   the IDENTITY of the file or command IS the news. Otherwise describe
@@ -262,21 +271,21 @@ class LiveMode(ModeStrategy):
                         decision.events, self._last_narrate_by_session, now
                     )
                     for sid, session_events in per_session:
-                        # 2026-05-17 — set _last_narrate_by_session AFTER
-                        # _narrate, not before. With the new "since-last"
-                        # event-window filter in _build_prompt (which
-                        # filters events to those strictly newer than the
-                        # last narration timestamp), setting it BEFORE
-                        # _narrate would filter the events being narrated
-                        # out of their own prompt — every event in
-                        # session_events has timestamp <= now, and a
-                        # `> now` filter eliminates them all → empty
-                        # narrations. Setting it AFTER means the NEXT
-                        # tick's filter sees this tick's flush time as
-                        # the cutoff, which is what we want.
-                        await self._narrate(session_events, priority="normal",
-                                            session_id=sid)
-                        self._last_narrate_by_session[sid] = now
+                        # 2026-05-18 — only advance the cutoff when _narrate
+                        # actually dispatched audio. Previously the cutoff
+                        # advanced unconditionally, eating any tick whose
+                        # LLM returned empty / errored / produced only
+                        # filler content; the NEXT tick then filtered those
+                        # events out of its prompt entirely, creating dead
+                        # zones in live-mode where the user expected
+                        # continuous narration. With this guard, silent
+                        # ticks roll their events forward into the next
+                        # cadence fire instead of getting lost.
+                        produced = await self._narrate(
+                            session_events, priority="normal", session_id=sid,
+                        )
+                        if produced:
+                            self._last_narrate_by_session[sid] = now
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -388,11 +397,15 @@ class LiveMode(ModeStrategy):
 
     async def _narrate_streaming(self, events, priority,
                                   session_id: str = "",
-                                  verbosity_decision: str = "standard") -> None:
+                                  verbosity_decision: str = "standard") -> bool:
         """Stream LLM output through AudioStreamer, emitting one AudioJob per sentence.
 
         ``verbosity_decision`` is pre-computed by ``_narrate`` (caller already
         ran _decide_verbosity_for_events and skipped if "skip").
+
+        Returns True iff at least one non-empty chunk was successfully emitted
+        to the audio queue. Used by ``_narrate``'s return-value contract so the
+        cadence loop knows whether to advance ``_last_narrate_by_session``.
         """
         prompt = self._build_prompt(events, session_id=session_id)
         budget = float((self.cfg.get("live") or {}).get("llm_latency_budget_seconds", 8.0))
@@ -406,13 +419,21 @@ class LiveMode(ModeStrategy):
 
         if not voice:
             logging.debug("live narration skipped: no voice configured")
-            return
+            return False
 
         # Use 2× the configured budget for streaming (full completion takes longer),
         # capped at the hard ceiling.
         stream_budget = min(budget * 2.0, _STREAMING_TIMEOUT_CEILING)
 
+        # Track whether any chunk actually made it to the audio queue. The
+        # streamer may consume the LLM output and find every chunk empty
+        # (e.g. when the LLM returns only whitespace or only sanitized-away
+        # content); in that case we want to report "no narration produced"
+        # so the caller doesn't advance the since-last cutoff.
+        emitted_any = False
+
         def _emit_chunk(chunk: str) -> None:
+            nonlocal emitted_any
             # Phase 26: pass cfg so markup pipeline (code fences, paths, etc.)
             # runs against each streaming chunk before TTS.
             chunk = _sanitize_chunk(chunk, self.cfg)
@@ -429,6 +450,7 @@ class LiveMode(ModeStrategy):
             ))
             self._append_narration_log(chunk, voice, engine_name, priority,
                                         session_id=session_id, mode="live-stream")
+            emitted_any = True
 
         streamer = AudioStreamer(emit=_emit_chunk)
         try:
@@ -447,14 +469,31 @@ class LiveMode(ModeStrategy):
                 "CCT-LIVE: streaming narration dropped for sid=%s: %s",
                 (session_id or "")[:8], e,
             )
+            return emitted_any  # may be partially-emitted before exception
+        return emitted_any
 
     # ------------------------------------------------------------------
     # Main narration entry point — dispatches to streaming or non-streaming
     # ------------------------------------------------------------------
 
-    async def _narrate(self, events, priority, session_id: str = ""):
+    async def _narrate(self, events, priority, session_id: str = "") -> bool:
+        """Run one narration round-trip for *session_id*.
+
+        Returns True iff narration was actually dispatched to TTS (the prompt
+        was built, the LLM produced text/chunks, and AudioJobs were submitted).
+        Returns False on any of: no events, disabled session, no
+        post-since-last-filter events, verbosity-skip, LLM failure, no voice,
+        empty LLM output.
+
+        2026-05-18 — return value added so the cadence loop can avoid
+        updating ``_last_narrate_by_session`` on no-op narrations. Previous
+        behavior unconditionally advanced the cutoff timestamp; that ate
+        the events from any silent tick so the NEXT cadence fire never
+        re-narrated them. Net result: dead zones in live-mode feed where
+        the user expected continuous narration.
+        """
         if not events:
-            return
+            return False
 
         # Phase 13.6c: respect per-session disable toggle. Hook handlers
         # already gate event ingest, but the cadence loop can still fire
@@ -462,13 +501,33 @@ class LiveMode(ModeStrategy):
         if self.sessions is not None and session_id:
             s = self.sessions.get(session_id)
             if s is not None and not s.enabled:
-                return
+                return False
 
         # Filter events to only those belonging to this session.
         # When session_id is empty, all events are used (backward compat).
         scoped_events = events_for_session(events, session_id)
         if not scoped_events:
-            return
+            return False
+
+        # 2026-05-18 — since-last filter moved here from _build_prompt so:
+        # (a) we can early-return when no new events exist post-filter,
+        #     avoiding a wasted LLM call on "(no events)" that produces
+        #     meta-comment outputs like "(silent tick no new messages)"
+        # (b) the caller can use the return value to keep
+        #     _last_narrate_by_session unchanged when narration was a no-op
+        last_narrate_ts = (
+            self._last_narrate_by_session.get(session_id) if session_id else None
+        )
+        if last_narrate_ts is not None:
+            scoped_events = [
+                ev for ev in scoped_events if ev.timestamp > last_narrate_ts
+            ]
+            if not scoped_events:
+                logging.debug(
+                    "CCT-LIVE: no events newer than last narrate for sid=%s — skipping",
+                    (session_id or "")[:8],
+                )
+                return False
 
         # Phase 13.5B: update session focus counter + trigger background header refresh
         if self.session_focus is not None and session_id:
@@ -496,7 +555,7 @@ class LiveMode(ModeStrategy):
         verbosity_decision = self._decide_verbosity_for_events(scoped_events)
         if verbosity_decision == "skip":
             logging.debug("live narration skipped: no significant events")
-            return
+            return False
 
         # Dispatch to streaming path when the provider supports it.
         # Use `is True` (strict) to avoid matching truthy mock objects in tests.
@@ -504,10 +563,11 @@ class LiveMode(ModeStrategy):
             self.provider is not None
             and getattr(self.provider, "supports_streaming", False) is True
         ):
-            await self._narrate_streaming(scoped_events, priority,
-                                           session_id=session_id,
-                                           verbosity_decision=verbosity_decision)
-            return
+            return await self._narrate_streaming(
+                scoped_events, priority,
+                session_id=session_id,
+                verbosity_decision=verbosity_decision,
+            )
 
         # ---- Non-streaming (original) path ----
         prompt = self._build_prompt(scoped_events, session_id=session_id)
@@ -528,7 +588,7 @@ class LiveMode(ModeStrategy):
                 "CCT-LIVE: non-streaming narration dropped for sid=%s: %s",
                 (session_id or "")[:8], e,
             )
-            return
+            return False
 
         text = (text or "").strip()
         if not text:
@@ -536,7 +596,7 @@ class LiveMode(ModeStrategy):
                 "CCT-LIVE: provider returned empty text for sid=%s",
                 (session_id or "")[:8],
             )
-            return
+            return False
 
         voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
@@ -544,7 +604,7 @@ class LiveMode(ModeStrategy):
                 "CCT-LIVE: narration dropped for sid=%s: no voice configured",
                 (session_id or "")[:8],
             )
-            return
+            return False
 
         self.audio_queue.submit(AudioJob(
             text=text, voice=voice, rate=rate, priority=priority,
@@ -553,6 +613,7 @@ class LiveMode(ModeStrategy):
         ))
         self._append_narration_log(text, voice, engine_name, priority,
                                     session_id=session_id, mode="live")
+        return True
 
     # ------------------------------------------------------------------
     # Cadence-aware verbosity (Sub-task 2.1)
@@ -598,22 +659,16 @@ class LiveMode(ModeStrategy):
         # Filter to session-scoped events before rendering.
         scoped_events = events_for_session(events, session_id)
 
-        # 2026-05-17 — "since last narration" filter. If we narrated this
-        # session before, only include events strictly newer than the prior
-        # narration's timestamp. Cuts the event window from "last 30 of
-        # everything ever" to "what's actually new" so consecutive
-        # narrations stop re-describing the same Edit-to-auth.py story
-        # in different words. Falls back to the legacy [-30:] window for
-        # the very first narration of a session OR when no prior timestamp
-        # is tracked.
+        # 2026-05-18 — since-last filtering moved upstream to _narrate so the
+        # cadence loop can early-return when no new events exist post-filter
+        # (avoids "(silent tick no new messages)" meta-comment outputs and
+        # avoids advancing the cutoff timestamp on empty narrations). Here
+        # we only need to detect is_first_narration to pick the right
+        # directive variant below.
         last_narrate_ts = (
             self._last_narrate_by_session.get(session_id) if session_id else None
         )
         is_first_narration = last_narrate_ts is None
-        if last_narrate_ts is not None:
-            scoped_events = [
-                ev for ev in scoped_events if ev.timestamp > last_narrate_ts
-            ]
 
         # --- Static prefix: system instructions + teacher directives (Sub-task 1.2) ---
         # The teacher block is appended to the system portion BEFORE the events so
@@ -692,11 +747,37 @@ class LiveMode(ModeStrategy):
                     lines.append(f"[T+{dt:.1f}s tool← {tool} {out_summary}]")
 
         # Phase 13.5B: inject per-session SESSION FOCUS block (WHY/CONTEXT).
-        # 2026-05-17 — wrapped in an explicit BACKGROUND CONTEXT header so
-        # the LLM treats it as past framing rather than narration material.
+        # 2026-05-17 — wrapped in an explicit BACKGROUND CONTEXT header.
+        # 2026-05-18 — also drop narrative_summary when older than 90s.
+        # narrative_summary is an LLM-generated paragraph that refreshes every
+        # 5 narrations OR when "dirty"; in a fast-moving session that's
+        # several minutes of staleness, and the LLM treats it as authoritative
+        # current state, then narrates it as if it were now. Stripping past
+        # the 90s freshness window keeps the block useful for first-narration
+        # opener context while preventing 5-minute-old "Session arc" lines
+        # from polluting the live feed.
         focus_block = ""
         if self.session_focus is not None and session_id:
-            raw_focus = self.session_focus.get_or_create(session_id).render_block()
+            import time as _t
+            focus_obj = self.session_focus.get_or_create(session_id)
+            stashed_summary = ""
+            try:
+                summary_age = _t.time() - float(getattr(focus_obj, "summary_last_refreshed_at", 0.0) or 0.0)
+                if summary_age > 90.0 and getattr(focus_obj, "narrative_summary", ""):
+                    stashed_summary = focus_obj.narrative_summary
+                    focus_obj.narrative_summary = ""
+            except Exception:
+                pass
+            raw_focus = focus_obj.render_block()
+            # Restore the stashed value so the next narration sees it
+            # if it has refreshed in between (or so subsequent ticks
+            # render it again if the LLM hasn't refreshed it yet — the
+            # block-time elision is for THIS prompt only).
+            if stashed_summary:
+                try:
+                    focus_obj.narrative_summary = stashed_summary
+                except Exception:
+                    pass
             if raw_focus:
                 focus_block = (
                     "\n=== BACKGROUND CONTEXT — SESSION FOCUS (already-heard "
