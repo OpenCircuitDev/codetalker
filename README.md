@@ -25,8 +25,29 @@ Prerequisite (one time): `pip install --user claude-code-talker`. Then run `/cod
 - `claude-code-plugin/` — Claude Code plugin: one-shot install via `/plugin install`, slash commands, MCP-spawned daemon (Phase 18)
 - `voice-cloner/` — XTTS character voice generation (Phase 5)
 
+## Use with other AI-coding agents
+
+CodeTalker ships an MCP server (`codetalker-mcp`) that any MCP-compatible AI coding agent can connect to. Per-agent setup snippets:
+
+- **[Cursor](docs/integrations/cursor.md)** — `~/.cursor/mcp.json`
+- **[Cline](docs/integrations/cline.md)** (VS Code) — `cline_mcp_settings.json`
+- **[Continue.dev](docs/integrations/continue.md)** — `~/.continue/config.yaml`
+- **[Windsurf](docs/integrations/windsurf.md)** (Codeium) — `mcp_config.json`
+- **[Zed](docs/integrations/zed.md)** — `settings.json` `context_servers`
+- **[Codex CLI](docs/integrations/codex-cli.md)** (OpenAI) — `~/.codex/config.toml`
+- **[Goose](docs/integrations/goose.md)** (Block) — `~/.config/goose/config.yaml`
+- **[Roo Code](docs/integrations/roo-code.md)** — VS Code MCP settings
+- **[Replit Agent](docs/integrations/replit.md)** — remote MCP (cloud caveat applies)
+- **[AWS Kiro](docs/integrations/kiro.md)** — Kiro's MCP config
+- **[Google Antigravity](docs/integrations/antigravity.md)** — Antigravity's MCP config
+- **[Aider](docs/integrations/aider.md)** (Pro Plus, coming in v1.x) — bespoke CLI wrapper
+- **[JetBrains AI Assistant](docs/integrations/jetbrains.md)** (Pro Plus, coming in v1.x) — bespoke plugin
+
+See [`docs/integrations/README.md`](docs/integrations/README.md) for an overview, troubleshooting, and the MCP tools catalog.
+
 ## Choosing your install path
 
 - **Using VS Code?** Install `extension/`. Daemon spawn, status bar, command palette, secrets-to-keychain.
 - **Using bare Claude Code (terminal, JetBrains, etc.)?** Install `claude-code-plugin/` via `/plugin install`. Slash commands `/codetalker:*`, daemon-aware skill, `tts_set_*` MCP tools Claude can call to self-modulate.
-- **Both?** They coexist — same daemon, same hooks; the daemon dedupes any duplicate hook firings.
+- **Using a different AI-coding agent?** See the [per-agent integration guides](docs/integrations/README.md) above. One `pip install --user claude-code-talker` covers the daemon for all of them.
+- **Multiple at once?** They coexist — same daemon, same hooks; the daemon dedupes any duplicate hook firings.
