@@ -454,6 +454,12 @@ def build_server_state(cwd: str | None = None) -> ServerState:
 
     state.modes["brief"] = BriefMode(provider=_select_provider(state, "brief"))
     state.modes["teacher"] = TeacherMode(provider=_select_provider(state, "brief"))
+    # 2026-05-18 — brief-mode quiet-stretch trigger. Fires a mid-turn brief
+    # when a brief-mode session has produced events but no narration in
+    # cfg.briefs.quiet_stretch_seconds (default 120). Started alongside
+    # LiveMode in autostart_live_if_configured.
+    from claude_code_talker.modes.brief_quiet_stretch import BriefQuietStretchLoop
+    state.brief_quiet_stretch = BriefQuietStretchLoop(state)
     state.modes["live"] = LiveMode(
         provider=_select_provider(state, "live"),
         cadence=cadence,
@@ -481,6 +487,12 @@ async def autostart_live_if_configured(state: ServerState) -> None:
     live = state.modes.get("live")
     if isinstance(live, LiveMode):
         live.start()
+    # 2026-05-18 — start the brief-mode quiet-stretch trigger (cheap when
+    # disabled or when no session is in brief mode). The loop self-gates
+    # on cfg.briefs.quiet_stretch_seconds > 0 each tick.
+    bqs = getattr(state, "brief_quiet_stretch", None)
+    if bqs is not None:
+        bqs.start()
     # Phase 13.9c Task 7 — start continuous transcript watcher (needs asyncio loop).
     if state.transcript_watcher is not None:
         state.transcript_watcher.start()
