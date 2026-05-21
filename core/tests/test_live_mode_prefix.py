@@ -111,10 +111,12 @@ def test_events_header_comes_after_system_text():
     events = [_event()]
     prompt = mode._build_prompt(events)
 
-    # 2026-05-17 — system prompt rewritten to interpreter-style. The
-    # phrase "INTERPRETER for the user" anchors the new persona and is
-    # what we now check for to confirm system instructions are present.
-    system_idx = prompt.index("INTERPRETER for the user")
+    # 2026-05-21 — system prompt rewritten for briefness. The earlier
+    # "INTERPRETER for the user" anchor disappeared when the prompt was
+    # tightened. The new anchor is "BRIEFNESS IS PRIMARY" — the directive
+    # that drives the whole rewrite. The test still proves the same
+    # thing: system instructions come before the events block.
+    system_idx = prompt.index("BRIEFNESS IS PRIMARY")
     events_idx = prompt.index("CURRENT EVENTS")
 
     assert system_idx < events_idx, (
