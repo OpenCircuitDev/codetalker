@@ -346,6 +346,64 @@ def build_routes(state) -> list[Route]:
             ),
         })
 
+    # ───────────────────────────────────────────────────────────────────
+    # X-1 license verification — Stripe-backed Pro entitlement check.
+    # See docs/superpowers/decisions/x-1-license-verification.md.
+    # ───────────────────────────────────────────────────────────────────
+
+    async def license_status(request: Request) -> JSONResponse:
+        """GET /api/license/status — current entitlement snapshot.
+
+        The webui's Preferences/Account tab polls this to render the
+        "Pro Active / Basic" badge + the "Activate License" button.
+        """
+        ls = getattr(state, "licensing", None)
+        if ls is None:
+            return JSONResponse({
+                "configured": False,
+                "pro_active": False,
+                "last_validated_at": 0,
+                "last_error": "license client not started",
+            })
+        return JSONResponse({
+            "configured": bool(ls.key),
+            "pro_active": bool(ls.pro_active),
+            "user_id": ls.user_id,
+            "machine_id": ls.machine_id,
+            "last_validated_at": ls.last_validated_at,
+            "last_attempt_at": ls.last_attempt_at,
+            "last_error": ls.last_error,
+        })
+
+    async def license_activate(request: Request) -> JSONResponse:
+        """POST /api/license/activate { license_key } — persist + validate.
+
+        Body: {"license_key": "CT-XXXX-XXXX-XXXX-XXXX-SSSS"}
+
+        Response mirrors the website's /api/licenses/validate response,
+        plus a top-level `pro_active` reflecting state.licensing after
+        the validate. Pass empty/missing key to clear the activation.
+        """
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        key = str(body.get("license_key") or "").strip()
+        client = getattr(state, "license_client", None)
+        if client is None:
+            return JSONResponse(
+                {"error": "license client not started"}, status_code=503
+            )
+        try:
+            payload = client.activate(key)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({
+            **payload,
+            "pro_active": bool(state.licensing.pro_active),
+            "configured": bool(state.licensing.key),
+        })
+
     def _audio_misaligned(sid: str, audio_outputs) -> bool:
         """Tier-A.2 (2026-05-11) — True iff this session has a companion
         sink configured (phone/glasses) but no live audio_hub subscriber.
@@ -1368,6 +1426,21 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         )
 
     async def attach_character(request: Request) -> JSONResponse:
+        # X-1 — character_attach is a Pro feature. Gate at the route
+        # boundary so an OSS-only daemon (no license, or license invalid)
+        # returns a clean 402 with the Pro upsell URL instead of the
+        # character actually attaching. Free users can still BROWSE
+        # the character library — only the attach action requires Pro.
+        from claude_code_talker.licensing import is_pro_feature
+        ls = getattr(state, "licensing", None)
+        if is_pro_feature("character_attach") and (ls is None or not ls.pro_active):
+            return JSONResponse({
+                "error": "Pro subscription required",
+                "feature": "character_attach",
+                "upgrade_url": "https://codetalker.opencircuit.studio/pricing",
+                "license_status": "active" if (ls and ls.pro_active) else "missing_or_invalid",
+            }, status_code=402)
+
         if state.characters is None or state.sessions is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)
         sid = request.path_params.get("session_id", "")
@@ -3254,6 +3327,8 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/health", health, methods=["GET"]),
         Route("/api/master-enabled", master_enabled_get, methods=["GET"]),
         Route("/api/master-enabled", master_enabled_put, methods=["PUT"]),
+        Route("/api/license/status", license_status, methods=["GET"]),
+        Route("/api/license/activate", license_activate, methods=["POST"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),

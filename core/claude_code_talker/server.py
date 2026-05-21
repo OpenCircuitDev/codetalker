@@ -460,6 +460,12 @@ def build_server_state(cwd: str | None = None) -> ServerState:
     # LiveMode in autostart_live_if_configured.
     from claude_code_talker.modes.brief_quiet_stretch import BriefQuietStretchLoop
     state.brief_quiet_stretch = BriefQuietStretchLoop(state)
+    # X-1 license verification — Stripe-subscription HMAC keys validated
+    # against codetalker.opencircuit.studio at boot + periodic re-poll.
+    # Mutates state.licensing in place; pro_active=False until first
+    # successful validate, with 24h grace window for transient outages.
+    from claude_code_talker.licensing import LicenseClient
+    state.license_client = LicenseClient(state)
     state.modes["live"] = LiveMode(
         provider=_select_provider(state, "live"),
         cadence=cadence,
@@ -493,6 +499,12 @@ async def autostart_live_if_configured(state: ServerState) -> None:
     bqs = getattr(state, "brief_quiet_stretch", None)
     if bqs is not None:
         bqs.start()
+    # X-1 — license client. Synchronous first validate populates
+    # state.licensing.pro_active before any feature gate can be checked;
+    # the polling task continues in the background.
+    lc = getattr(state, "license_client", None)
+    if lc is not None:
+        lc.start()
     # Phase 13.9c Task 7 — start continuous transcript watcher (needs asyncio loop).
     if state.transcript_watcher is not None:
         state.transcript_watcher.start()

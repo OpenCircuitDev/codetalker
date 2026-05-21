@@ -94,6 +94,7 @@ async def test_attach_character_endpoint_sets_field(tmp_path):
     from httpx import ASGITransport, AsyncClient
     from claude_code_talker.server import build_server_state, build_asgi_app
     state = build_server_state()
+    state.licensing.pro_active = True  # X-1: character_attach is a Pro feature; test grants it.
     state.characters = CharacterStore(characters_dir=tmp_path / "chars")
     state.characters.save(Character(id="alice", display_name="Alice", voice_ref="test-voice"))
     # Ensure the voice resolves in the fake engine
@@ -117,6 +118,7 @@ async def test_attach_character_400_on_unknown_character(tmp_path):
     from httpx import ASGITransport, AsyncClient
     from claude_code_talker.server import build_server_state, build_asgi_app
     state = build_server_state()
+    state.licensing.pro_active = True  # X-1: grant Pro for the attach test.
     state.characters = CharacterStore(characters_dir=tmp_path / "chars")
     state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
     app = build_asgi_app(state, disable_transport_security=True)
@@ -131,6 +133,7 @@ async def test_attach_character_404_on_unknown_session(tmp_path):
     from httpx import ASGITransport, AsyncClient
     from claude_code_talker.server import build_server_state, build_asgi_app
     state = build_server_state()
+    state.licensing.pro_active = True  # X-1: grant Pro for the attach test.
     state.characters = CharacterStore(characters_dir=tmp_path / "chars")
     state.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
     app = build_asgi_app(state, disable_transport_security=True)
@@ -203,6 +206,7 @@ async def test_attach_character_400_when_voice_ref_unresolved(tmp_path):
     from httpx import ASGITransport, AsyncClient
     from claude_code_talker.server import build_server_state, build_asgi_app
     state = build_server_state()
+    state.licensing.pro_active = True  # X-1: grant Pro for the attach test.
     state.characters = CharacterStore(characters_dir=tmp_path / "chars")
     # Character points at a voice no engine actually has
     state.characters.save(Character(
@@ -218,4 +222,33 @@ async def test_attach_character_400_when_voice_ref_unresolved(tmp_path):
         assert r.status_code == 400
         assert "voice" in r.json().get("error", "").lower()
         # Session should NOT have the character attached
+        assert state.sessions.get("test-sid").attached_character is None
+
+
+# ─────────────────────────────────────────────────────────────────
+# X-1 license gate — character_attach fires 402 without Pro.
+# ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_attach_character_402_without_pro(tmp_path):
+    """X-1: without a valid Pro license, attach-character returns 402
+    with the upgrade_url so the UI can redirect the user to pricing."""
+    from httpx import ASGITransport, AsyncClient
+    from claude_code_talker.server import build_server_state, build_asgi_app
+    state = build_server_state()
+    # Intentionally do NOT grant pro_active — default is False.
+    state.characters = CharacterStore(characters_dir=tmp_path / "chars")
+    state.characters.save(Character(id="alice", display_name="A", voice_ref="v"))
+    state.sessions.touch("test-sid", cwd="/tmp", transcript_path="")
+    app = build_asgi_app(state, disable_transport_security=True)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r = await client.post(
+            "/api/sessions/test-sid/attach-character", json={"character_id": "alice"}
+        )
+        assert r.status_code == 402
+        body = r.json()
+        assert body["feature"] == "character_attach"
+        assert "upgrade_url" in body
+        # The session must NOT have the character attached when the gate fired.
         assert state.sessions.get("test-sid").attached_character is None
