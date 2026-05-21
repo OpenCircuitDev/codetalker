@@ -23,6 +23,22 @@ DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 DEFAULT_MAX_BACKUPS = 5
 
 
+HEDGE_PREFIX = "[UNSURE]"
+
+
+def parse_hedge_prefix(text: str) -> tuple[str, str]:
+    """Strip an [UNSURE] hedge prefix and report confidence.
+
+    Returns (cleaned_text, confidence). confidence is "low" when the
+    prefix was present (it's been stripped from cleaned_text);
+    "normal" otherwise. Whitespace around the prefix is normalized.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith(HEDGE_PREFIX):
+        return stripped[len(HEDGE_PREFIX):].lstrip(), "low"
+    return text, "normal"
+
+
 @dataclass
 class NarrationEntry:
     timestamp: float

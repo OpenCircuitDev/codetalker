@@ -103,3 +103,24 @@ def test_unwritable_path_does_not_raise(tmp_path):
     log.append(NarrationEntry(timestamp=1.0, session_id="x", text="ok"))
     out = log.tail()
     assert len(out) == 1
+
+
+def test_parse_hedge_prefix_no_prefix():
+    from claude_code_talker.narration_log import parse_hedge_prefix
+    cleaned, conf = parse_hedge_prefix("Tests passed.")
+    assert cleaned == "Tests passed."
+    assert conf == "normal"
+
+
+def test_parse_hedge_prefix_present():
+    from claude_code_talker.narration_log import parse_hedge_prefix
+    cleaned, conf = parse_hedge_prefix("[UNSURE] Looks like the build may have failed.")
+    assert cleaned == "Looks like the build may have failed."
+    assert conf == "low"
+
+
+def test_parse_hedge_prefix_with_leading_whitespace():
+    from claude_code_talker.narration_log import parse_hedge_prefix
+    cleaned, conf = parse_hedge_prefix("  \n  [UNSURE]   Something maybe.")
+    assert cleaned == "Something maybe."
+    assert conf == "low"

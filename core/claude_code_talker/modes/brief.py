@@ -66,7 +66,21 @@ NEVER DO:
 - Use parenthetical stage directions or meta-comments.
 
 VOICE: A colleague handing off the turn. Curt but warm. Plain spoken
-English."""
+English.
+
+HEDGE WHEN UNCERTAIN.
+If your brief is summarizing INFERENCE (you're guessing at intent
+from incomplete events) rather than DIRECT OBSERVATION (a file
+edit landed, a test passed, a command ran), prefix your output
+with [UNSURE] followed by a single space. Examples of uncertain:
+  - You're inferring what Claude is "about to" do from prep-work
+    tool calls that haven't committed to an action yet.
+  - The assistant prose is hedging itself ("I think", "this might",
+    "let me see if") and you're reflecting that.
+  - The events show a result but the prior decision-point is
+    ambiguous — you're not sure whether this is the OUTCOME the
+    user wanted or a sidequest.
+Direct observations never get [UNSURE]."""
 
 
 BRIEF_USER_TEMPLATE = """\
@@ -120,7 +134,14 @@ class BriefMode(ModeStrategy):
         if self.provider is None:
             return self._fallback(payload)
         try:
-            return (await self.provider.complete(user_prompt, max_tokens, system=system_prompt)).strip()
+            raw = (await self.provider.complete(user_prompt, max_tokens, system=system_prompt)).strip()
+            # 2026-05-21 — strip the [UNSURE] hedge prefix before returning so
+            # TTS doesn't speak "UNSURE" out loud. confidence is captured but
+            # not yet plumbed through the dispatch chain (v2: pass to
+            # NarrationEntry.confidence + render a hedge badge in the webui).
+            from claude_code_talker.narration_log import parse_hedge_prefix
+            cleaned, _confidence = parse_hedge_prefix(raw)
+            return cleaned
         except Exception:
             return self._fallback(payload)
 
