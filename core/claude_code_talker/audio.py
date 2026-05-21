@@ -214,6 +214,56 @@ class AudioQueue:
         if not self._worker.is_alive():
             self._worker.start()
 
+    def skip_current(self, session_id: str | None = None) -> dict:
+        """User-initiated skip: stop current playback + drain pending jobs.
+
+        2026-05-21 — closes a real user need ("I've got it, stop talking";
+        "wait, that's wrong — I need to jump in"). Reuses the same
+        _PlaybackHandle.stop() mechanism that alert-priority jobs use
+        to interrupt current playback, then drains the queue of pending
+        jobs so the next narration is genuinely fresh instead of catching
+        up through a backlog of stale ones.
+
+        Args:
+            session_id: when set, drops only pending jobs for that
+                session and only interrupts current playback if the
+                in-flight job is from that session. When None, drops
+                everything and interrupts unconditionally. Most UI taps
+                of the global skip button pass None.
+
+        Returns:
+            {"interrupted": bool, "dropped": int} — for the UI to
+            confirm the skip actually changed state.
+        """
+        # Interrupt current playback. The handle's stop() is idempotent —
+        # safe to call when nothing is playing.
+        self._handle.stop()
+        # Drain the queue. The drop-on-overlap pattern below mirrors
+        # AudioQueue.submit's existing drop logic; we just filter on
+        # session_id when one is provided.
+        dropped: list[AudioJob] = []
+        with self._cv:
+            kept: list[tuple] = []
+            for tup in self._queue:
+                _, _, job = tup
+                if session_id is None or job.session_id == session_id:
+                    dropped.append(job)
+                else:
+                    kept.append(tup)
+            if dropped:
+                self._queue = kept
+                heapq.heapify(self._queue)
+        for job in dropped:
+            logging.info(
+                "CCT-AUDIO: dropped by user skip sid=%s text=%r",
+                (job.session_id or "")[:8], (job.text or "")[:60],
+            )
+            self._registry_transition(
+                job, "skipped", gate="user_skip", reason="user_initiated",
+            )
+            self._publish_event(job, "skipped")
+        return {"interrupted": True, "dropped": len(dropped)}
+
     def submit(self, job: AudioJob) -> None:
         if not job.enqueued_at:
             import time

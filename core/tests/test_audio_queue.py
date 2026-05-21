@@ -4,6 +4,55 @@ from unittest.mock import MagicMock, patch
 from claude_code_talker.audio import AudioJob, AudioQueue
 
 
+# ─── skip_current — user-initiated narration interrupt (2026-05-21) ─────────
+
+
+def test_skip_current_drains_full_queue_when_no_session_filter():
+    """Global skip (session_id=None) drops every pending job."""
+    state, _ = _state_with_engine()
+    q = AudioQueue(state)
+    # Submit three jobs across two sessions without starting the worker
+    # so they sit in the queue.
+    q.submit(AudioJob(text="one", voice="v", rate=1.0, session_id="sid-A"))
+    q.submit(AudioJob(text="two", voice="v", rate=1.0, session_id="sid-B"))
+    q.submit(AudioJob(text="three", voice="v", rate=1.0, session_id="sid-A"))
+    # AudioQueue's drop-on-overlap will collapse "one" (older sid-A) when
+    # "three" lands, so we expect 2 pending jobs at this point.
+    assert len(q._queue) == 2
+
+    result = q.skip_current(session_id=None)
+
+    assert result["dropped"] == 2
+    assert result["interrupted"] is True
+    assert len(q._queue) == 0
+
+
+def test_skip_current_filters_to_one_session():
+    """Per-session skip drops only that session's jobs; others survive."""
+    state, _ = _state_with_engine()
+    q = AudioQueue(state)
+    q.submit(AudioJob(text="A1", voice="v", rate=1.0, session_id="sid-A"))
+    q.submit(AudioJob(text="B1", voice="v", rate=1.0, session_id="sid-B"))
+    # After drop-on-overlap collapses each session to one entry, we have 2 in queue.
+    assert len(q._queue) == 2
+
+    result = q.skip_current(session_id="sid-A")
+
+    assert result["dropped"] == 1
+    # sid-B's job should still be in the queue.
+    assert len(q._queue) == 1
+    _, _, surviving = q._queue[0]
+    assert surviving.session_id == "sid-B"
+
+
+def test_skip_current_returns_zero_when_queue_empty():
+    """No-op skip still reports interrupted=True (handle.stop is idempotent)."""
+    state, _ = _state_with_engine()
+    q = AudioQueue(state)
+    result = q.skip_current(session_id=None)
+    assert result == {"interrupted": True, "dropped": 0}
+
+
 def _state_with_engine():
     state = MagicMock()
     engine = MagicMock()

@@ -351,6 +351,43 @@ def build_routes(state) -> list[Route]:
     # See docs/superpowers/decisions/x-1-license-verification.md.
     # ───────────────────────────────────────────────────────────────────
 
+    async def audio_skip(request: Request) -> JSONResponse:
+        """POST /api/audio/skip — user-initiated narration interrupt.
+
+        Stops the currently-playing audio AND drains the pending queue
+        so the next narration starts genuinely fresh. Closes a real
+        user-feedback request ("I've got it, stop talking" / "wait,
+        that's wrong, jumping in").
+
+        Body (optional):
+            {"session_id": "..."}  → drop only that session's jobs
+            {} or no body          → drop everything (global skip)
+
+        Response:
+            {"interrupted": bool, "dropped": int}
+            "dropped" is the count of pending jobs removed from the
+            queue. The currently-playing job (if any) is interrupted
+            via the same _PlaybackHandle mechanism alerts use.
+        """
+        sid: str | None = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict) and body.get("session_id"):
+                sid = str(body["session_id"]).strip() or None
+        except Exception:
+            # No body / not JSON — global skip.
+            pass
+        queue = getattr(state, "audio_queue", None)
+        if queue is None:
+            return JSONResponse(
+                {"error": "audio queue not available"}, status_code=503,
+            )
+        try:
+            result = queue.skip_current(session_id=sid)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse(result)
+
     async def license_status(request: Request) -> JSONResponse:
         """GET /api/license/status — current entitlement snapshot.
 
@@ -3333,6 +3370,7 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/master-enabled", master_enabled_put, methods=["PUT"]),
         Route("/api/license/status", license_status, methods=["GET"]),
         Route("/api/license/activate", license_activate, methods=["POST"]),
+        Route("/api/audio/skip", audio_skip, methods=["POST"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
