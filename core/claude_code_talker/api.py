@@ -1283,7 +1283,16 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         register the reference as a usable XTTS voice for narration.
         2026-05-11 vNext P0-A: replaces the stub that discarded audio bytes and
         synchronously marked the job succeeded with a fake voice_ref.
+
+        X-1 (2026-05-18): gated as a Pro feature — XTTS cloning is one of
+        the headline Pro differentiators. Free users can still preview
+        and use the pre-built Piper voices.
         """
+        from claude_code_talker.licensing import pro_gate_payload
+        gate = pro_gate_payload("voice_clone_create", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
+
         if state.characters is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)
         if getattr(state, "clone_jobs", None) is None:
@@ -1431,15 +1440,10 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         # returns a clean 402 with the Pro upsell URL instead of the
         # character actually attaching. Free users can still BROWSE
         # the character library — only the attach action requires Pro.
-        from claude_code_talker.licensing import is_pro_feature
-        ls = getattr(state, "licensing", None)
-        if is_pro_feature("character_attach") and (ls is None or not ls.pro_active):
-            return JSONResponse({
-                "error": "Pro subscription required",
-                "feature": "character_attach",
-                "upgrade_url": "https://codetalker.opencircuit.studio/pricing",
-                "license_status": "active" if (ls and ls.pro_active) else "missing_or_invalid",
-            }, status_code=402)
+        from claude_code_talker.licensing import pro_gate_payload
+        gate = pro_gate_payload("character_attach", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
 
         if state.characters is None or state.sessions is None:
             return JSONResponse({"error": "character store unavailable"}, status_code=503)

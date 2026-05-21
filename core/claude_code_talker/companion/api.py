@@ -171,6 +171,16 @@ def _ensure_phone_in_audio_outputs(state, sid: str) -> None:
 
 def make_routes(state) -> list[Route]:
     async def pair(request: Request) -> Response:
+        # X-1 — ar_pairing is a Pro feature. Gating issuance of NEW tokens
+        # implicitly gates all phone/glasses functionality (the daemon
+        # rejects every other companion endpoint without a valid token).
+        # Existing tokens keep working — a paired device that falls off
+        # Pro continues to function until its token rotates. The webui
+        # surfaces a clear upsell when a Basic user lands on this screen.
+        from claude_code_talker.licensing import pro_gate_payload
+        gate = pro_gate_payload("ar_pairing", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
         body = await request.json()
         label = body.get("label", "unknown")
         ttl = int(body.get("ttl_days", 30))
@@ -340,6 +350,14 @@ def make_routes(state) -> list[Route]:
     async def inject(request: Request) -> Response:
         if not _require_token(request, state.pairing):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
+        # X-1 — buddy_mode (OpenRouter-mediated chat) is Pro. Auth check
+        # comes FIRST so an unauthorized device gets 401, not 402 — that
+        # would leak the existence of a Pro upsell path to anyone hitting
+        # the endpoint without a token.
+        from claude_code_talker.licensing import pro_gate_payload
+        gate = pro_gate_payload("buddy_mode", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
         body = await request.json()
         bid = body.get("buddy_id")
         text = body.get("text", "")
@@ -559,6 +577,11 @@ def make_routes(state) -> list[Route]:
         """
         if not _require_token(request, state.pairing):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
+        # X-1 — direct_stt is Pro. Same 401-before-402 ordering as inject.
+        from claude_code_talker.licensing import pro_gate_payload
+        gate = pro_gate_payload("direct_stt", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
         body = await request.json()
         text = (body.get("text") or "").strip()
         session_id = body.get("session_id") or ""

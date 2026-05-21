@@ -64,60 +64,66 @@ genuine revocation takes effect within a day.
 Lower for faster revocation response; higher to reduce daemon→website
 traffic.
 
-## Open questions for the implementer
+## Ratified answers (2026-05-18)
 
-The following decisions remain open and should be answered when wiring
-the code. Each is small (5-10 lines) and shapes the user experience.
+The three open questions from the original draft have been decided by
+the operator. Captured here in their final form.
 
-### Q1 — `is_pro_feature(feature: str) -> bool`
-
-Which features actually require Pro? Suggested list, but the operator
-should confirm:
+### Q1 — Pro feature inventory · **DECIDED**
 
 ```python
-PRO_FEATURES = {
+PRO_FEATURES = frozenset({
     "character_attach",       # attach a cloned-voice character to a session
-    "voice_clone_create",     # /api/clone-voice endpoint
-    "android_companion",      # POST /api/companion/active-session
-    "buddy_mode",             # /api/companion/inject (buddy LLM)
-    "ar_pairing",             # XREAL glasses pairing flow
-    # multi_session_fanin?    # uncertain — currently free in webui
-}
+    "voice_clone_create",     # /api/characters/{id}/clone-voice (XTTS)
+    "buddy_mode",             # /api/companion/inject (OpenRouter buddy LLM)
+    "direct_stt",             # /api/companion/direct-stt (voice → SendKeys)
+    "ar_pairing",             # /api/companion/pair (XREAL + Android tokens)
+    "multi_session_fanin",    # phone receiving N parallel session streams
+})
 ```
 
-The "uncertain" entries need a call. The webui can already fan-in
-multiple active sessions to desktop speakers; the question is whether
-fan-in *to phone* is Pro-only or whether having any phone routing is
-Pro-only.
+Six features, all gated. Notes:
 
-### Q2 — Machine_id binding policy
+- **`ar_pairing`** sits at `/api/companion/pair`. Existing tokens keep
+  working — only the issuance of new tokens is gated. A Basic user
+  cannot pair a new device, but a previously-paired device whose
+  customer downgrades continues to function until the token expires.
+  This is intentional: it avoids ripping audio mid-session away from a
+  user who just cancelled.
+- **`multi_session_fanin`** has no dedicated endpoint. It's the
+  emergent capability of having multiple sessions with
+  `audio_outputs=["phone"]`. Today this is transitively gated by
+  `ar_pairing` (no pair → no phone → no fan-in). Listed explicitly so
+  a future tier split ("phone-basic = 1 session, phone-pro = N") has
+  a name to gate on.
+- Free users can still BROWSE the character library + voice list +
+  fleet UI. Only the **action** (attach, clone, inject, dictate,
+  pair) is Pro.
 
-Stripe issues one subscription per user; the license key is bound to
-that subscription. But subscription holders may use Pro on multiple
-machines (desktop + laptop + a CI box for tests).
+### Q2 — Machine binding · **DECIDED · unlimited-but-tracked**
 
-Options:
+License activates on every machine that POSTs to
+`/api/license/activate`. The webui's `/account` dashboard surfaces
+recent `machine_id` activations (already in `license_keys.machine_id`
++ `last_validated_at`) so the customer can spot abuse and contact us
+to revoke. No per-machine cap.
 
-- **Single-machine**: license activates on first daemon, refuses
-  subsequent. Customer must use a "deactivate this machine" UI to
-  move.
-- **N-machine**: allow up to N (e.g., 3) concurrent activations per
-  subscription. Webui shows which machines are active.
-- **Unlimited but tracked**: allow any number, but show recent
-  activations in the account dashboard so the customer can spot abuse.
+Implementation: no daemon-side change needed; the website's
+`/api/licenses/validate` already accepts the machine_id, stamps it on
+the row, and serves it to the account page.
 
-Recommendation: **unlimited-but-tracked** for v1 (lowest friction),
-revisit if abuse becomes real.
+### Q3 — Refund / cancellation behavior · **DECIDED · honor paid period**
 
-### Q3 — Refund window vs immediate revocation
+Stripe webhook only revokes the license when the subscription
+genuinely ends. Mid-period refunds (`charge.refunded`) do **not**
+revoke; the customer keeps Pro until the period they paid for runs
+out. This matches the existing
+`customer.subscription.updated/deleted` handling in
+`webhook.ts` — `status='active'` → keep Pro, anything else
+(`cancelled`, `incomplete`) → revoke.
 
-Stripe refunds emit `charge.refunded`. Currently the website webhook
-only handles `customer.subscription.deleted` (cancellations). Refunds
-mid-period: should they revoke the license immediately, or honor the
-period the customer paid for?
-
-Recommendation: honor the paid period (don't revoke on refund).
-Aligns with how SaaS typically handles this.
+No additional webhook event needs to be handled; the
+`charge.refunded` event simply continues to be ignored.
 
 ## Implementation order (proving slice)
 

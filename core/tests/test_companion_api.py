@@ -13,6 +13,12 @@ from starlette.applications import Starlette
 async def client(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_CODE_TALKER_HOME", str(tmp_path))
     state = build_server_state()
+    # X-1: ar_pairing + buddy_mode + direct_stt are Pro-gated. Tests in
+    # this file cover companion endpoint mechanics (auth, validation,
+    # routing), not the gate itself. Grant Pro at fixture level so
+    # every test exercises its real subject. Dedicated gate tests live
+    # alongside the production code in test_licensing.
+    state.licensing.pro_active = True
     app = Starlette(routes=build_routes(state))
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -89,6 +95,7 @@ async def test_companion_sessions_includes_attached_character_when_set(tmp_path,
     session on their desktop settings.'"""
     monkeypatch.setenv("CLAUDE_CODE_TALKER_HOME", str(tmp_path))
     state = build_server_state()
+    state.licensing.pro_active = True  # X-1: ar_pairing is gated; grant Pro for this test.
     app = Starlette(routes=build_routes(state))
     transport = ASGITransport(app=app)
 

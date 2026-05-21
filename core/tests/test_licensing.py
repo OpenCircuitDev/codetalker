@@ -82,11 +82,47 @@ def test_negative_grace_disables_caching():
 
 
 def test_is_pro_feature_known():
-    """The four canonical Pro features all gate."""
+    """The six canonical Pro features all gate (Q1 ratified 2026-05-18)."""
     assert is_pro_feature("character_attach") is True
     assert is_pro_feature("voice_clone_create") is True
     assert is_pro_feature("buddy_mode") is True
+    assert is_pro_feature("direct_stt") is True
     assert is_pro_feature("ar_pairing") is True
+    assert is_pro_feature("multi_session_fanin") is True
+
+
+def test_pro_gate_payload_passes_through_when_active():
+    """pro_gate_payload returns None when Pro is active — request flows."""
+    from claude_code_talker.licensing import pro_gate_payload, LicenseState
+
+    class _State:
+        licensing = LicenseState(pro_active=True)
+
+    assert pro_gate_payload("character_attach", _State()) is None
+
+
+def test_pro_gate_payload_fires_when_inactive():
+    """pro_gate_payload returns a 402 body when Pro isn't active."""
+    from claude_code_talker.licensing import pro_gate_payload, LicenseState
+
+    class _State:
+        licensing = LicenseState(pro_active=False)
+
+    body = pro_gate_payload("character_attach", _State())
+    assert body is not None
+    assert body["feature"] == "character_attach"
+    assert body["license_status"] == "missing_or_invalid"
+    assert "upgrade_url" in body
+
+
+def test_pro_gate_payload_passes_through_for_free_features():
+    """A feature not in PRO_FEATURES is never gated, regardless of state."""
+    from claude_code_talker.licensing import pro_gate_payload, LicenseState
+
+    class _State:
+        licensing = LicenseState(pro_active=False)
+
+    assert pro_gate_payload("definitely_a_free_feature", _State()) is None
 
 
 def test_is_pro_feature_unknown():

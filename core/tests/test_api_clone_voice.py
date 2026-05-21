@@ -15,6 +15,11 @@ from claude_code_talker.voice.cloning_jobs import CloneJobTracker
 def state(tmp_path):
     from claude_code_talker.server import build_server_state
     s = build_server_state()
+    # X-1: voice_clone_create is Pro-gated; these tests cover the clone
+    # mechanics, not the gate. Grant Pro at fixture level so every test
+    # in this file passes the 402 check before exercising its real
+    # subject. The dedicated 402-without-Pro test lives in test_licensing.
+    s.licensing.pro_active = True
     s.characters = CharacterStore(characters_dir=tmp_path / "chars")
     s.clone_jobs = CloneJobTracker(tmp_path / "clone_jobs")
     # Configure XTTS refs dir for tests

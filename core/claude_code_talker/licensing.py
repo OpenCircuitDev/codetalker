@@ -124,10 +124,18 @@ def _should_honor_cached_entitlement(
 # for being Pro vs Free. The set is small on purpose — gate the high-cost
 # or differentiated experiences, not the operational basics.
 PRO_FEATURES: frozenset[str] = frozenset({
-    "character_attach",   # Per-session 3D avatar + cloned voice attachment
-    "voice_clone_create", # XTTS local voice cloning from user samples
-    "buddy_mode",         # Conversational OpenRouter layer through phone
-    "ar_pairing",         # XREAL glasses pairing + HUD overlay
+    "character_attach",      # Per-session 3D avatar + cloned voice attachment
+    "voice_clone_create",    # XTTS local voice cloning from user samples
+    "buddy_mode",            # Conversational OpenRouter layer through phone
+    "direct_stt",            # Voice-to-Claude dictation via the companion app
+    "ar_pairing",            # XREAL glasses + Android companion pairing (gates new tokens;
+                             # existing tokens keep working, so a paired device that
+                             # falls off Pro continues to function until its token rotates)
+    "multi_session_fanin",   # Phone receiving multiple session audio streams in parallel.
+                             # Transitively gated by ar_pairing (no paired phone → no
+                             # fan-in is possible), but listed explicitly so a future
+                             # tier split ("phone-basic = 1 session, phone-pro = N")
+                             # has a name to gate on.
 })
 
 
@@ -140,6 +148,37 @@ def is_pro_feature(feature: str) -> bool:
             raise PermissionError("Pro subscription required for voice cloning")
     """
     return feature in PRO_FEATURES
+
+
+# ---------------------------------------------------------------------------
+# Gate helper — returns JSONResponse body+status when the gate fires, else None.
+# ---------------------------------------------------------------------------
+
+
+def pro_gate_payload(feature: str, state) -> Optional[dict]:
+    """Standard 402 body for a Pro-gated route. Returns None when the
+    request should pass through (feature not Pro, or Pro is active).
+
+    Usage in a Starlette handler:
+
+        gate = pro_gate_payload("voice_clone_create", state)
+        if gate is not None:
+            return JSONResponse(gate, status_code=402)
+
+    Single body shape so the webui + Android can match on `feature` +
+    show a consistent upgrade prompt without per-route conditionals.
+    """
+    if not is_pro_feature(feature):
+        return None
+    ls = getattr(state, "licensing", None)
+    if ls is not None and ls.pro_active:
+        return None
+    return {
+        "error": "Pro subscription required",
+        "feature": feature,
+        "upgrade_url": "https://codetalker.opencircuit.studio/pricing",
+        "license_status": "active" if (ls and ls.pro_active) else "missing_or_invalid",
+    }
 
 
 # ---------------------------------------------------------------------------
