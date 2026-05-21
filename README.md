@@ -18,6 +18,18 @@ Inside any Claude Code session:
 
 Prerequisite (one time): `pip install --user claude-code-talker`. Then run `/codetalker:status` to confirm the daemon is reachable.
 
+## CodeTalker Pro
+
+Looking for the polished experience? **CodeTalker Pro** is $10/mo and adds:
+
+- **Android companion** — narration on your phone speaker, multi-session fan-in.
+- **Voice cloning** — local XTTS clone from a 10-second sample of your own voice (or someone else's, with their consent).
+- **Buddy mode** — talk to your Claude session through the phone, with an OpenRouter-mediated conversational layer.
+- **Direct dictation** — voice-to-Claude transcription that types straight into your editor.
+- **AR companion (XREAL)** — character avatars + caption HUD on the glasses.
+
+Try it free for 14 days at [codetalker.opencircuit.studio](https://codetalker.opencircuit.studio).
+
 ## Sub-projects
 
 - `core/` — Python MCP server + library (`claude_code_talker`)

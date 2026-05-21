@@ -614,7 +614,7 @@ def render_report(evals: list[PersonaEval], agg: dict) -> str:
     lines.append("## Voice highlights — extreme reactions")
     lines.append("")
     by_nps = sorted(evals, key=lambda e: e.nps)
-    detractors = [e for e in by_nps if e.nps <= 3][:5]
+    detractors = [e for e in by_nps if e.nps <= 6][:5]
     promoters = [e for e in by_nps if e.nps >= 9][:5]
     lines.append("### Loudest detractors")
     for e in detractors:
