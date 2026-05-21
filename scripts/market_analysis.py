@@ -28,6 +28,7 @@ Cost: ~$0.20 on Haiku 4.5 via OpenRouter. Runtime: ~3-5 minutes.
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import datetime as dt
 import json
@@ -98,6 +99,11 @@ class PersonaEval:
     nps: int = 0
     subscribe_pro: bool = False
     raw_response: str = ""
+    # Iteration 3 (2026-05-21) — open-ended fields gated on --efficiency-questions.
+    # Default empty so iteration 1 + 2 reports don't change shape.
+    efficiency_gap: str = ""        # what would let you work faster?
+    understanding_gap: str = ""     # what about your session do you wish you
+                                    # understood better that we're not surfacing?
 
 
 # ─── OpenRouter client ───────────────────────────────────────────────────────
@@ -171,7 +177,7 @@ def extract_json(text: str) -> Optional[dict | list]:
 # ─── Sampling narrations ─────────────────────────────────────────────────────
 
 
-def sample_narrations(n: int) -> list[dict]:
+def sample_narrations(n: int, since_ts: float = 0.0) -> list[dict]:
     """Pull a diverse sample of recent narrations from the log.
 
     Diverse = at least one per (mode × voice) combination we see, with the
@@ -188,6 +194,19 @@ def sample_narrations(n: int) -> list[dict]:
             continue
         text = (e.get("text") or "").strip()
         if not text or text.startswith("[") or len(text) < 30:
+            continue
+        # 2026-05-21 — iteration 2: optional timestamp filter so we sample
+        # only narrations produced AFTER a given commit (e.g. the briefness
+        # pass). Without this, iteration 2 would score the same content as
+        # iteration 1 and produce a meaningless "no change" delta.
+        if since_ts > 0 and float(e.get("timestamp", 0)) < since_ts:
+            continue
+        # 2026-05-21 — only keep modes that the prompts actually drive
+        # (live-stream, brief, prompt-brief). Skip "trigger" entries which
+        # are user prompt summaries reproduced verbatim and aren't a
+        # product of the live/brief system prompts.
+        mode = (e.get("mode") or "").lower()
+        if since_ts > 0 and mode not in ("live-stream", "brief", "live", "direct"):
             continue
         entries.append(e)
     if not entries:
@@ -336,7 +355,7 @@ Narration modes:
 """
 
 
-def eval_prompt(persona: Persona, narrations: list[dict]) -> str:
+def eval_prompt(persona: Persona, narrations: list[dict], include_efficiency_questions: bool = False) -> str:
     sample_lines = "\n".join(
         f"  [{e.get('mode','?'):>14}] {e.get('voice','?'):<30} \"{e.get('text','').strip()}\""
         for e in narrations
@@ -390,7 +409,9 @@ Return a single JSON object with EXACTLY these keys (no extra text):
   "would_add": "<1 sentence — one feature you'd add>",
   "recommendation": "<1-2 sentences — would you recommend this to someone in your shoes? why or why not?>",
   "nps": <0-10 int>,
-  "subscribe_pro": <true or false>
+  "subscribe_pro": <true or false>{",  // ITERATION 3 ADDITIONS BELOW" if include_efficiency_questions else ""}
+{'''  "efficiency_gap": "<1-2 sentences — what SPECIFICALLY would let you work faster or more efficiently with this tool? Name a concrete change to the audio, the UI, the workflow, or the feature set. Be specific to your role.>",
+  "understanding_gap": "<1-2 sentences — what about your session (or your sessions if you run multiple) do you wish you understood better that this tool isn't currently surfacing? What's the question you keep wanting to ask the tool that it can't answer right now?>"''' if include_efficiency_questions else ""}
 }}
 
 Be specific and in YOUR voice — don't generalize. If you'd say it
@@ -400,10 +421,15 @@ the narration is too chatty for them."""
 
 
 async def eval_persona(client: httpx.AsyncClient, api_key: str,
-                       persona: Persona, narrations: list[dict]) -> Optional[PersonaEval]:
+                       persona: Persona, narrations: list[dict],
+                       include_efficiency_questions: bool = False) -> Optional[PersonaEval]:
     try:
-        raw = await complete(client, api_key, eval_prompt(persona, narrations),
-                              max_tokens=1500, temperature=0.7)
+        raw = await complete(
+            client, api_key,
+            eval_prompt(persona, narrations, include_efficiency_questions),
+            max_tokens=2000 if include_efficiency_questions else 1500,
+            temperature=0.7,
+        )
     except Exception as e:
         log.warning("eval failed for %s: %s", persona.name, e)
         return None
@@ -436,6 +462,9 @@ async def eval_persona(client: httpx.AsyncClient, api_key: str,
         nps=max(0, min(10, nps)),
         subscribe_pro=bool(parsed.get("subscribe_pro", False)),
         raw_response=raw[:4000],
+        # Iteration 3 fields — empty when the flag is off.
+        efficiency_gap=str(parsed.get("efficiency_gap", ""))[:500],
+        understanding_gap=str(parsed.get("understanding_gap", ""))[:500],
     )
 
 
@@ -622,15 +651,101 @@ def render_report(evals: list[PersonaEval], agg: dict) -> str:
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 
+def render_delta(current_agg: dict, baseline_agg: dict) -> str:
+    """Render a delta-vs-baseline section comparing two aggregate reports.
+
+    Used by iteration 2+ to show whether dimension scores actually moved
+    after an intervention. Positive deltas = improved; negative = worse.
+    """
+    lines = ["## Delta vs baseline", ""]
+    lines.append("| Dimension | Baseline | Current | Δ |")
+    lines.append("|---|---:|---:|---:|")
+    for dim in DIMENSIONS:
+        b = baseline_agg.get("dimensions", {}).get(dim, {}).get("mean", 0)
+        c = current_agg.get("dimensions", {}).get(dim, {}).get("mean", 0)
+        d = round(c - b, 2)
+        arrow = "↑" if d > 0.1 else "↓" if d < -0.1 else "—"
+        lines.append(f"| {dim} | {b} | {c} | {arrow} {d:+0.2f} |")
+    lines.append("")
+    # NPS delta — usually the headline number.
+    b_nps = baseline_agg.get("nps", {}).get("score", 0)
+    c_nps = current_agg.get("nps", {}).get("score", 0)
+    d_nps = round(c_nps - b_nps, 1)
+    lines.append(f"**NPS**: {b_nps} → {c_nps} (Δ {d_nps:+0.1f})")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_efficiency_themes(evals: list[PersonaEval]) -> str:
+    """Render the iteration-3 efficiency_gap + understanding_gap aggregations."""
+    eff_responses = [e.efficiency_gap for e in evals if e.efficiency_gap.strip()]
+    und_responses = [e.understanding_gap for e in evals if e.understanding_gap.strip()]
+    if not eff_responses and not und_responses:
+        return ""
+    lines = ["## Efficiency + understanding gaps (iteration 3)", ""]
+    lines.append(f"_{len(eff_responses)}/{len(evals)} answered the efficiency question; "
+                 f"{len(und_responses)}/{len(evals)} answered the understanding question._")
+    lines.append("")
+    if eff_responses:
+        lines.append("### What would help you work faster")
+        for phrase, n in _top_phrases(eff_responses, k=10):
+            lines.append(f"- *{phrase}* — {n} mentions")
+        lines.append("")
+        lines.append("### Sample efficiency answers")
+        for e in evals[:8]:
+            if e.efficiency_gap.strip():
+                lines.append(
+                    f"**{e.persona.name}** ({e.persona.vibe_experience}/{e.persona.domain_expertise}): {e.efficiency_gap}"
+                )
+                lines.append("")
+    if und_responses:
+        lines.append("### What you wish you understood about your session")
+        for phrase, n in _top_phrases(und_responses, k=10):
+            lines.append(f"- *{phrase}* — {n} mentions")
+        lines.append("")
+        lines.append("### Sample understanding answers")
+        for e in evals[:8]:
+            if e.understanding_gap.strip():
+                lines.append(
+                    f"**{e.persona.name}** ({e.persona.vibe_experience}/{e.persona.domain_expertise}): {e.understanding_gap}"
+                )
+                lines.append("")
+    return "\n".join(lines)
+
+
 async def main() -> int:
+    parser = argparse.ArgumentParser(description="50-persona product evaluation")
+    parser.add_argument("--label", default="",
+                        help="Label appended to output filename "
+                             "(e.g. 'iter2'). Default: empty.")
+    parser.add_argument("--since", type=float, default=0.0,
+                        help="Only sample narrations with timestamp >= this "
+                             "unix time. Useful for measuring the effect of "
+                             "a specific prompt change.")
+    parser.add_argument("--compare-to", default="",
+                        help="Path to a previous MARKET_ANALYSIS_*.json. "
+                             "Adds a delta-vs-baseline section to the report.")
+    parser.add_argument("--efficiency-questions", action="store_true",
+                        help="Iteration 3: add two open-ended questions to "
+                             "each eval — what would help you work faster, "
+                             "and what about your session do you wish you "
+                             "understood better that we're not surfacing.")
+    args = parser.parse_args()
+
     api_key = load_api_key()
-    log.info("sampling narrations from %s", NARRATION_LOG)
-    narrations = sample_narrations(NARRATION_SAMPLE_SIZE)
+    log.info("sampling narrations from %s (since_ts=%.0f)", NARRATION_LOG, args.since)
+    narrations = sample_narrations(NARRATION_SAMPLE_SIZE, since_ts=args.since)
     if len(narrations) < 3:
-        log.error("not enough narrations in log — found %d", len(narrations))
+        log.error("not enough narrations in log (need 3, have %d). "
+                  "If --since is set, the daemon may not have produced any "
+                  "live/brief narrations since that timestamp yet.",
+                  len(narrations))
         return 1
     log.info("sampled %d narrations across %d (mode,voice) combos",
              len(narrations), len({(n.get("mode"), n.get("voice")) for n in narrations}))
+
+    if args.efficiency_questions:
+        log.info("iteration-3 mode: efficiency + understanding questions are ON")
 
     async with httpx.AsyncClient() as client:
         log.info("generating %d persona batches in parallel (concurrency=%d)",
@@ -648,7 +763,9 @@ async def main() -> int:
 
         log.info("evaluating personas (concurrency=%d)...", CONCURRENCY)
         eval_results = await bounded_gather(
-            [eval_persona(client, api_key, p, narrations) for p in personas],
+            [eval_persona(client, api_key, p, narrations,
+                          include_efficiency_questions=args.efficiency_questions)
+             for p in personas],
             CONCURRENCY,
         )
         evals = [r for r in eval_results if r is not None]
@@ -656,13 +773,34 @@ async def main() -> int:
 
     agg = aggregate(evals)
     report_md = render_report(evals, agg)
+
+    # Compare-to: load baseline, append delta section.
+    if args.compare_to:
+        try:
+            baseline = json.loads(Path(args.compare_to).read_text(encoding="utf-8"))
+            delta_md = render_delta(agg, baseline.get("aggregate", {}))
+            report_md = report_md.rstrip() + "\n\n" + delta_md
+            log.info("appended delta vs %s", args.compare_to)
+        except Exception as e:
+            log.warning("could not load --compare-to baseline: %s", e)
+
+    # Efficiency section: only when iteration-3 questions were asked.
+    if args.efficiency_questions:
+        eff_md = render_efficiency_themes(evals)
+        if eff_md:
+            report_md = report_md.rstrip() + "\n\n" + eff_md
+
     today = dt.date.today().isoformat()
-    md_path = REPO_ROOT / f"MARKET_ANALYSIS_{today}.md"
-    json_path = REPO_ROOT / f"MARKET_ANALYSIS_{today}.json"
+    suffix = f"-{args.label}" if args.label else ""
+    md_path = REPO_ROOT / f"MARKET_ANALYSIS_{today}{suffix}.md"
+    json_path = REPO_ROOT / f"MARKET_ANALYSIS_{today}{suffix}.json"
     md_path.write_text(report_md, encoding="utf-8")
     raw = {
         "generated_at": dt.datetime.now().isoformat(),
+        "label": args.label,
         "model": MODEL,
+        "since_ts": args.since,
+        "efficiency_questions": args.efficiency_questions,
         "narration_samples": narrations,
         "aggregate": agg,
         "evals": [
