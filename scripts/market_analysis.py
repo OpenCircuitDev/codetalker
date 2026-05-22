@@ -336,6 +336,13 @@ DECISION RATIONALE — every decision narration must fold a short WHY-clause
 ("instead of X" / "to avoid Y") into the same sentence, so listeners know
 not just WHAT was chosen but why it beat the alternative.
 
+DIFF CLAUSE — when narrating a behavior-changing code edit (not just
+rename/format), the narrator folds a short "was X; now Y" clause into
+the same sentence ("Tightened the retry loop — was unbounded; now capped
+at 3."). The before-state is read from prose + tool actions; the
+narrator skips the clause rather than fabricating it. Cosmetic edits
+get no diff clause — only behavior changes do.
+
 It has two tiers:
   BASIC (free)     — desktop browser narration via webui. All four modes.
                      Per-session voices via Piper local TTS. OpenRouter /

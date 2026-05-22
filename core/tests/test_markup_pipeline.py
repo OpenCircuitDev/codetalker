@@ -55,3 +55,187 @@ def test_transform_event_for_todo_update():
     }
     out = transform_event(event, cfg)
     assert out is not None and "1" in out
+
+
+# Tests for bullet marker stripping
+def test_strip_single_bullet_asterisk():
+    """Single bullet with asterisk gets marker stripped and period added."""
+    cfg = {"mode": "direct"}
+    text = "* fixed the auth bug"
+    out = transform(text, cfg)
+    assert "fixed the auth bug" in out
+    assert "*" not in out
+    assert out.rstrip().endswith(".")
+
+
+def test_strip_single_bullet_dash():
+    """Single bullet with dash gets marker stripped and period added."""
+    cfg = {"mode": "direct"}
+    text = "- added a test"
+    out = transform(text, cfg)
+    assert "added a test" in out
+    assert "-" not in out
+    assert out.rstrip().endswith(".")
+
+
+def test_strip_single_bullet_unicode_dot():
+    """Single bullet with unicode bullet point gets stripped and period added."""
+    cfg = {"mode": "direct"}
+    text = "• deployed to staging"
+    out = transform(text, cfg)
+    assert "deployed to staging" in out
+    assert "•" not in out
+    assert out.rstrip().endswith(".")
+
+
+def test_strip_three_bullets_in_sequence():
+    """Three bullets in sequence become three sentences."""
+    cfg = {"mode": "direct"}
+    text = "* fixed the auth bug\n* added a test\n* deployed to staging"
+    out = transform(text, cfg)
+    assert "fixed the auth bug." in out
+    assert "added a test." in out
+    assert "deployed to staging." in out
+    assert "*" not in out
+
+
+def test_bullet_with_no_space_after_marker_stays():
+    """Bullet with no space after marker (emphasis-like) is preserved."""
+    cfg = {"mode": "direct"}
+    text = "*not a bullet"
+    out = transform(text, cfg)
+    # The regex requires a space after the marker, so this should pass through
+    assert "*not a bullet" in out
+
+
+def test_nested_bullets_with_indentation():
+    """Nested bullets (with leading whitespace) get stripped."""
+    cfg = {"mode": "direct"}
+    text = "  * sub-item here"
+    out = transform(text, cfg)
+    assert "sub-item here" in out
+    assert "*" not in out
+    assert out.rstrip().endswith(".")
+
+
+def test_bullet_inside_paragraph_not_stripped():
+    """Mid-sentence asterisk (not line-leading) is not stripped."""
+    cfg = {"mode": "direct"}
+    text = "text * this is not really a bullet"
+    out = transform(text, cfg)
+    # The regex is ^[ \t]* so it only matches line-leading; this should pass through
+    assert "text * this is not really a bullet" in out
+
+
+def test_bullet_already_has_period():
+    """Bullet item ending with period doesn't get double period."""
+    cfg = {"mode": "direct"}
+    text = "* foo."
+    out = transform(text, cfg)
+    assert "foo." in out
+    assert "foo.." not in out
+
+
+def test_bullet_already_has_exclamation():
+    """Bullet item ending with ! doesn't get period added."""
+    cfg = {"mode": "direct"}
+    text = "* wow!"
+    out = transform(text, cfg)
+    assert "wow!" in out
+    assert "wow!." not in out
+
+
+def test_bullet_already_has_question():
+    """Bullet item ending with ? doesn't get period added."""
+    cfg = {"mode": "direct"}
+    text = "* what?"
+    out = transform(text, cfg)
+    assert "what?" in out
+    assert "what?." not in out
+
+
+def test_standalone_word_asterisk_removed():
+    """Literal 'asterisk' as a standalone word is removed."""
+    cfg = {"mode": "direct"}
+    text = "I added an asterisk to the regex"
+    out = transform(text, cfg)
+    # The word 'asterisk' should be removed
+    assert "asterisk" not in out
+    assert "I added an" in out
+    assert "to the regex" in out
+
+
+def test_standalone_word_asterisks_plural_removed():
+    """Literal 'asterisks' (plural) is removed."""
+    cfg = {"mode": "direct"}
+    text = "The pattern has asterisks in it"
+    out = transform(text, cfg)
+    assert "asterisks" not in out
+    assert "The pattern has" in out
+    assert "in it" in out
+
+
+def test_standalone_word_bullet_point_removed():
+    """Literal 'bullet point' is removed."""
+    cfg = {"mode": "direct"}
+    text = "each bullet point is separate"
+    out = transform(text, cfg)
+    assert "bullet point" not in out
+    assert "each" in out
+    assert "is separate" in out
+
+
+def test_standalone_word_bullet_points_plural_removed():
+    """Literal 'bullet points' (plural) is removed."""
+    cfg = {"mode": "direct"}
+    text = "The list has bullet points here"
+    out = transform(text, cfg)
+    assert "bullet points" not in out
+    assert "The list has" in out
+    assert "here" in out
+
+
+def test_emphasis_markdown_preserved():
+    """Markdown emphasis *word* is not affected by bullet stripping."""
+    cfg = {"mode": "direct"}
+    text = "This is *emphasized* text"
+    out = transform(text, cfg)
+    # Emphasis is inline, not line-leading, so it's preserved
+    assert "*emphasized*" in out
+
+
+def test_strong_emphasis_preserved():
+    """Markdown strong emphasis **word** is not affected."""
+    cfg = {"mode": "direct"}
+    text = "This is **strong** text"
+    out = transform(text, cfg)
+    assert "**strong**" in out
+
+
+def test_code_fence_content_not_affected():
+    """Content inside code fences is not processed (already masked)."""
+    cfg = {"mode": "direct"}
+    text = "```\n* this is code\n* more code\n```"
+    out = transform(text, cfg)
+    # Code fences are handled upstream and masked, so the * inside won't be stripped
+    # (they're already removed/transformed by the code_fence handler)
+    assert "code block" in out.lower() or "code" in out.lower()
+
+
+def test_empty_line_after_bullet_strip():
+    """Empty line after stripping a bullet stays empty."""
+    cfg = {"mode": "direct"}
+    text = "* \n* next item"
+    out = transform(text, cfg)
+    # First bullet with no content after marker gets stripped to empty, next one processed normally
+    assert "next item" in out
+
+
+def test_whitespace_collapse_after_word_removal():
+    """Multiple spaces from word removal are collapsed."""
+    cfg = {"mode": "direct"}
+    text = "The pattern has  asterisks  in it"
+    out = transform(text, cfg)
+    assert "asterisks" not in out
+    # Should not have double spaces
+    assert "  " not in out

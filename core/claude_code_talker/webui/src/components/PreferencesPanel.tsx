@@ -149,6 +149,38 @@ export function PreferencesPanel() {
       </fieldset>
 
       <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
+        <legend className="text-sm font-bold text-[var(--color-text-1)]">Spoken Cues</legend>
+        <p className="text-xs text-[var(--color-text-3)]">
+          Reference guide for the automated phrases you'll hear through your speaker.
+        </p>
+        <dl className="space-y-2 text-xs">
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">"Heads up."</dt>
+            <dd className="text-[var(--color-text-3)]">An alert — something broke, is blocking, or needs your input right now.</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">"Checkpoint."</dt>
+            <dd className="text-[var(--color-text-3)]">An architectural decision was made (schema, API shape, dependency, migration approach).</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">"Still here."</dt>
+            <dd className="text-[var(--color-text-3)]">Heartbeat — daemon's alive but nothing's worth saying yet.</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">"Still here. Quiet two minutes."</dt>
+            <dd className="text-[var(--color-text-3)]">Heartbeat after 60s of silence — still alive, but quieter than usual.</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">"Still on it — N minutes."</dt>
+            <dd className="text-[var(--color-text-3)]">Sustained silence — the AI's working, but no new events have fired in a while.</dd>
+          </div>
+        </dl>
+        <p className="text-[11px] text-[var(--color-text-3)] italic pt-1">
+          These cues are emitted automatically across all narration modes. No configuration needed.
+        </p>
+      </fieldset>
+
+      <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
         <legend className="text-sm font-bold text-[var(--color-text-1)]">AR Companion</legend>
         <p className="text-xs text-[var(--color-text-3)]">
           Pair the codetalker Android app on your XREAL Beam Pro by scanning a QR token

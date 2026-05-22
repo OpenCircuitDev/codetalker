@@ -137,6 +137,27 @@ If you can't articulate a real reason in ≤6 words, skip the
 clause — don't pad with filler. The 35-word cap STILL applies;
 the WHY comes out of the existing budget, not on top of it.
 
+DIFF CLAUSE — WAS-NOW for behavior-changing code edits.
+When narrating a code edit that changes BEHAVIOR (not just
+rename, format, whitespace, import reorder, comment-only),
+fold a short "was X; now Y" clause into the SAME sentence.
+≤8 words on the diff side. The listener didn't see the file —
+they need to know what the code USED to do vs what it does
+NOW, not just that "an edit happened." Examples:
+  - "Tightened the retry loop — was unbounded; now capped at 3."
+  - "Refactored the search — was per-request; now cached for 30s."
+  - "Reworked the auth middleware — was checking JWT only; now
+    rejects expired tokens too."
+Skip the diff clause when:
+  - The edit is purely cosmetic (rename, format, import reorder,
+    comment-only) — don't fabricate behavior change where there
+    isn't one
+  - The before-state isn't visible in the events you have —
+    don't invent the prior behavior
+  - The diff would force you over the 35-word cap (briefness wins)
+The cap STILL applies; the diff clause comes out of the existing
+budget like the WHY clause does.
+
 ALERT MARKER (errors, blockers, needs-input).
 When the current events show an ERROR, a BLOCKER, or a moment
 that NEEDS THE USER'S DECISION RIGHT NOW (not a routine question —

@@ -49,6 +49,47 @@ def _replace(text: str, spans: list[tuple[Span, str | None]]) -> str:
     return out
 
 
+def _strip_bullet_markers(text: str) -> str:
+    """Strip markdown bullet markers and add sentence-terminating punctuation.
+
+    Transforms:
+      1. Line-leading bullet markers (^[ \\t]*[\\*\\-••][ \\t]+) are stripped
+      2. If the resulting line doesn't end with .!?:;, append a period
+      3. Standalone words 'asterisk', 'bullet point' (and plurals) are removed
+
+    Preserves:
+      - Markdown emphasis (*word* or **word**)
+      - Content inside code fences (already masked upstream)
+      - Mid-sentence asterisks
+    """
+    # Split into lines to handle line-leading markers
+    lines = text.split("\n")
+    result_lines = []
+
+    for line in lines:
+        # Strip line-leading bullet markers: ^[ \t]*[\*\-••][ \t]+
+        stripped = re.sub(r"^[ \t]*[\*\-•••][ \t]+", "", line)
+
+        # If we stripped something, ensure the line ends with punctuation
+        if stripped != line and stripped:  # We stripped something and line is not empty
+            # Only add period if it doesn't already end with sentence-terminating punctuation
+            if not re.search(r"[.!?:;]$", stripped):
+                stripped += "."
+
+        result_lines.append(stripped)
+
+    out = "\n".join(result_lines)
+
+    # Remove standalone 'asterisk', 'bullet point' and their plurals
+    # Use word boundaries to avoid removing these words inside other words
+    out = re.sub(r"\b(asterisks?|bullet points?)\b", "", out, flags=re.IGNORECASE)
+
+    # Collapse multiple spaces resulting from the above removals
+    out = re.sub(r" +", " ", out)
+
+    return out
+
+
 def _audible_passthrough(text: str) -> tuple[str, list[tuple[int, str]]]:
     """Pull audible blocks out of *text*, returning text-with-placeholders + list of (idx, original).
 
@@ -102,6 +143,9 @@ def transform(prose: str, cfg: dict[str, Any]) -> str:
     out = _replace(out, span_replacements)
 
     out = _restore_audible(out, holes)
+
+    # Strip markdown bullet markers and add sentence-terminating punctuation
+    out = _strip_bullet_markers(out)
 
     out = re.sub(r"\n{3,}", "\n\n", out)
     out = re.sub(r"[ \t]+\n", "\n", out)

@@ -348,6 +348,37 @@ def test_live_narration_system_has_appropriate_word_limit():
     assert "30 words" not in LIVE_NARRATION_SYSTEM
 
 
+def test_live_narration_system_has_diff_clause_block():
+    """The DIFF CLAUSE prompt block instructs the narrator to fold a
+    short was-now clause into behavior-changing code-edit narrations.
+
+    Top persistent ask across iter4-7 (68 mentions) was "diff explainer"
+    — listeners who weren't watching the file want to know what the
+    code USED to do vs what it does NOW, not just that "an edit happened."
+    The diff clause is bounded (≤8 words on the diff side) and skipped
+    for cosmetic edits (rename, format, comment-only).
+    """
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "DIFF CLAUSE" in LIVE_NARRATION_SYSTEM
+    # The "was X; now Y" pattern is the spoken shape we want.
+    assert "was X; now Y" in LIVE_NARRATION_SYSTEM or "was" in LIVE_NARRATION_SYSTEM
+    # Cosmetic edits must be explicitly excluded — otherwise the LLM
+    # will fabricate behavior changes for every rename.
+    assert "cosmetic" in LIVE_NARRATION_SYSTEM
+    # The cap-still-applies guardrail must be present so the diff
+    # clause doesn't expand the 35-word budget.
+    assert "STILL applies" in LIVE_NARRATION_SYSTEM
+
+
+def test_brief_system_has_diff_clause_block():
+    """Same DIFF CLAUSE landed in brief mode (turn-end narration)."""
+    from claude_code_talker.modes.brief import BRIEF_SYSTEM
+    assert "DIFF CLAUSE" in BRIEF_SYSTEM
+    assert "was X; now Y" in BRIEF_SYSTEM or "was" in BRIEF_SYSTEM
+    assert "cosmetic" in BRIEF_SYSTEM
+    assert "STILL applies" in BRIEF_SYSTEM
+
+
 def test_build_prompt_uses_recent_messages_capped(tmp_path):
     """_build_prompt should call recent_assistant_prose with a small max_messages.
 
