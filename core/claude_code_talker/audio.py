@@ -183,6 +183,8 @@ class AudioJob:
     registry_job_id: str = ""
     # Confidence flag for downstream UI display ("normal" or "low" when hedged)
     confidence: str = "normal"
+    # Architecturally-significant decision marker (prefixed [CHECKPOINT])
+    checkpoint: bool = False
 
 
 _PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
@@ -449,6 +451,7 @@ class AudioQueue:
                 mode=getattr(job, "mode", "") or "",
                 status=status,
                 confidence=getattr(job, "confidence", "normal") or "normal",
+                checkpoint=getattr(job, "checkpoint", False) or False,
             )
             asyncio.run_coroutine_threadsafe(self._narration_stream.publish(ev), loop)
         except Exception:

@@ -24,6 +24,20 @@ DEFAULT_MAX_BACKUPS = 5
 
 
 HEDGE_PREFIX = "[UNSURE]"
+CHECKPOINT_PREFIX = "[CHECKPOINT]"
+
+
+def parse_checkpoint_prefix(text: str) -> tuple[str, bool]:
+    """Strip a [CHECKPOINT] prefix and report if it was present.
+
+    Returns (cleaned_text, is_checkpoint). is_checkpoint is True when the
+    prefix was present (it's been stripped from cleaned_text); False otherwise.
+    Whitespace around the prefix is normalized.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith(CHECKPOINT_PREFIX):
+        return stripped[len(CHECKPOINT_PREFIX):].lstrip(), True
+    return text, False
 
 
 def parse_hedge_prefix(text: str) -> tuple[str, str]:
@@ -50,6 +64,7 @@ class NarrationEntry:
     priority: str = ""
     cached: bool = False
     confidence: str = "normal"  # "normal" or "low" (hedged)
+    checkpoint: bool = False  # architecturally-significant decision marker
     extra: dict = field(default_factory=dict)
 
 

@@ -73,3 +73,72 @@ async def test_brief_falls_back_when_provider_fails():
     # Fallback: structured text without LLM translation
     assert "Edit" in result or "edited" in result.lower()
     assert "bug" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_brief_strips_checkpoint_prefix_and_prepends_cue():
+    """[CHECKPOINT] prefix is stripped and 'Checkpoint. ' is prepended."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(return_value="[CHECKPOINT] Chose REST over websocket.")
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["Deciding on API shape."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    # Prefix is stripped and "Checkpoint. " cue is prepended
+    assert result.startswith("Checkpoint. ")
+    assert "[CHECKPOINT]" not in result
+    assert "Chose REST over websocket." in result
+
+
+@pytest.mark.asyncio
+async def test_brief_strips_unsure_prefix():
+    """[UNSURE] prefix is stripped silently (no audible cue)."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(return_value="[UNSURE] Maybe the tests passed?")
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["Running tests."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    # Prefix is stripped, no "Checkpoint. " cue (it's not a checkpoint)
+    assert "[UNSURE]" not in result
+    assert not result.startswith("Checkpoint. ")
+    assert "Maybe the tests passed?" in result
+
+
+@pytest.mark.asyncio
+async def test_brief_handles_both_prefixes_together():
+    """Both [CHECKPOINT] and [UNSURE] are handled correctly when both present."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(
+        return_value="[CHECKPOINT] [UNSURE] Might use Postgres for the new table."
+    )
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["Picking database."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    # Both prefixes stripped, "Checkpoint. " cue prepended (checkpoint wins priority)
+    assert "[CHECKPOINT]" not in result
+    assert "[UNSURE]" not in result
+    assert result.startswith("Checkpoint. ")
+    assert "Might use Postgres for the new table." in result

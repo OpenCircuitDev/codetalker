@@ -162,3 +162,97 @@ async def test_live_narrate_streaming_strips_hedge_prefix():
     # Text should not contain [UNSURE]
     assert "[UNSURE]" not in first_job.text
     assert "Maybe the" in first_job.text
+
+
+@pytest.mark.asyncio
+async def test_live_narrate_strips_checkpoint_and_prepends_cue_non_streaming():
+    """Non-streaming path: [CHECKPOINT] prefix is stripped and 'Checkpoint. ' is prepended."""
+    from unittest.mock import AsyncMock
+    buf = EventBuffer()
+    cadence = PeriodicCadence(period_seconds=10.0)
+    audio_q = MagicMock()
+    provider = AsyncMock()
+    provider.complete = AsyncMock(return_value="[CHECKPOINT] Chose REST over websocket.")
+    provider.supports_streaming = False
+
+    cfg = {
+        "live": {"llm_latency_budget_seconds": 5.0},
+        "voice": {"model": "jenny", "rate": 1.0},
+    }
+    mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
+
+    audio_q.submit.assert_called_once()
+    job = audio_q.submit.call_args[0][0]
+    # [CHECKPOINT] is stripped, "Checkpoint. " cue is prepended
+    assert "[CHECKPOINT]" not in job.text
+    assert job.text.startswith("Checkpoint. ")
+    assert "Chose REST over websocket." in job.text
+    assert job.checkpoint is True
+
+
+@pytest.mark.asyncio
+async def test_live_narrate_streaming_strips_checkpoint_and_prepends_cue():
+    """Streaming path: [CHECKPOINT] prefix is stripped from first chunk and 'Checkpoint. ' is prepended."""
+    from unittest.mock import AsyncMock, MagicMock as Mock
+    buf = EventBuffer()
+    cadence = PeriodicCadence(period_seconds=10.0)
+    audio_q = Mock()
+    provider = Mock()
+    provider.supports_streaming = True
+
+    # Simulate streaming chunks where [CHECKPOINT] is at the start of the first chunk
+    async def mock_stream(prompt, **kwargs):
+        yield "[CHECKPOINT] Chose"
+        yield " Postgres"
+        yield " for the audit log."
+
+    provider.stream = MagicMock(return_value=mock_stream(None))
+
+    cfg = {
+        "live": {"llm_latency_budget_seconds": 5.0},
+        "voice": {"model": "jenny", "rate": 1.0},
+    }
+    mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
+
+    # Should have submitted chunks via the streaming path
+    assert audio_q.submit.called
+    # First submitted job should have checkpoint=True and "Checkpoint. " prepended
+    first_job = audio_q.submit.call_args_list[0][0][0]
+    assert first_job.checkpoint is True
+    assert "[CHECKPOINT]" not in first_job.text
+    assert first_job.text.startswith("Checkpoint. ")
+    assert "Chose" in first_job.text
+
+
+@pytest.mark.asyncio
+async def test_live_narrate_handles_both_prefixes_non_streaming():
+    """Non-streaming path: both [CHECKPOINT] and [UNSURE] are stripped; checkpoint wins."""
+    from unittest.mock import AsyncMock
+    buf = EventBuffer()
+    cadence = PeriodicCadence(period_seconds=10.0)
+    audio_q = MagicMock()
+    provider = AsyncMock()
+    provider.complete = AsyncMock(return_value="[CHECKPOINT] [UNSURE] Might use Redis for caching.")
+    provider.supports_streaming = False
+
+    cfg = {
+        "live": {"llm_latency_budget_seconds": 5.0},
+        "voice": {"model": "jenny", "rate": 1.0},
+    }
+    mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
+
+    audio_q.submit.assert_called_once()
+    job = audio_q.submit.call_args[0][0]
+    # Both prefixes stripped, "Checkpoint. " cue prepended (checkpoint wins priority)
+    assert "[CHECKPOINT]" not in job.text
+    assert "[UNSURE]" not in job.text
+    assert job.text.startswith("Checkpoint. ")
+    assert "Might use Redis for caching." in job.text
+    assert job.checkpoint is True
+    assert job.confidence == "low"  # Still has the [UNSURE] confidence flag

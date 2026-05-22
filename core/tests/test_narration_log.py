@@ -161,3 +161,73 @@ def test_narration_entry_confidence_roundtrip(log):
     out = log.tail()
     assert out[0]["confidence"] == "normal"
     assert out[1]["confidence"] == "low"
+
+
+def test_parse_checkpoint_prefix_no_prefix():
+    from claude_code_talker.narration_log import parse_checkpoint_prefix
+    cleaned, is_ckpt = parse_checkpoint_prefix("Using Postgres for the audit log.")
+    assert cleaned == "Using Postgres for the audit log."
+    assert is_ckpt is False
+
+
+def test_parse_checkpoint_prefix_present():
+    from claude_code_talker.narration_log import parse_checkpoint_prefix
+    cleaned, is_ckpt = parse_checkpoint_prefix("[CHECKPOINT] Chose REST over websocket.")
+    assert cleaned == "Chose REST over websocket."
+    assert is_ckpt is True
+
+
+def test_parse_checkpoint_prefix_with_leading_whitespace():
+    from claude_code_talker.narration_log import parse_checkpoint_prefix
+    cleaned, is_ckpt = parse_checkpoint_prefix("  \n  [CHECKPOINT]   Migration schema updated.")
+    assert cleaned == "Migration schema updated."
+    assert is_ckpt is True
+
+
+def test_parse_checkpoint_and_unsure_together():
+    """Both [CHECKPOINT] and [UNSURE] can be present; checkpoint first."""
+    from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+    # Order: [CHECKPOINT] first (higher priority), then [UNSURE]
+    text = "[CHECKPOINT] [UNSURE] Might use Redis for caching."
+    text, is_ckpt = parse_checkpoint_prefix(text)
+    text, confidence = parse_hedge_prefix(text)
+    assert is_ckpt is True
+    assert confidence == "low"
+    assert text == "Might use Redis for caching."
+
+
+def test_narration_entry_checkpoint_field():
+    """NarrationEntry accepts and defaults checkpoint field."""
+    entry = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="regular decision",
+    )
+    assert entry.checkpoint is False
+
+    entry_ckpt = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="critical decision",
+        checkpoint=True,
+    )
+    assert entry_ckpt.checkpoint is True
+
+
+def test_narration_entry_checkpoint_roundtrip(log):
+    """Checkpoint field is preserved in append/tail roundtrip."""
+    log.append(NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="routine edit",
+        checkpoint=False,
+    ))
+    log.append(NarrationEntry(
+        timestamp=2.0,
+        session_id="abc",
+        text="schema decision",
+        checkpoint=True,
+    ))
+    out = log.tail()
+    assert out[0]["checkpoint"] is False
+    assert out[1]["checkpoint"] is True

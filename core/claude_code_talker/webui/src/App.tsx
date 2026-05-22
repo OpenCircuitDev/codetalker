@@ -4,7 +4,7 @@
 // LiveNarration on top, CharacterStage on bottom (the focused session's
 // avatar + voice + persona). Falls back to "most recent live session"
 // when no session is explicitly opened.
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDaemonEvents } from "./hooks/useDaemonEvents";
@@ -13,16 +13,22 @@ import { SessionGrid } from "./components/SessionGrid";
 import { NarrationFeed } from "./components/NarrationFeed";
 import { CharacterStage } from "./components/CharacterStage";
 import { PreferencesPanel } from "./components/PreferencesPanel";
-import { CharactersTab } from "./features/characters/CharactersTab";
 import { ActivityTab } from "./features/activity/ActivityTab";
+import { AnalysisTab } from "./components/AnalysisTab";
 import { CTCTab } from "./components/CTCTab";
 import { VoiceManager } from "./components/VoiceManager";
+
+const CharactersTab = React.lazy(() =>
+  import("./features/characters/CharactersTab").then((mod) => ({
+    default: mod.CharactersTab,
+  }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: 1000 } },
 });
 
-type Tab = "sessions" | "ctc" | "characters" | "voices" | "activity" | "preferences";
+type Tab = "sessions" | "ctc" | "characters" | "voices" | "activity" | "analysis" | "preferences";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "sessions", label: "Sessions" },
@@ -35,6 +41,8 @@ const TABS: { id: Tab; label: string }[] = [
   // hunting in Preferences.
   { id: "voices", label: "Voices" },
   { id: "activity", label: "Activity" },
+  // Analysis tab — render MARKET_ANALYSIS_*.md reports for in-app glanceability.
+  { id: "analysis", label: "Analysis" },
   { id: "preferences", label: "Preferences" },
 ];
 
@@ -160,7 +168,11 @@ export default function App() {
             />
           )}
           {tab === "ctc" && <CTCTab />}
-          {tab === "characters" && <CharactersTab />}
+          {tab === "characters" && (
+            <Suspense fallback={<div className="text-ct-muted">Loading characters…</div>}>
+              <CharactersTab />
+            </Suspense>
+          )}
           {tab === "voices" && (
             <div className="h-full overflow-y-auto p-6">
               <div className="max-w-5xl mx-auto">
@@ -180,6 +192,7 @@ export default function App() {
             </div>
           )}
           {tab === "activity" && <ActivityTab />}
+          {tab === "analysis" && <AnalysisTab />}
           {tab === "preferences" && (
             <div className="p-6 max-w-md">
               <PreferencesPanel />

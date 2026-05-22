@@ -26,6 +26,7 @@ import {
 } from "./WorkspaceGroupSection";
 import { SessionRow } from "./SessionRow";
 import { SessionDetailPanel } from "./SessionDetailPanel";
+import { WorkspaceGroupSettingsModal } from "./WorkspaceGroupSettingsModal";
 import type { Session } from "../types";
 
 type Props = {
@@ -54,6 +55,9 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
     }
   };
 
+  // Group settings modal state
+  const [settingsGroupKey, setSettingsGroupKey] = useState<string | null>(null);
+
   // CCT-28: keep array identity stable across refetches when react-query
   // returns reference-equal data (placeholderData). The new layout sorts
   // before grouping so the order propagates per-group (groupSessions
@@ -76,6 +80,21 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
   const filtered = useMemo(
     () => applySessionFilter(sortedSessions, prefs.sessionFilter),
     [sortedSessions, prefs.sessionFilter]
+  );
+
+  const settingsGroupSessions = useMemo(
+    () =>
+      settingsGroupKey
+        ? filtered.filter(
+            (s) => {
+              const g = s.workspace_group?.trim();
+              return settingsGroupKey === "Ungrouped"
+                ? !g
+                : g === settingsGroupKey;
+            }
+          )
+        : [],
+    [settingsGroupKey, filtered]
   );
 
   const groups = useMemo(() => {
@@ -209,15 +228,7 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
                   onSettings={
                     label === "Ungrouped"
                       ? undefined
-                      : () => {
-                          // Placeholder. Future: open a popover with
-                          // rename / merge-into / clear-collapse / delete-if-empty.
-                          // For v0.1.0 the inline workspace_group input on
-                          // each session's detail panel is the rename path.
-                          window.alert(
-                            `Group "${label}"\n\nv0.1.x will add: rename, merge into another group, set default voice/destination for all members, etc.\n\nFor now: open a session and edit its workspace_group field.`
-                          );
-                        }
+                      : () => setSettingsGroupKey(label)
                   }
                 >
                   {sessions.map((s) => (
@@ -247,6 +258,18 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
             onClose={() => setOpenSessionId(null)}
           />
         </div>
+      )}
+
+      {settingsGroupKey && (
+        <WorkspaceGroupSettingsModal
+          groupKey={settingsGroupKey}
+          sessions={settingsGroupSessions}
+          onClose={() => setSettingsGroupKey(null)}
+          onGroupUpdated={() => {
+            // Re-invalidate sessions query so groups refresh
+            qc.invalidateQueries({ queryKey: ["sessions"] });
+          }}
+        />
       )}
     </div>
   );

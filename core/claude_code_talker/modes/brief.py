@@ -200,12 +200,16 @@ class BriefMode(ModeStrategy):
             return self._fallback(payload)
         try:
             raw = (await self.provider.complete(user_prompt, max_tokens, system=system_prompt)).strip()
-            # 2026-05-21 — strip the [UNSURE] hedge prefix before returning so
-            # TTS doesn't speak "UNSURE" out loud. confidence is captured but
-            # not yet plumbed through the dispatch chain (v2: pass to
-            # NarrationEntry.confidence + render a hedge badge in the webui).
-            from claude_code_talker.narration_log import parse_hedge_prefix
-            cleaned, _confidence = parse_hedge_prefix(raw)
+            # 2026-05-21 — strip [CHECKPOINT] and [UNSURE] prefixes before returning
+            # so TTS doesn't speak them out loud. Both flags are captured and prepended
+            # as spoken cues (just "Checkpoint. " for now; [UNSURE] is silent).
+            from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+            cleaned, is_checkpoint = parse_checkpoint_prefix(raw)
+            cleaned, _confidence = parse_hedge_prefix(cleaned)
+            cleaned = cleaned.strip()
+            # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+            if is_checkpoint:
+                cleaned = "Checkpoint. " + cleaned
             return cleaned
         except Exception:
             return self._fallback(payload)

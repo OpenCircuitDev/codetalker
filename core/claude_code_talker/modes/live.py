@@ -394,7 +394,8 @@ class LiveMode(ModeStrategy):
 
     def _append_narration_log(self, text: str, voice: str, engine_name: str,
                                priority: str, session_id: str = "",
-                               mode: str = "live", confidence: str = "normal") -> None:
+                               mode: str = "live", confidence: str = "normal",
+                               checkpoint: bool = False) -> None:
         """Best-effort append to the narration audit log."""
         if self.narration_log is None:
             return
@@ -409,6 +410,7 @@ class LiveMode(ModeStrategy):
                 mode=mode,
                 priority=priority,
                 confidence=confidence,
+                checkpoint=checkpoint,
             ))
         except Exception as _e:
             logging.debug("narration log append failed: %s", _e)
@@ -505,25 +507,35 @@ class LiveMode(ModeStrategy):
         # so the caller doesn't advance the since-last cutoff.
         emitted_any = False
         _hedge_seen = False  # Track if we've stripped [UNSURE] from first chunk
+        _checkpoint_seen = False  # Track if we've stripped [CHECKPOINT] from first chunk
 
         def _emit_chunk(chunk: str) -> None:
-            nonlocal emitted_any, _hedge_seen
+            nonlocal emitted_any, _hedge_seen, _checkpoint_seen
             # Phase 26: pass cfg so markup pipeline (code fences, paths, etc.)
             # runs against each streaming chunk before TTS.
             chunk = _sanitize_chunk(chunk, self.cfg)
             chunk = chunk.strip()
             if not chunk:
                 return
-            # Strip [UNSURE] prefix from the first chunk only (where it appears)
+            # Strip [CHECKPOINT] and [UNSURE] prefixes from the first chunk only
+            # (where they appear). Order: [CHECKPOINT] first (higher significance),
+            # then [UNSURE]. Both can be present in theory.
             confidence = "normal"
-            if not _hedge_seen:
-                from claude_code_talker.narration_log import parse_hedge_prefix
+            checkpoint = False
+            if not _checkpoint_seen and not _hedge_seen:
+                from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+                chunk, checkpoint = parse_checkpoint_prefix(chunk)
                 chunk, confidence = parse_hedge_prefix(chunk)
                 chunk = chunk.strip()
+                if checkpoint:
+                    _checkpoint_seen = True
                 if confidence == "low":
                     _hedge_seen = True
             if not chunk:
                 return
+            # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+            if checkpoint:
+                chunk = "Checkpoint. " + chunk
             self.audio_queue.submit(AudioJob(
                 text=chunk,
                 voice=voice,
@@ -532,10 +544,11 @@ class LiveMode(ModeStrategy):
                 engine_name=engine_name,
                 session_id=session_id,
                 confidence=confidence,
+                checkpoint=checkpoint,
             ))
             self._append_narration_log(chunk, voice, engine_name, priority,
                                         session_id=session_id, mode="live-stream",
-                                        confidence=confidence)
+                                        confidence=confidence, checkpoint=checkpoint)
             emitted_any = True
 
         streamer = AudioStreamer(emit=_emit_chunk)
@@ -684,16 +697,21 @@ class LiveMode(ModeStrategy):
             )
             return False
 
-        # Strip [UNSURE] hedge prefix from the response
-        from claude_code_talker.narration_log import parse_hedge_prefix
+        # Strip [CHECKPOINT] and [UNSURE] prefixes from the response
+        from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+        text, checkpoint = parse_checkpoint_prefix(text)
         text, confidence = parse_hedge_prefix(text)
         text = text.strip()
         if not text:
             logging.warning(
-                "CCT-LIVE: narration was only the hedge prefix for sid=%s",
+                "CCT-LIVE: narration was only prefix markers for sid=%s",
                 (session_id or "")[:8],
             )
             return False
+
+        # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+        if checkpoint:
+            text = "Checkpoint. " + text
 
         voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
@@ -708,10 +726,11 @@ class LiveMode(ModeStrategy):
             engine_name=engine_name,
             session_id=session_id,
             confidence=confidence,
+            checkpoint=checkpoint,
         ))
         self._append_narration_log(text, voice, engine_name, priority,
                                     session_id=session_id, mode="live",
-                                    confidence=confidence)
+                                    confidence=confidence, checkpoint=checkpoint)
         return True
 
     # ------------------------------------------------------------------

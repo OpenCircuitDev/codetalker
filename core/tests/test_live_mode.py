@@ -327,17 +327,24 @@ def test_sanitize_chunk_normal_prose_passthrough():
 # ---------------------------------------------------------------------------
 
 def test_live_narration_system_has_appropriate_word_limit():
-    """System prompt's word limit lives in the STYLE block.
+    """System prompt's word limit lives in the STYLE / BRIEFNESS block.
 
-    2026-05-18 — interpreter-style prompt rewrite. Allowed range nudged
-    slightly upward (60 → 70 words) to accommodate the new decision-
-    first + arc-link + agent-asks-user-special-shape rules without
-    pinching the LLM into incomplete sentences.
+    Evolution of the cap:
+      - Original verbose narrator: 30 words
+      - 2026-05-18 interpreter-style rewrite: 70 words (room for decision-
+        first + arc-link + agent-asks-user-special-shape rules)
+      - 2026-05-21 briefness market-feedback tightening: 35 words (the
+        primary persona complaint in iter1 was "too verbose, gets in the
+        way of thinking" — the prompt was rewritten with BRIEFNESS IS
+        PRIMARY as the first instruction block and a 35-word hard cap)
     """
     from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
-    # Word limit cap should be present in the STYLE section.
-    assert "70 words" in LIVE_NARRATION_SYSTEM
-    # Old smaller limit should be gone.
+    # Current cap should be present in the prompt.
+    assert "35-word" in LIVE_NARRATION_SYSTEM or "35 words" in LIVE_NARRATION_SYSTEM
+    # Older caps should be gone (the briefness rewrite explicitly
+    # dropped these in favor of tighter narration).
+    assert "70 words" not in LIVE_NARRATION_SYSTEM
+    assert "60 words" not in LIVE_NARRATION_SYSTEM
     assert "30 words" not in LIVE_NARRATION_SYSTEM
 
 

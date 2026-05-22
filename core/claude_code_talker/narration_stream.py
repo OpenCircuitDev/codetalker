@@ -23,6 +23,7 @@ class NarrationEvent:
     mode: str
     status: NarrationStatus
     confidence: str = "normal"  # "normal" or "low" (hedged)
+    checkpoint: bool = False  # architecturally-significant decision marker
 
 
 class NarrationStream:

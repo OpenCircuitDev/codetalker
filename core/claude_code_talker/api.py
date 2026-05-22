@@ -3469,11 +3469,63 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         from dataclasses import asdict as _asdict
         return JSONResponse(_asdict(state.mesh_jobs.get(job.job_id)))
 
+    async def list_analysis_reports(request: Request) -> JSONResponse:
+        """GET /api/analysis-reports — list MARKET_ANALYSIS_*.md files at repo root.
+
+        Returns:
+          [
+            {"filename": "MARKET_ANALYSIS_2026-05-21.md", "label": null,
+             "size": 6738, "modified": 1779415xxx},
+            {"filename": "MARKET_ANALYSIS_2026-05-21-iter2.md", "label": "iter2", ...},
+            ...
+          ]
+
+        Sorted newest first (by modified time).
+        """
+        # repo root = parent of `core/`
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        out = []
+        for path in repo_root.glob("MARKET_ANALYSIS_*.md"):
+            try:
+                st = path.stat()
+                # Extract label from filename like MARKET_ANALYSIS_2026-05-21-iter2.md
+                stem = path.stem  # "MARKET_ANALYSIS_2026-05-21-iter2"
+                parts = stem.split("-")
+                label = parts[-1] if len(parts) > 4 and parts[-1] not in ("21",) else None
+                out.append({
+                    "filename": path.name,
+                    "label": label,
+                    "size": st.st_size,
+                    "modified": st.st_mtime,
+                })
+            except Exception:
+                pass
+        out.sort(key=lambda x: x["modified"], reverse=True)
+        return JSONResponse(out)
+
+    async def get_analysis_report(request: Request) -> Response:
+        """GET /api/analysis-reports/{filename} — return raw markdown.
+
+        Filename validation rejects path-traversal attempts (must match
+        MARKET_ANALYSIS_*.md pattern exactly).
+        """
+        from starlette.responses import PlainTextResponse
+        filename = request.path_params.get("filename", "")
+        if not re.fullmatch(r"MARKET_ANALYSIS_[\w\-\.]+\.md", filename):
+            return JSONResponse({"error": "invalid filename"}, status_code=400)
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        path = repo_root / filename
+        if not path.exists():
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return PlainTextResponse(path.read_text(encoding="utf-8"), media_type="text/markdown")
+
     # CCT-31 — Companion (XREAL Android AR) routes are built separately and appended.
     from claude_code_talker.companion.api import make_routes as _companion_routes
 
     routes = [
         Route("/api/health", health, methods=["GET"]),
+        Route("/api/analysis-reports", list_analysis_reports, methods=["GET"]),
+        Route("/api/analysis-reports/{filename}", get_analysis_report, methods=["GET"]),
         Route("/api/master-enabled", master_enabled_get, methods=["GET"]),
         Route("/api/master-enabled", master_enabled_put, methods=["PUT"]),
         Route("/api/license/status", license_status, methods=["GET"]),
