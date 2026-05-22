@@ -5,10 +5,16 @@ from typing import Any
 
 from .describer import (
     describe_code_fence,
+    describe_currency_amount,
     describe_file_path,
+    describe_ip_address,
+    describe_iso_timestamp,
     describe_long_numeral,
     describe_subagent,
     describe_tool_output,
+    read_currency_amount,
+    read_ip_address,
+    read_iso_timestamp,
 )
 from .forms import Treatment
 from .recognizers import Span
@@ -87,6 +93,25 @@ def apply_treatment(span: Span, t: Treatment, cfg: dict[str, Any]) -> str | None
             return describe_long_numeral(span.text)
         if k == "read":
             return span.text
+    elif f == "ip_address":
+        host = span.parsed.get("host", "")
+        port = span.parsed.get("port")
+        if k == "describe":
+            return describe_ip_address(host, port)
+        if k == "read":
+            return read_ip_address(host, port)
+    elif f == "iso_timestamp":
+        raw = span.parsed.get("raw", "")
+        if k == "describe":
+            return describe_iso_timestamp()
+        if k == "read":
+            return read_iso_timestamp(raw)
+    elif f == "currency_amount":
+        raw = span.parsed.get("raw", "")
+        if k == "describe":
+            return describe_currency_amount()
+        if k == "read":
+            return read_currency_amount(raw)
     elif f == "audible_block":
         return span.text  # passthrough; trigger parser owns dispatch
 

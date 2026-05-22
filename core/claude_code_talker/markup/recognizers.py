@@ -23,6 +23,9 @@ _RE_FILE_PATH = re.compile(
     r"`?([\w./\\-]+\.[A-Za-z0-9]{1,8})(?::\d+)?`?"
 )
 _RE_LONG_NUMERAL = re.compile(r"\b\d{7,}\b")
+_RE_IP_ADDRESS = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b")
+_RE_ISO_TIMESTAMP = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?\b")
+_RE_CURRENCY_AMOUNT = re.compile(r"\$\d{1,3}(?:,\d{3})*(?:\.\d+)?(?:\s*(?:USD|usd))?(?:/(?:mo|month|yr|year|week|wk|day|hr|hour))?")
 _RE_PLAN_HEADER = re.compile(r"^##\s+Plan\s*\n([\s\S]*?)(?=\n##\s|\Z)", re.MULTILINE)
 _RE_AUDIBLE_HEADER = re.compile(
     r"^##\s+Audible\s+([A-Za-z][\w-]*)\s*\n([\s\S]*?)(?=\n##\s|\Z)",
@@ -164,3 +167,75 @@ def detect_subagent_dispatch(event: dict[str, Any]) -> list[Span]:
     if phase == "pre":
         parsed["subagent_type"] = (event.get("input") or {}).get("subagent_type")
     return [Span("subagent_dispatch", 0, 0, "", parsed=parsed)]
+
+
+def _is_valid_ipv4(text: str) -> bool:
+    """Validate that all octets are 0-255."""
+    match = re.match(r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})", text)
+    if not match:
+        return False
+    return all(0 <= int(octet) <= 255 for octet in match.groups())
+
+
+def detect_ip_address(text: str) -> list[Span]:
+    out: list[Span] = []
+    for m in _RE_IP_ADDRESS.finditer(text):
+        candidate = m.group(0)
+        # Validate octets are 0-255 (extract IP part without port)
+        ip_part = candidate.split(":")[0] if ":" in candidate else candidate
+        if not _is_valid_ipv4(ip_part):
+            continue
+        # Parse out host and port
+        if ":" in candidate:
+            host, port = candidate.rsplit(":", 1)
+            parsed = {"host": host, "port": int(port) if port.isdigit() else None}
+        else:
+            parsed = {"host": candidate, "port": None}
+        out.append(Span(
+            form="ip_address",
+            start=m.start(), end=m.end(),
+            text=candidate,
+            parsed=parsed,
+        ))
+    return out
+
+
+def _is_valid_date(year: int, month: int, day: int) -> bool:
+    """Basic validation for date components."""
+    if month < 1 or month > 12:
+        return False
+    days_in_month = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    return 1 <= day <= days_in_month[month - 1]
+
+
+def detect_iso_timestamp(text: str) -> list[Span]:
+    out: list[Span] = []
+    for m in _RE_ISO_TIMESTAMP.finditer(text):
+        candidate = m.group(0)
+        # Extract date components for validation
+        date_match = re.match(r"(\d{4})-(\d{2})-(\d{2})", candidate)
+        if not date_match:
+            continue
+        year, month, day = int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3))
+        # Reject obviously invalid dates like 999-99-99
+        if not _is_valid_date(year, month, day):
+            continue
+        out.append(Span(
+            form="iso_timestamp",
+            start=m.start(), end=m.end(),
+            text=candidate,
+            parsed={"raw": candidate},
+        ))
+    return out
+
+
+def detect_currency_amount(text: str) -> list[Span]:
+    out: list[Span] = []
+    for m in _RE_CURRENCY_AMOUNT.finditer(text):
+        out.append(Span(
+            form="currency_amount",
+            start=m.start(), end=m.end(),
+            text=m.group(0),
+            parsed={"raw": m.group(0)},
+        ))
+    return out

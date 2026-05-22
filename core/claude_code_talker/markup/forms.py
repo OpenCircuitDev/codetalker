@@ -22,6 +22,9 @@ FORM_KINDS: dict[str, set[str]] = {
     "subagent_dispatch":  {"skip", "announce", "describe"},
     "file_path":          {"skip", "filename", "describe", "read"},
     "long_numeral":       {"skip", "describe", "read"},
+    "ip_address":         {"skip", "describe", "read"},
+    "iso_timestamp":      {"skip", "describe", "read"},
+    "currency_amount":    {"skip", "describe", "read"},
 }
 
 
@@ -37,6 +40,9 @@ PRESETS: dict[str, dict[str, Treatment]] = {
         "subagent_dispatch": Treatment("announce"),
         "file_path":         Treatment("filename"),
         "long_numeral":      Treatment("describe"),
+        "ip_address":        Treatment("describe"),
+        "iso_timestamp":     Treatment("describe"),
+        "currency_amount":   Treatment("read"),
     },
     "direct": {
         "code_fence":        Treatment("describe"),
@@ -49,6 +55,9 @@ PRESETS: dict[str, dict[str, Treatment]] = {
         "subagent_dispatch": Treatment("describe"),
         "file_path":         Treatment("filename"),
         "long_numeral":      Treatment("describe"),
+        "ip_address":        Treatment("read"),
+        "iso_timestamp":     Treatment("read"),
+        "currency_amount":   Treatment("read"),
     },
     "live": {
         "code_fence":        Treatment("describe"),
@@ -61,6 +70,9 @@ PRESETS: dict[str, dict[str, Treatment]] = {
         "subagent_dispatch": Treatment("describe"),
         "file_path":         Treatment("filename"),
         "long_numeral":      Treatment("describe"),
+        "ip_address":        Treatment("describe"),
+        "iso_timestamp":     Treatment("describe"),
+        "currency_amount":   Treatment("read"),
     },
     "trigger": {
         "code_fence":        Treatment("skip"),
@@ -73,6 +85,9 @@ PRESETS: dict[str, dict[str, Treatment]] = {
         "subagent_dispatch": Treatment("skip"),
         "file_path":         Treatment("filename"),
         "long_numeral":      Treatment("describe"),
+        "ip_address":        Treatment("describe"),
+        "iso_timestamp":     Treatment("describe"),
+        "currency_amount":   Treatment("read"),
     },
 }
 

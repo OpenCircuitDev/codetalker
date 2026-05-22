@@ -9,8 +9,11 @@ from .recognizers import (
     Span,
     detect_audible_block,
     detect_code_fence,
+    detect_currency_amount,
     detect_file_path,
     detect_inline_code,
+    detect_ip_address,
+    detect_iso_timestamp,
     detect_long_numeral,
     detect_plan_block,
     detect_subagent_dispatch,
@@ -30,6 +33,9 @@ _SPAN_DETECTORS = (
     ("inline_code", detect_inline_code),
     ("file_path", detect_file_path),
     ("long_numeral", detect_long_numeral),
+    ("ip_address", detect_ip_address),
+    ("iso_timestamp", detect_iso_timestamp),
+    ("currency_amount", detect_currency_amount),
 )
 
 

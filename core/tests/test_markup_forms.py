@@ -13,11 +13,12 @@ from claude_code_talker.markup.forms import (
 )
 
 
-def test_form_kinds_contains_ten_forms():
+def test_form_kinds_contains_thirteen_forms():
     expected = {
         "code_fence", "inline_code", "todo_update", "plan_block",
         "audible_block", "system_reminder", "tool_output",
         "subagent_dispatch", "file_path", "long_numeral",
+        "ip_address", "iso_timestamp", "currency_amount",
     }
     assert set(FORM_KINDS) == expected
 
@@ -105,3 +106,76 @@ def test_load_treatments_invalid_legacy_value_ignored():
     out = load_treatments(cfg)
     # Falls back to the direct preset's file_path → filename
     assert out["file_path"].kind == "filename"
+
+
+# ============================================================================
+# MVP 3 forms (ip_address, iso_timestamp, currency_amount) tests
+# ============================================================================
+
+def test_form_kinds_ip_address_has_correct_kinds():
+    assert FORM_KINDS["ip_address"] == {"skip", "describe", "read"}
+
+
+def test_form_kinds_iso_timestamp_has_correct_kinds():
+    assert FORM_KINDS["iso_timestamp"] == {"skip", "describe", "read"}
+
+
+def test_form_kinds_currency_amount_has_correct_kinds():
+    assert FORM_KINDS["currency_amount"] == {"skip", "describe", "read"}
+
+
+def test_presets_have_all_three_new_forms():
+    """Verify all four presets include the three new forms."""
+    for preset_name in ["brief", "direct", "live", "trigger"]:
+        preset = PRESETS[preset_name]
+        assert "ip_address" in preset, f"ip_address missing from {preset_name}"
+        assert "iso_timestamp" in preset, f"iso_timestamp missing from {preset_name}"
+        assert "currency_amount" in preset, f"currency_amount missing from {preset_name}"
+
+
+def test_preset_brief_ip_address_describe():
+    assert PRESETS["brief"]["ip_address"].kind == "describe"
+
+
+def test_preset_brief_iso_timestamp_describe():
+    assert PRESETS["brief"]["iso_timestamp"].kind == "describe"
+
+
+def test_preset_brief_currency_amount_read():
+    assert PRESETS["brief"]["currency_amount"].kind == "read"
+
+
+def test_preset_direct_ip_address_read():
+    assert PRESETS["direct"]["ip_address"].kind == "read"
+
+
+def test_preset_direct_iso_timestamp_read():
+    assert PRESETS["direct"]["iso_timestamp"].kind == "read"
+
+
+def test_preset_direct_currency_amount_read():
+    assert PRESETS["direct"]["currency_amount"].kind == "read"
+
+
+def test_preset_live_ip_address_describe():
+    assert PRESETS["live"]["ip_address"].kind == "describe"
+
+
+def test_preset_live_iso_timestamp_describe():
+    assert PRESETS["live"]["iso_timestamp"].kind == "describe"
+
+
+def test_preset_live_currency_amount_read():
+    assert PRESETS["live"]["currency_amount"].kind == "read"
+
+
+def test_preset_trigger_ip_address_describe():
+    assert PRESETS["trigger"]["ip_address"].kind == "describe"
+
+
+def test_preset_trigger_iso_timestamp_describe():
+    assert PRESETS["trigger"]["iso_timestamp"].kind == "describe"
+
+
+def test_preset_trigger_currency_amount_read():
+    assert PRESETS["trigger"]["currency_amount"].kind == "read"
