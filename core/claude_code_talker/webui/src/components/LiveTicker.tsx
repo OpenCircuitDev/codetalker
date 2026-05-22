@@ -9,6 +9,7 @@ export interface TickerEvent {
   text: string;
   ts: number;
   alert?: boolean;  // true when something broke, blocked, or needs input
+  checkpoint?: boolean;  // true for architectural decision checkpoints
 }
 
 const FILTER_OPTIONS = [
@@ -19,6 +20,11 @@ const FILTER_OPTIONS = [
   { kind: "error", label: "Error", color: "bg-rose-700" },
 ];
 
+const CHECKPOINT_FILTER_OPTIONS = [
+  { mode: "all-events", label: "All Events", color: "bg-zinc-700" },
+  { mode: "decisions-only", label: "Decisions Only", color: "bg-amber-700" },
+];
+
 export function LiveTicker({
   events,
   maxEvents = 100,
@@ -27,33 +33,57 @@ export function LiveTicker({
   maxEvents?: number;
 }) {
   const [filter, setFilter] = useState("all");
+  const [checkpointFilter, setCheckpointFilter] = useState("all-events");
   const filtered = useMemo(() => {
-    const list = filter === "all" ? events : events.filter((e) => e.kind === filter);
+    let list = filter === "all" ? events : events.filter((e) => e.kind === filter);
+    if (checkpointFilter === "decisions-only") {
+      list = list.filter((e) => e.checkpoint === true);
+    }
     return list.slice(-maxEvents);
-  }, [events, filter, maxEvents]);
+  }, [events, filter, checkpointFilter, maxEvents]);
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 p-2 border-b border-zinc-800">
-        {FILTER_OPTIONS.map((o) => (
-          <button
-            key={o.kind}
-            onClick={() => setFilter(o.kind)}
-            className={
-              "px-2 py-0.5 rounded text-xs " +
-              (filter === o.kind
-                ? o.color + " text-white"
-                : "bg-zinc-800 text-zinc-400 hover:text-zinc-200")
-            }
-          >
-            {o.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2 p-2 border-b border-zinc-800">
+        <div className="flex items-center gap-1">
+          {FILTER_OPTIONS.map((o) => (
+            <button
+              key={o.kind}
+              onClick={() => setFilter(o.kind)}
+              className={
+                "px-2 py-0.5 rounded text-xs " +
+                (filter === o.kind
+                  ? o.color + " text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200")
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1">
+          {CHECKPOINT_FILTER_OPTIONS.map((o) => (
+            <button
+              key={o.mode}
+              onClick={() => setCheckpointFilter(o.mode)}
+              className={
+                "px-2 py-0.5 rounded text-xs " +
+                (checkpointFilter === o.mode
+                  ? o.color + " text-white"
+                  : "bg-zinc-800 text-zinc-400 hover:text-zinc-200")
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <ul key={filter} className="flex-1 overflow-y-auto p-2 space-y-1">
+      <ul key={`${filter}:${checkpointFilter}`} className="flex-1 overflow-y-auto p-2 space-y-1">
         {filtered.length === 0 && (
           <li className="text-zinc-500 italic text-sm">
-            It's quiet. Waiting for activity…
+            {checkpointFilter === "decisions-only"
+              ? "No architectural checkpoints in this window. The narrator emits these when it commits to a schema, API shape, dependency, or migration approach."
+              : "It's quiet. Waiting for activity…"}
           </li>
         )}
         <AnimatePresence initial={false}>

@@ -12,6 +12,7 @@ from __future__ import annotations
 from claude_code_talker.modes.brief_quiet_stretch import (
     _should_fire_for_session,
     _should_fire_heartbeat_for_session,
+    _select_heartbeat_text,
     QuietStretchFireDecision,
     HeartbeatFireDecision,
 )
@@ -306,3 +307,64 @@ def test_heartbeat_default_mode_is_brief():
     # Default active_mode is brief, so other gates determine the result.
     assert d.fire is True
     assert d.reason == "fire"
+
+
+# =====================================================================
+# Heartbeat text escalation tests
+# =====================================================================
+# Tests for _select_heartbeat_text: the pure text selection logic
+# that escalates based on firing count and silence duration.
+
+
+def test_select_heartbeat_text_first_firing():
+    """First firing (count=1): "Still here." — unchanged."""
+    text = _select_heartbeat_text(firing_count=1, silence_seconds=30.0)
+    assert text == "Still here."
+
+
+def test_select_heartbeat_text_second_firing_under_three_minutes():
+    """Second firing (count=2): "Still here. Quiet two minutes." """
+    text = _select_heartbeat_text(firing_count=2, silence_seconds=60.0)
+    assert text == "Still here. Quiet two minutes."
+
+
+def test_select_heartbeat_text_third_firing_exactly_three_minutes():
+    """Third firing (count=3): "Still on it — 3 minutes." """
+    text = _select_heartbeat_text(firing_count=3, silence_seconds=180.0)
+    assert text == "Still on it — 3 minutes."
+
+
+def test_select_heartbeat_text_fourth_firing_five_minutes():
+    """Fourth firing (count=4): "Still on it — 5 minutes." """
+    text = _select_heartbeat_text(firing_count=4, silence_seconds=300.0)
+    assert text == "Still on it — 5 minutes."
+
+
+def test_select_heartbeat_text_caps_at_ten_plus():
+    """Silence >= 10 minutes: "Still on it — 10+ minutes." """
+    text = _select_heartbeat_text(firing_count=10, silence_seconds=900.0)
+    assert text == "Still on it — 10+ minutes."
+    # Also test with even longer silence
+    text_long = _select_heartbeat_text(firing_count=15, silence_seconds=1200.0)
+    assert text_long == "Still on it — 10+ minutes."
+
+
+def test_select_heartbeat_text_rounds_to_nearest_minute():
+    """Silence duration is rounded to nearest minute."""
+    # 89.5s → rounds to 1.5 → rounds to 2 minutes
+    text_90s = _select_heartbeat_text(firing_count=3, silence_seconds=90.0)
+    assert text_90s == "Still on it — 2 minutes."
+    # 150s (2.5 min) → rounds to 2 minutes
+    text_150s = _select_heartbeat_text(firing_count=3, silence_seconds=150.0)
+    assert text_150s == "Still on it — 2 minutes."
+    # 180s (3 min) → 3 minutes
+    text_180s = _select_heartbeat_text(firing_count=3, silence_seconds=180.0)
+    assert text_180s == "Still on it — 3 minutes."
+
+
+def test_select_heartbeat_text_zero_or_negative_count_treated_as_first():
+    """Edge case: count <= 0 defaults to "Still here." """
+    text_zero = _select_heartbeat_text(firing_count=0, silence_seconds=100.0)
+    assert text_zero == "Still here."
+    text_neg = _select_heartbeat_text(firing_count=-1, silence_seconds=100.0)
+    assert text_neg == "Still here."

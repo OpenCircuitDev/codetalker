@@ -38,6 +38,33 @@ from claude_code_talker.hooks import handle_stop
 log = logging.getLogger(__name__)
 
 
+def _select_heartbeat_text(firing_count: int, silence_seconds: float) -> str:
+    """Select escalating heartbeat text based on firing count and silence duration.
+
+    Escalation curve:
+      - firing_count == 1: "Still here." (first heartbeat)
+      - firing_count == 2: "Still here. [duration]" (~60s silence)
+      - firing_count >= 3: "Still on it — N minutes." (N rounded, capped at "10+")
+
+    The text is kept short (<=8 words) to fit the brief-mode aesthetic.
+    silence_seconds is used to compute elapsed minutes for 3+ firings.
+    """
+    if firing_count <= 0:
+        return "Still here."
+    elif firing_count == 1:
+        return "Still here."
+    elif firing_count == 2:
+        # Approximately 60s of silence by the second firing.
+        return "Still here. Quiet two minutes."
+    else:
+        # Third+ firing: show elapsed time rounded to nearest minute, capped at 10+.
+        minutes = max(1, round(silence_seconds / 60.0))
+        if minutes >= 10:
+            return "Still on it — 10+ minutes."
+        else:
+            return f"Still on it — {minutes} minutes."
+
+
 @dataclass
 class QuietStretchFireDecision:
     """Result of evaluating one session at one tick.
@@ -190,6 +217,10 @@ class BriefQuietStretchLoop:
         # Prevents spamming the same session with heartbeats every tick —
         # fires at most once per heartbeat_silence_seconds interval.
         self._last_heartbeat_by_session: dict[str, float] = {}
+        # Per-session heartbeat firing count. dict[session_id, int].
+        # Incremented each time a heartbeat fires; reset to 0 when a real
+        # narration (brief) fires. Used to select escalating heartbeat text.
+        self._heartbeat_firing_count_by_session: dict[str, int] = {}
 
     # ------------------------------------------------------------------
     # Config readers
@@ -292,7 +323,9 @@ class BriefQuietStretchLoop:
                     active_window_seconds=hb_window,
                 )
                 if hb_decision.fire:
-                    await self._fire_heartbeat(session, cfg)
+                    last_narration = self._last_brief_by_session.get(sid, 0.0)
+                    silence_duration = now - max(last_narration, 0.0)
+                    await self._fire_heartbeat(session, cfg, silence_duration)
                     # Don't fire a brief for this session this tick.
                     continue
 
@@ -306,18 +339,30 @@ class BriefQuietStretchLoop:
             )
             if not decision.fire:
                 continue
+            # Reset heartbeat counter when a real brief fires.
+            self._heartbeat_firing_count_by_session[sid] = 0
             await self._fire_brief(session, cfg)
 
-    async def _fire_heartbeat(self, session, cfg: dict) -> None:
-        """Fire a minimal heartbeat signal: "Still here." with no LLM call.
+    async def _fire_heartbeat(self, session, cfg: dict, silence_duration: float) -> None:
+        """Fire a minimal heartbeat signal with escalating text, no LLM call.
 
         The heartbeat is pure status — it's a brief "daemon alive, Claude thinking"
-        signal. No transcript inspection, no LLM call; just dispatch the static text
-        as a routine-priority AudioJob so fresher narrations can overtake it.
+        signal. No transcript inspection, no LLM call; just dispatch the text
+        (which escalates based on firing count) as a routine-priority AudioJob
+        so fresher narrations can overtake it.
+
+        Args:
+            session: The session object.
+            cfg: The resolved session config.
+            silence_duration: How long the user has been in silence (seconds).
         """
         sid = session.session_id
         # Update tracking FIRST so a racing second tick doesn't re-fire.
         self._last_heartbeat_by_session[sid] = time.time()
+
+        # Increment firing count for this session.
+        firing_count = self._heartbeat_firing_count_by_session.get(sid, 0) + 1
+        self._heartbeat_firing_count_by_session[sid] = firing_count
 
         # Also advance last_brief_at so the main quiet-stretch gate waits
         # another full threshold window before firing a real brief.
@@ -334,6 +379,9 @@ class BriefQuietStretchLoop:
         except Exception:
             pass
 
+        # Select escalating text based on firing count and silence duration.
+        heartbeat_text = _select_heartbeat_text(firing_count, silence_duration)
+
         # Dispatch heartbeat via audio_queue as routine priority.
         try:
             audio_queue = getattr(self.state, "audio_queue", None)
@@ -344,7 +392,7 @@ class BriefQuietStretchLoop:
             engine = self.state.engines.get(engine_name) if self.state.engines else None
             audio_format = getattr(engine, "audio_format", "wav") if engine else "wav"
             audio_queue.submit(AudioJob(
-                text="Still here.",
+                text=heartbeat_text,
                 voice=str(voice_cfg.get("model") or ""),
                 rate=float(voice_cfg.get("rate", 1.0)),
                 engine_name=engine_name,
@@ -352,7 +400,7 @@ class BriefQuietStretchLoop:
                 session_id=sid,
                 priority="routine",  # Lower priority than brief (normal)
             ))
-            log.info("brief quiet-stretch heartbeat fired sid=%s", sid[:12])
+            log.info("brief quiet-stretch heartbeat fired sid=%s (count=%d, text=%r)", sid[:12], firing_count, heartbeat_text)
         except Exception as e:
             log.warning("brief quiet-stretch heartbeat sid=%s: submit failed: %s", sid[:12], e)
 

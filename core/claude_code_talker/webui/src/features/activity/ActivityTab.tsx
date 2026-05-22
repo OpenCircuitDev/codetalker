@@ -30,6 +30,7 @@ export function ActivityTab() {
         text: ev.text || `(${ev.status})`,
         ts: (ev.timestamp || Date.now() / 1000) * 1000,
         alert: ev.alert,
+        checkpoint: ev.checkpoint,
       })),
     [narrationEvents],
   );

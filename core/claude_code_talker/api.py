@@ -470,6 +470,98 @@ def build_routes(state) -> list[Route]:
                 continue
         return JSONResponse({"requeued": requeued, "skipped_dupes": 0})
 
+    async def audio_replay_decisions(request: Request) -> JSONResponse:
+        """POST /api/audio/replay-decisions — re-narrate architectural decisions.
+
+        Re-narrates only entries with checkpoint=True from the last N minutes via
+        the audio queue. Useful for a "highlight reel" when the user has been away
+        from the screen.
+
+        Body (optional):
+            {"window_seconds": 1800, "session_id": "..."}
+            window_seconds defaults to 1800 (30 minutes).
+            session_id filters to that session (otherwise all sessions in the window).
+
+        Response:
+            {"replayed": int, "window_seconds": int, "session_id": str|null}
+
+        Behavior:
+            - If no checkpoints in window: returns {"replayed": 0, ...} without error.
+            - Replayed AudioJobs use priority="routine" (lower than live, won't interrupt).
+            - Each replayed job preserves checkpoint=True for consistency.
+            - Uses the original session's voice, or a default neutral voice if
+              session_id is provided.
+        """
+        import time as _time
+        from claude_code_talker.audio import AudioJob
+
+        window_seconds = 1800.0  # 30 minutes default
+        session_id: str | None = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                window_seconds = float(body.get("window_seconds", 1800.0))
+                sid = (body.get("session_id") or "").strip()
+                if sid:
+                    session_id = sid
+        except Exception:
+            pass
+        if state.narration_log is None or state.audio_queue is None:
+            return JSONResponse({"error": "narration log or audio queue unavailable"}, status_code=503)
+
+        cutoff = _time.time() - max(1.0, window_seconds)
+        # Read recent entries from the JSONL log directly.
+        entries = []
+        try:
+            if state.narration_log.path.exists():
+                for raw in state.narration_log.path.read_text(encoding="utf-8").splitlines()[-500:]:
+                    try:
+                        e = json.loads(raw)
+                    except Exception:
+                        continue
+                    if e.get("timestamp", 0) < cutoff:
+                        continue
+                    # Filter to checkpoint entries only
+                    if not e.get("checkpoint", False):
+                        continue
+                    if session_id and e.get("session_id") != session_id:
+                        continue
+                    entries.append(e)
+        except Exception as exc:
+            return JSONResponse({"error": f"narration log read failed: {exc}"}, status_code=500)
+
+        if not entries:
+            return JSONResponse({
+                "replayed": 0,
+                "window_seconds": window_seconds,
+                "session_id": session_id,
+            })
+
+        replayed = 0
+        for e in entries:
+            try:
+                # Determine audio engine and voice model from the entry
+                engine = e.get("engine") or "piper"
+                voice_model = e.get("voice") or ""
+
+                state.audio_queue.submit(AudioJob(
+                    text=e.get("text", ""),
+                    voice=voice_model,
+                    rate=1.0,
+                    engine_name=engine,
+                    priority="routine",  # replay is low-priority, won't interrupt live
+                    session_id=e.get("session_id") or "",
+                    checkpoint=True,  # preserve checkpoint flag for consistency
+                ))
+                replayed += 1
+            except Exception:
+                continue
+        return JSONResponse({
+            "replayed": replayed,
+            "window_seconds": window_seconds,
+            "session_id": session_id,
+        })
+
     async def license_status(request: Request) -> JSONResponse:
         """GET /api/license/status — current entitlement snapshot.
 
@@ -3534,6 +3626,7 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/license/activate", license_activate, methods=["POST"]),
         Route("/api/audio/skip", audio_skip, methods=["POST"]),
         Route("/api/audio/rewind", audio_rewind, methods=["POST"]),
+        Route("/api/audio/replay-decisions", audio_replay_decisions, methods=["POST"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),
