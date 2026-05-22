@@ -181,6 +181,26 @@ export function PreferencesPanel() {
       </fieldset>
 
       <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
+        <legend className="text-sm font-bold text-[var(--color-text-1)]">Keyboard shortcuts</legend>
+        <p className="text-xs text-[var(--color-text-3)]">
+          Navigate faster with these key combinations.
+        </p>
+        <dl className="space-y-2 text-xs">
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">Enter</dt>
+            <dd className="text-[var(--color-text-3)]">Save text input or expand a session row.</dd>
+          </div>
+          <div className="flex gap-3">
+            <dt className="text-[var(--color-text-2)] font-mono shrink-0 min-w-32">Space</dt>
+            <dd className="text-[var(--color-text-3)]">Expand a session row.</dd>
+          </div>
+        </dl>
+        <p className="text-[11px] text-[var(--color-text-3)] italic pt-1">
+          More shortcuts coming as the UI grows.
+        </p>
+      </fieldset>
+
+      <fieldset className="space-y-2 pt-2 border-t border-zinc-800">
         <legend className="text-sm font-bold text-[var(--color-text-1)]">AR Companion</legend>
         <p className="text-xs text-[var(--color-text-3)]">
           Pair the codetalker Android app on your XREAL Beam Pro by scanning a QR token

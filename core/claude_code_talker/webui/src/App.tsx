@@ -129,6 +129,19 @@ export default function App() {
     window.addEventListener("cct:navigate", handler);
     return () => window.removeEventListener("cct:navigate", handler);
   }, []);
+
+  // Keyboard shortcut: ? to open keyboard shortcuts in Preferences
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setTab("preferences");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* v0.1.0 unification — h-screen (exactly 100vh) so the inner

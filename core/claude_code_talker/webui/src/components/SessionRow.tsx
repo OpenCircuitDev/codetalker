@@ -483,28 +483,42 @@ type HealthChipConfig = {
   title: string;
 };
 
-/** Render a tiny session health pill. ~40–50px wide. */
+/** Render a tiny session health pill. ~40–50px wide.
+ *
+ *  2026-05-21 — added Unicode symbol prefixes (●/◐/⊗/○) so the four
+ *  states are distinguishable WITHOUT color (top UX_AUDIT.md finding).
+ *  Protanopic / deuteranopic users can read the symbol even if the
+ *  emerald/cyan/amber/zinc colors blur together.
+ */
 function SessionHealthChip({ state }: { state: SessionHealthState }) {
-  const config: Record<SessionHealthState, HealthChipConfig> = {
+  const config: Record<SessionHealthState, HealthChipConfig & { symbol: string }> = {
     running: {
+      // ● solid filled circle — strong "on" signal
+      symbol: "●",
       label: "running",
       bgColor: "bg-emerald-900/60",
       textColor: "text-emerald-200",
       title: "Session is running",
     },
     working: {
+      // ◐ half-filled — "active but idle, not actively talking"
+      symbol: "◐",
       label: "working",
       bgColor: "bg-cyan-900/60",
       textColor: "text-cyan-200",
       title: "Session active but idle",
     },
     blocked: {
+      // ⊗ circle-with-X — clear "stop / attention" semantic
+      symbol: "⊗",
       label: "blocked",
       bgColor: "bg-amber-900/60",
       textColor: "text-amber-200",
       title: "Session may be stuck",
     },
     dormant: {
+      // ○ empty circle — "no activity"
+      symbol: "○",
       label: "dormant",
       bgColor: "bg-zinc-800",
       textColor: "text-zinc-400",
@@ -512,14 +526,17 @@ function SessionHealthChip({ state }: { state: SessionHealthState }) {
     },
   };
 
-  const { label, bgColor, textColor, title } = config[state];
+  const { symbol, label, bgColor, textColor, title } = config[state];
 
   return (
     <span
-      className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold uppercase tracking-tight shrink-0 max-w-[50px] truncate ${bgColor} ${textColor}`}
+      className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold uppercase tracking-tight shrink-0 max-w-[60px] truncate ${bgColor} ${textColor}`}
       title={title}
+      // aria-label gives screen readers the full state name, not the
+      // truncated visual label + symbol salad.
+      aria-label={title}
     >
-      {label}
+      <span aria-hidden="true">{symbol}</span> {label}
     </span>
   );
 }
