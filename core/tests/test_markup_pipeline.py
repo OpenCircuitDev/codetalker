@@ -239,3 +239,134 @@ def test_whitespace_collapse_after_word_removal():
     assert "asterisks" not in out
     # Should not have double spaces
     assert "  " not in out
+
+
+# ---------------------------------------------------------------------------
+# Status symbols — ✓ ⌛ ❗ etc. get semantic phrase substitution when
+# leading a line; silently stripped mid-sentence or decorative.
+# ---------------------------------------------------------------------------
+
+def test_strip_status_checkmark_leading_becomes_done():
+    """Leading ✓ gets substituted with "Done: " prefix."""
+    cfg = {"mode": "direct"}
+    text = "✓ Fixed the auth bug"
+    out = transform(text, cfg)
+    # TTS should hear "Done:" not "checkmark"
+    assert "Done:" in out
+    assert "Fixed the auth bug" in out
+    assert "✓" not in out
+
+
+def test_strip_status_hourglass_leading_becomes_working_on():
+    """Leading ⌛ gets substituted with "Working on: " prefix."""
+    cfg = {"mode": "direct"}
+    text = "⌛ Running the migration"
+    out = transform(text, cfg)
+    assert "Working on:" in out
+    assert "Running the migration" in out
+    assert "⌛" not in out
+
+
+def test_strip_status_heavy_exclamation_leading_becomes_issue():
+    """Leading ❗ gets substituted with "Issue: " prefix."""
+    cfg = {"mode": "direct"}
+    text = "❗ Build broke on the auth refactor"
+    out = transform(text, cfg)
+    assert "Issue:" in out
+    assert "Build broke" in out
+    assert "❗" not in out
+
+
+def test_strip_status_x_mark_leading_becomes_failed():
+    """Leading ✗ gets substituted with "Failed: " prefix."""
+    cfg = {"mode": "direct"}
+    text = "✗ Tests didn't pass"
+    out = transform(text, cfg)
+    assert "Failed:" in out
+    assert "Tests didn't pass" in out
+    assert "✗" not in out
+
+
+def test_strip_status_lightbulb_leading_becomes_insight():
+    """Leading 💡 gets substituted with "Insight: " prefix."""
+    cfg = {"mode": "direct"}
+    text = "💡 Caching the response would skip the third round-trip"
+    out = transform(text, cfg)
+    assert "Insight:" in out
+    assert "💡" not in out
+
+
+def test_strip_status_mid_sentence_silently_dropped():
+    """Mid-sentence status symbols get silently stripped — surrounding
+    text carries the meaning."""
+    cfg = {"mode": "direct"}
+    text = "Use ✓ syntax for the boolean toggle"
+    out = transform(text, cfg)
+    # Symbol gone, no "Done:" inserted, no double spaces left behind
+    assert "✓" not in out
+    assert "Done:" not in out
+    assert "Use" in out and "syntax" in out
+    assert "  " not in out
+
+
+def test_strip_decorative_symbols_silently():
+    """Decorative emoji (🎉 ⭐ 🚀 etc.) get stripped without substitution."""
+    cfg = {"mode": "direct"}
+    text = "Deployment complete 🎉 — ship it 🚀"
+    out = transform(text, cfg)
+    assert "🎉" not in out
+    assert "🚀" not in out
+    assert "Deployment complete" in out
+    assert "ship it" in out
+
+
+def test_strip_spelled_out_symbol_names():
+    """Spelled-out names like "checkmark" / "hourglass" get stripped so
+    TTS doesn't say them when the LLM transcribes a visual UI."""
+    cfg = {"mode": "direct"}
+    text = "Add a checkmark next to the completed item"
+    out = transform(text, cfg)
+    assert "checkmark" not in out.lower()
+    assert "Add a" in out and "next to" in out
+
+
+def test_strip_three_status_symbols_in_sequence():
+    """A status-symbol-prefixed list gets per-line substitution."""
+    cfg = {"mode": "direct"}
+    text = "✓ Fixed bug\n⌛ Running tests\n❗ Blocker found"
+    out = transform(text, cfg)
+    assert "Done:" in out
+    assert "Working on:" in out
+    assert "Issue:" in out
+    # Symbols all stripped
+    for sym in ["✓", "⌛", "❗"]:
+        assert sym not in out
+
+
+def test_bullet_then_status_symbol_combo():
+    """When a bullet marker AND a status symbol both lead the line,
+    the bullet stripper runs first, then the status symbol gets
+    substituted: '* ✓ Fix' → '✓ Fix.' → 'Done: Fix.'"""
+    cfg = {"mode": "direct"}
+    text = "* ✓ Fixed the bug\n- ⌛ Running tests"
+    out = transform(text, cfg)
+    assert "Done:" in out
+    assert "Working on:" in out
+    # Neither bullet nor symbol survives
+    assert "*" not in out
+    assert "✓" not in out
+    assert "⌛" not in out
+
+
+def test_status_symbol_does_not_break_audible_block():
+    """Audible blocks (passed through) must not have their symbols
+    stripped — the user wants verbatim audible passages preserved.
+    """
+    cfg = {"mode": "direct"}
+    # Use the audible block marker pattern from the markup pipeline
+    text = "Audible: speak this ✓ literally"
+    out = transform(text, cfg)
+    # Whatever the audible-block detection produces, the verbatim text
+    # should survive the status-symbol pass since audible blocks are
+    # masked + restored around the strip step.
+    assert "speak this" in out

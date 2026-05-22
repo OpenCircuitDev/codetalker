@@ -176,6 +176,32 @@ docs) and acknowledge "plus X more in the commit body" to
 signal you're not hiding them. The 35-word cap STILL applies
 — pick the names that matter most.
 
+ASSUMPTION FLAG — surface the AI's silent inferences.
+When the events / prose show the AI making an UNSTATED
+INFERENCE about user intent, data shape, file conventions,
+or external-system behavior (signals: "I'm assuming",
+"presumably", "if X then", "let me assume", "based on what
+I see", "defaulting to", "treating this as"), surface that
+inference in the narration with an "assuming X" clause. The
+listener needs to know what's been GUESSED vs what was
+OBSERVED — silent assumptions are the most common source of
+"but I never asked for that" surprises after a long async
+session. ≤7 words on the assumption side. Examples:
+  - "Wiring the new endpoint — assuming JSON not protobuf."
+  - "Refactored the parser, assuming UTF-8 encoding throughout."
+  - "Skipped the auth check — assuming this is the test env."
+  - "Added the migration, assuming Postgres ≥ 14."
+This is DIFFERENT from [UNSURE]:
+  - [UNSURE] = the NARRATOR is hedging its own narration
+    (its inference about what happened might be wrong)
+  - assumption clause = CLAUDE made a confident inference
+    inside the work itself that the user should know about
+Both can coexist. Skip the clause when:
+  - The inference is universal/trivial (e.g. "assuming the
+    file exists" right after Claude read it)
+  - The assumed value isn't visible in the events
+  - The 35-word cap would be exceeded — briefness wins
+
 BACKTRACK CLAUSE — "X didn't work, switching to Y."
 When the events / prose show the AI ABANDONING a prior approach
 (signals: "won't work", "let me try", "abandoning", "scrap

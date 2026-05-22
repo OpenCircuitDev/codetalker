@@ -27,6 +27,7 @@ import {
 import { SessionRow, deriveSessionHealth, type SessionHealthState } from "./SessionRow";
 import { SessionDetailPanel } from "./SessionDetailPanel";
 import { WorkspaceGroupSettingsModal } from "./WorkspaceGroupSettingsModal";
+import { BlockedSessionsBanner } from "./BlockedSessionsBanner";
 import type { Session } from "../types";
 
 type Props = {
@@ -237,6 +238,7 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
           onChange={(v) => setPref("sessionFilter", v)}
           sessions={sortedSessions}
         />
+        <BlockedSessionsBanner sessions={filtered} />
         {filtered.length === 0 ? (
           <div className="p-6 text-[var(--color-text-3)]">
             No sessions in this filter.

@@ -49,6 +49,88 @@ def _replace(text: str, spans: list[tuple[Span, str | None]]) -> str:
     return out
 
 
+# 2026-05-22 — status-symbol mapping. Claude routinely emits Unicode
+# symbols (checkmark, hourglass, heavy exclamation, etc.) in TODO lists
+# and status updates. Most TTS engines pronounce these literally
+# ("checkmark", "hourglass", "heavy exclamation mark symbol") which
+# sounds robotic. This map gives each symbol a semantic spoken phrase
+# when it leads a line; mid-sentence occurrences are silently stripped.
+_STATUS_SYMBOL_PREFIX: dict[str, str] = {
+    # Task completed
+    "✓": "Done",
+    "✔": "Done",
+    "✅": "Done",
+    # Task failed
+    "✗": "Failed",
+    "✘": "Failed",
+    "❌": "Failed",
+    # In-progress / working on
+    "⌛": "Working on",
+    "⏳": "Working on",
+    # Issue / needs attention
+    "❗": "Issue",
+    "❕": "Issue",
+    "⚠": "Warning",
+    # Insight / idea
+    "💡": "Insight",
+}
+
+# Symbols always stripped silently — pure decoration, no semantic
+# spoken value.
+_DECORATIVE_SYMBOLS: set[str] = set("★⭐✨🎉🚀📌📍🔥💯🎯🔵🟢🔴🟡🟠🟣🟤")
+
+# Spelled-out symbol names the LLM occasionally writes (e.g. when
+# transcribing a UI mockup). Strip these so TTS doesn't say them.
+_SYMBOL_NAME_PATTERN = re.compile(
+    r"\b(checkmarks?|hourglass(es)?|heavy exclamation marks?|red dot|green dot|warning sign|info icon)\b",
+    re.IGNORECASE,
+)
+
+
+def _strip_status_symbols(text: str) -> str:
+    """Substitute leading status symbols with semantic phrases; strip
+    decorative ones silently.
+
+    Examples:
+      "✓ Fix bug"        → "Done: Fix bug"
+      "⌛ Running tests"  → "Working on: Running tests"
+      "❗ Build broke"    → "Issue: Build broke"
+      "Use ✓ syntax"     → "Use syntax"   (mid-sentence: silent strip)
+      "Done! 🎉"          → "Done!"        (decoration stripped)
+      "Add a checkmark"   → "Add a"        (spelled-out name stripped)
+    """
+    lines = text.split("\n")
+    result_lines = []
+    for line in lines:
+        for sym, phrase in _STATUS_SYMBOL_PREFIX.items():
+            # Match: optional whitespace, then symbol, then required
+            # whitespace, then content. The required trailing whitespace
+            # avoids matching mid-word occurrences.
+            m = re.match(rf"^([ \t]*){re.escape(sym)}[ \t]+(.+)$", line)
+            if m:
+                indent, rest = m.groups()
+                line = f"{indent}{phrase}: {rest}"
+                break
+        result_lines.append(line)
+    out = "\n".join(result_lines)
+
+    # Strip any remaining status-symbol characters mid-sentence. Don't
+    # substitute — the surrounding text is the meaning.
+    for sym in _STATUS_SYMBOL_PREFIX.keys():
+        out = out.replace(sym, "")
+
+    # Strip purely decorative symbols always (they had no semantic value).
+    for sym in _DECORATIVE_SYMBOLS:
+        out = out.replace(sym, "")
+
+    # Strip spelled-out symbol names (LLM transcribing visual UI).
+    out = _SYMBOL_NAME_PATTERN.sub("", out)
+
+    # Collapse spaces resulting from the strips.
+    out = re.sub(r" +", " ", out)
+    return out
+
+
 def _strip_bullet_markers(text: str) -> str:
     """Strip markdown bullet markers and add sentence-terminating punctuation.
 
@@ -146,6 +228,13 @@ def transform(prose: str, cfg: dict[str, Any]) -> str:
 
     # Strip markdown bullet markers and add sentence-terminating punctuation
     out = _strip_bullet_markers(out)
+
+    # 2026-05-22 — substitute status symbols (✓ ⌛ ❗ …) with semantic
+    # phrases when they lead a line; silently strip decorative ones
+    # (🎉 🚀 ★ …) and spelled-out symbol names (LLM transcribing a UI).
+    # Runs AFTER bullet stripping so "* ✓ Fixed" → "✓ Fixed." →
+    # "Done: Fixed."
+    out = _strip_status_symbols(out)
 
     out = re.sub(r"\n{3,}", "\n\n", out)
     out = re.sub(r"[ \t]+\n", "\n", out)

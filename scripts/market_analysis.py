@@ -350,6 +350,22 @@ BACKTRACK CLAUSE — when the AI abandons a prior approach ("won't work",
 This closes the loop so listeners aren't left wondering why progress
 reversed.
 
+ASSUMPTION FLAG — when the AI is making a silent inference about user
+intent, data shape, or external-system behavior ("I'm assuming",
+"presumably", "defaulting to"), the narrator surfaces it with an
+"assuming X" clause ("Wiring the new endpoint — assuming JSON not
+protobuf.") so the listener knows what's been GUESSED vs OBSERVED.
+This is distinct from the [UNSURE] hedge (which flags the narrator's
+own uncertainty): the assumption clause flags Claude's confident
+inference inside the work itself.
+
+The markup pipeline also handles status symbols emitted by the AI so
+TTS doesn't read them literally: leading ✓ ⌛ ❗ ✗ 💡 become spoken
+phrases ("Done:", "Working on:", "Issue:", "Failed:", "Insight:"),
+mid-sentence occurrences and pure decoration (🎉 🚀 ★) are stripped
+silently. Spelled-out names ("checkmark", "hourglass") are also
+suppressed in case the LLM transcribes a visual UI literally.
+
 It has two tiers:
   BASIC (free)     — desktop browser narration via webui. All four modes.
                      Per-session voices via Piper local TTS. OpenRouter /

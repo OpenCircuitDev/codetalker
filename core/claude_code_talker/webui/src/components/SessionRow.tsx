@@ -76,6 +76,7 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
     // <button>s — that produces a hydration error and breaks click
     // propagation for nested controls.
     <motion.div
+      id={`session-${session.session_id}`}
       role="button"
       tabIndex={0}
       layout

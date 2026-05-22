@@ -410,6 +410,42 @@ def test_brief_system_has_backtrack_clause_block():
     assert "debug" in BRIEF_SYSTEM.lower() or "variation" in BRIEF_SYSTEM.lower()
 
 
+def test_live_narration_system_has_assumption_flag_block():
+    """The ASSUMPTION FLAG prompt block tells the narrator to surface
+    silent inferences the AI is making (about data shape, conventions,
+    intent) with an explicit "assuming X" clause.
+
+    Third-most persistent unaddressed theme across iter4-7 market
+    analyses (22 mentions). Distinct from [UNSURE] which is the
+    narrator hedging — this surfaces when the AI ITSELF is making
+    a confident inference that the user should be aware of.
+    """
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "ASSUMPTION FLAG" in LIVE_NARRATION_SYSTEM
+    # Trigger signals the LLM looks for in the prose/events
+    assumption_signals = [
+        "I'm assuming", "presumably", "let me assume", "defaulting to"
+    ]
+    assert any(s in LIVE_NARRATION_SYSTEM for s in assumption_signals), (
+        f"Expected one of {assumption_signals} as triggers"
+    )
+    # The DIFFERENT-from-UNSURE clarification must be present so the
+    # LLM doesn't conflate the two flags.
+    assert "[UNSURE]" in LIVE_NARRATION_SYSTEM
+    assert "different from" in LIVE_NARRATION_SYSTEM.lower() or "DIFFERENT from" in LIVE_NARRATION_SYSTEM
+
+
+def test_brief_system_has_assumption_flag_block():
+    """Same ASSUMPTION FLAG landed in brief mode."""
+    from claude_code_talker.modes.brief import BRIEF_SYSTEM
+    assert "ASSUMPTION FLAG" in BRIEF_SYSTEM
+    assumption_signals = [
+        "I'm assuming", "presumably", "let me assume", "defaulting to"
+    ]
+    assert any(s in BRIEF_SYSTEM for s in assumption_signals)
+    assert "[UNSURE]" in BRIEF_SYSTEM
+
+
 def test_live_narration_system_has_name_the_features_block():
     """The NAME THE FEATURES prompt block tells the narrator to enumerate
     specific shipped features when narrating commits/pushes/wrap-ups
