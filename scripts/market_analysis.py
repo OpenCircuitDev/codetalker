@@ -370,8 +370,12 @@ CADENCE_DESCRIPTION = """\
 Narration modes (per-session, switchable from webui or phone):
   - Live: streams sentence-by-sentence as the AI works (LLM-driven, 8-12s).
   - Brief: one-sentence wrap-up at the end of each Claude turn, plus a
-    mid-turn brief if quiet for 2+ minutes, plus a "Still here." heartbeat
-    every 30s if the daemon is alive but nothing's worth speaking.
+    mid-turn brief if quiet for 2+ minutes, plus an escalating heartbeat
+    if the daemon is alive but nothing's worth speaking:
+      1st heartbeat (30s): "Still here."
+      2nd heartbeat (60s): "Still here. Quiet two minutes."
+      3rd+ (180s+):        "Still on it — N minutes." (capped at 10+)
+    The escalation resets when a real brief fires.
   - Direct: raw tool outputs spoken near-verbatim (deepest detail, most noise).
   - Critical_only: stays silent unless an error, blocker, or "needs your
     input" moment fires — uses a 20-word cap, no chatter.
@@ -381,6 +385,14 @@ Within any mode, the narrator can prepend the audible cues "Heads up."
 that warrants attention), and decisions always include a short WHY-clause
 in the same sentence ("instead of X", "to avoid Y"). Low-confidence
 inferences are silently flagged in the UI badge rather than spoken.
+
+Catch-up tools for when you've been away:
+  - Rewind: replay the last 30 seconds of audio for the active session.
+  - Skip: drop the current narration if it's already stale to you.
+  - Replay decisions: replay only [CHECKPOINT] narrations from the last
+    N minutes (default 30) as a highlight reel of architectural choices.
+  - Decisions-only filter in the webui Activity tab — hide every
+    non-architectural event when you only care about what got committed to.
 
 Each session can independently be muted, paused, or have its mode swapped.
 """

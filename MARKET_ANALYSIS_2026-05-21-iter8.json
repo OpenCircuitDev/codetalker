@@ -1,0 +1,1110 @@
+{
+  "generated_at": "2026-05-21T22:27:35.744502",
+  "label": "iter8",
+  "model": "anthropic/claude-haiku-4.5",
+  "since_ts": 1779408000.0,
+  "efficiency_questions": true,
+  "narration_samples": [
+    {
+      "timestamp": 1779411803.7187061,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "Adding that to the interconnected project map alongside BlueprintForge and OpenCircuitRacing.",
+      "voice": "en_US-lessac-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779416421.8640182,
+      "session_id": "87b24267-c8fc-43bb-abb1-a53484910082",
+      "text": "Now editing audio.py to wire up the queue submission path.",
+      "voice": "en_US-amy-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779414546.9010806,
+      "session_id": "7e0312b3-2aaf-4c36-9b78-eb1d67c32b71",
+      "text": "Editor closed, RAM freed to 14.65 GB \u2014 dry-check is ready to run.",
+      "voice": "en_US-kristin-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779409759.5969067,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "Before I write the strategic advice, need one clarification: are you asking me to evaluate how your architecture *currently* uses LLM/Claude workflows, or design *how it should* use them per this video's thesis?",
+      "voice": "en_GB-jenny_dioco-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779408545.7808037,
+      "session_id": "e7717254-634d-4979-902c-3c8bd2dc46d6",
+      "text": "Ready for your verification when you want to review the topology.",
+      "voice": "en_GB-cori-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779410043.062385,
+      "session_id": "2eb5c985-63fc-4731-af93-1e824011f3c6",
+      "text": "Message from OCR Dev waiting in your inbox\u2014check it when ready.",
+      "voice": "en_US-ryan-high",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779410423.6003401,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "Still working through the layer-by-layer cross-walk against the video's optimization strategy \u2014 the plan file is live and waiting for your next vector.",
+      "voice": "af-ZA-AdriNeural",
+      "engine": "edge",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779412162.084608,
+      "session_id": "87b24267-c8fc-43bb-abb1-a53484910082",
+      "text": "Added IP address and currency patterns to the recognizers \u2014 matching logic in place, now wiring the pronunciation handlers.",
+      "voice": "en_US-amy-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779416384.7786796,
+      "session_id": "87b24267-c8fc-43bb-abb1-a53484910082",
+      "text": "Scanned the narration pipeline\u2014api, hooks, types, and logs\u2014then traced static asset references and package metadata across the codebase.",
+      "voice": "en_US-amy-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779413041.1904752,
+      "session_id": "87b24267-c8fc-43bb-abb1-a53484910082",
+      "text": "Daemon's still running \u2014 pidfile shows live process 44104.",
+      "voice": "en_US-amy-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    }
+  ],
+  "aggregate": {
+    "n": 30,
+    "dimensions": {
+      "clarity": {
+        "mean": 4,
+        "median": 4.0,
+        "stdev": 0.0,
+        "min": 4,
+        "max": 4,
+        "n": 30
+      },
+      "decision_helpfulness": {
+        "mean": 4.43,
+        "median": 5.0,
+        "stdev": 0.82,
+        "min": 3,
+        "max": 5,
+        "n": 30
+      },
+      "cadence": {
+        "mean": 3.83,
+        "median": 4.0,
+        "stdev": 0.38,
+        "min": 3,
+        "max": 4,
+        "n": 30
+      },
+      "freshness": {
+        "mean": 4.47,
+        "median": 4.0,
+        "stdev": 0.51,
+        "min": 4,
+        "max": 5,
+        "n": 30
+      },
+      "relatability": {
+        "mean": 3.7,
+        "median": 4.0,
+        "stdev": 0.53,
+        "min": 3,
+        "max": 5,
+        "n": 30
+      },
+      "ui_usability": {
+        "mean": 3.9,
+        "median": 4.0,
+        "stdev": 0.31,
+        "min": 3,
+        "max": 4,
+        "n": 30
+      },
+      "feature_completeness": {
+        "mean": 3.5,
+        "median": 3.5,
+        "stdev": 0.51,
+        "min": 3,
+        "max": 4,
+        "n": 30
+      }
+    },
+    "by_vibe_experience": {
+      "mid": {
+        "n": 10,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 3.9,
+          "cadence": 3.5,
+          "freshness": 4.1,
+          "relatability": 3.6,
+          "ui_usability": 4,
+          "feature_completeness": 3.2
+        }
+      },
+      "veteran": {
+        "n": 7,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 5,
+          "cadence": 4,
+          "freshness": 4.71,
+          "relatability": 4,
+          "ui_usability": 4,
+          "feature_completeness": 3.71
+        }
+      },
+      "fresh": {
+        "n": 8,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 4.25,
+          "cadence": 4,
+          "freshness": 4.38,
+          "relatability": 3.88,
+          "ui_usability": 3.62,
+          "feature_completeness": 3.38
+        }
+      },
+      "power": {
+        "n": 5,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 5,
+          "cadence": 4,
+          "freshness": 5,
+          "relatability": 3.2,
+          "ui_usability": 4,
+          "feature_completeness": 4
+        }
+      }
+    },
+    "nps": {
+      "promoters": 1,
+      "passives": 27,
+      "detractors": 2,
+      "score": -3.3,
+      "mean": 7.63
+    },
+    "would_subscribe_pro": 12
+  },
+  "evals": [
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Staff Engineer, Infrastructure",
+        "vibe_experience": "fresh",
+        "domain_expertise": "expert",
+        "primary_use_case": "Migrating a legacy Kubernetes orchestration layer to a newer API standard.",
+        "listening_context": "In his car during a 40-minute commute, phone mounted on dashboard.",
+        "what_they_care_about": "High-level progress checkpoints and whether the AI is drifting into wrong assumptions about the existing codebase."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern is genuinely useful \u2014 I actually know *why* the AI picked one approach over another instead of just watching it happen. That's rare. The 'Replay decisions' catch-up tool is exactly what I need on a commute; I don't care about every file edit, just the architectural calls that matter.",
+      "would_remove": "The escalating heartbeat cadence ('Still here. Quiet two minutes.') is noise on a 40-minute drive \u2014 I'd collapse it to a single 'Still here' at 90s, then silent until the next real event, so I'm not getting status updates I didn't ask for.",
+      "would_add": "A 'confidence audit' mode that speaks out loud whenever the AI makes an inference about the *existing* codebase that it didn't directly observe \u2014 like 'assuming this handler is idempotent' or 'treating this config as immutable' \u2014 so I can catch wrong assumptions before they propagate into the migrat",
+      "recommendation": "Yes, absolutely. I'm migrating a legacy Kubernetes layer and I need to stay aware of what the AI is doing without staring at a screen for 8 hours. The decision narration + rewind-30s + decisions-only filter mean I can actually trust what's happening while I drive. The main gap is surfacing AI assumptions about my codebase, which could bite me on a migration this complex.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern is genuinely useful \u2014 I actually know *why* the AI picked one approach over another instead of just watching it happen. That's rare. The 'Replay decisions' catch-up tool is exactly what I need on a commute; I don't care about every file edit, just the architectural calls that matter.\",\n  \"would_remove\": \"The escalating heartbeat cadence ('Still here. Quiet two minutes.') is noise on a 40-minute drive \u2014 I'd collapse it to a single 'Still here' at 90s, then silent until the next real event, so I'm not getting status updates I didn't ask for.\",\n  \"would_add\": \"A 'confidence audit' mode that speaks out loud whenever the AI makes an inference about the *existing* codebase that it didn't directly observe \u2014 like 'assuming this handler is idempotent' or 'treating this config as immutable' \u2014 so I can catch wrong assumptions before they propagate into the migration plan.\",\n  \"recommendation\": \"Yes, absolutely. I'm migrating a legacy Kubernetes layer and I need to stay aware of what the AI is doing without staring at a screen for 8 hours. The decision narration + rewind-30s + decisions-only filter mean I can actually trust what's happening while I drive. The main gap is surfacing AI assumptions about my codebase, which could bite me on a migration this complex.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a 'diff narration' mode that *only* speaks when code actually changes \u2014 not when the AI is reading, scanning, or reasoning through the codebase. Right now, 60% of the audio is 'now examining X' or 'traced the reference to Y,' which is noise. If you added a toggle to narrate only on file writes + errors + checkpoints, I'd get through my commute 3x faster and catch the real decisions without tuning out.\",\n  \"understanding_gap\": \"I can't tell from the narration whether the AI has *actually understood* the shape of my Kubernetes API migration \u2014 like, does it know which CRDs are safe to reorder, which ones have hard dependencies, or which ones I'm planning to deprecate? Right now it just says 'checkpoint: choosing the staged approach' but not 'I found 7 interdependent custom resources that need to migrate in this order.' I need a 'dependency map' spoken out loud or a quick UI panel that shows what the AI thinks the constraints are, so I can correct it before it goes too far down the wrong path.\"\n}\n```",
+      "efficiency_gap": "I need a 'diff narration' mode that *only* speaks when code actually changes \u2014 not when the AI is reading, scanning, or reasoning through the codebase. Right now, 60% of the audio is 'now examining X' or 'traced the reference to Y,' which is noise. If you added a toggle to narrate only on file writes + errors + checkpoints, I'd get through my commute 3x faster and catch the real decisions without tuning out.",
+      "understanding_gap": "I can't tell from the narration whether the AI has *actually understood* the shape of my Kubernetes API migration \u2014 like, does it know which CRDs are safe to reorder, which ones have hard dependencies, or which ones I'm planning to deprecate? Right now it just says 'checkpoint: choosing the staged approach' but not 'I found 7 interdependent custom resources that need to migrate in this order.' I need a 'dependency map' spoken out loud or a quick UI panel that shows what the AI thinks the constra"
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Principal Engineer, Data Platform",
+        "vibe_experience": "mid",
+        "domain_expertise": "expert",
+        "primary_use_case": "Building a data validation layer for a distributed analytics pipeline.",
+        "listening_context": "At her kitchen table on weekend mornings while coffee brews, laptop nearby but not actively watched.",
+        "what_they_care_about": "Confidence that the AI isn't cutting corners on edge cases or generating code that will silently fail in production."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 3,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The WHY-clause baked into every decision narration is genuinely useful\u2014I actually know *why* the agent picked one approach over another instead of just what it did. The heartbeat escalation on brief mode is smart; I don't feel abandoned when nothing's happening, but I'm also not drowning in chatter.",
+      "would_remove": "The 'Buddy mode' on Pro feels like feature bloat for my use case\u2014I don't want to dictate code through my phone; I want to trust the daemon while I'm away, not interrupt it.",
+      "would_add": "A 'data lineage' or 'schema drift' alert mode that watches for silent failures in validation logic\u2014specifically, when the agent modifies a schema or adds a new validation rule without explicitly calling out how it affects downstream consumers. That's where my pipelines break.",
+      "recommendation": "Yes, I'd use this, but only if the narration gets smarter about my domain. Right now it's generic enough to work for any coder, which means it's not catching the edge cases *I* care about\u2014data validation, idempotency, state consistency across distributed nodes. If it learned to flag those, it'd move from 'nice to have' to 'can't ship without it.'",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 3,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The WHY-clause baked into every decision narration is genuinely useful\u2014I actually know *why* the agent picked one approach over another instead of just what it did. The heartbeat escalation on brief mode is smart; I don't feel abandoned when nothing's happening, but I'm also not drowning in chatter.\",\n  \"would_remove\": \"The 'Buddy mode' on Pro feels like feature bloat for my use case\u2014I don't want to dictate code through my phone; I want to trust the daemon while I'm away, not interrupt it.\",\n  \"would_add\": \"A 'data lineage' or 'schema drift' alert mode that watches for silent failures in validation logic\u2014specifically, when the agent modifies a schema or adds a new validation rule without explicitly calling out how it affects downstream consumers. That's where my pipelines break.\",\n  \"recommendation\": \"Yes, I'd use this, but only if the narration gets smarter about my domain. Right now it's generic enough to work for any coder, which means it's not catching the edge cases *I* care about\u2014data validation, idempotency, state consistency across distributed nodes. If it learned to flag those, it'd move from 'nice to have' to 'can't ship without it.'\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a 'validation audit trail' mode that replays only the moments when the agent touched validation logic, schema definitions, or error-handling paths\u2014not as a generic decision replay, but as a domain-specific filter. Right now I have to manually hunt through the activity log to verify the agent didn't skip a boundary condition or assume a field is always present. A 5-second replay that says 'Added null-check on user_id in line 142, prevents silent downstream failure' would save me 10 minutes of code review every session.\",\n  \"understanding_gap\": \"When the agent runs a test or validation check, I can't tell from the narration whether it's actually exercising the edge cases I'm worried about or just the happy path. I hear 'Tests passed' but not 'Tested with null input, negative values, and concurrent writes.' Give me a post-test summary that names the specific failure modes the agent actually verified, or I'm going to keep context-switching back to the editor to double-check anyway.\"\n}\n```",
+      "efficiency_gap": "I need a 'validation audit trail' mode that replays only the moments when the agent touched validation logic, schema definitions, or error-handling paths\u2014not as a generic decision replay, but as a domain-specific filter. Right now I have to manually hunt through the activity log to verify the agent didn't skip a boundary condition or assume a field is always present. A 5-second replay that says 'Added null-check on user_id in line 142, prevents silent downstream failure' would save me 10 minutes",
+      "understanding_gap": "When the agent runs a test or validation check, I can't tell from the narration whether it's actually exercising the edge cases I'm worried about or just the happy path. I hear 'Tests passed' but not 'Tested with null input, negative values, and concurrent writes.' Give me a post-test summary that names the specific failure modes the agent actually verified, or I'm going to keep context-switching back to the editor to double-check anyway."
+    },
+    {
+      "persona": {
+        "name": "Tom",
+        "role": "Engineering Manager turned IC, Backend Systems",
+        "vibe_experience": "fresh",
+        "domain_expertise": "senior",
+        "primary_use_case": "Refactoring an internal CLI tool to support a new plugin architecture.",
+        "listening_context": "During gym cardio sessions\u2014treadmill, elliptical\u2014he wants something he can tune in and out of.",
+        "what_they_care_about": "Quick summaries of what code patterns were chosen and *why*, because he's skeptical about whether an AI really understands the trade-offs."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The WHY-clause baked into every decision narration is genuinely clever\u2014I *do* want to know why the AI picked plugin-registry over service-locator, not just that it did. Also didn't expect the heartbeat escalation to be that thoughtful; most daemons just go silent or spam you.",
+      "would_remove": "The 'Checkpoint' vs 'Heads up' distinction feels one toggle too many when I'm on a treadmill\u2014collapse them into a single [DECISION] cue that includes severity inline, or let me mute Checkpoints separately if they're not always actionable.",
+      "would_add": "A 'decision diff' mode that plays back *only* the architectural choices from the last session, with the WHY-clauses, so I can catch up on what got committed without replaying the whole refactor. Right now I'd have to dig through the Activity tab or replay-decisions manually.",
+      "recommendation": "Yeah, I'd use this. The brief mode + decision narration is exactly what I need for async code review on cardio\u2014I'm not trying to write code while running, but I want to stay in the loop on *why* the AI chose a plugin architecture over inheritance, and this tool actually tells me that instead of making me guess. The Pro tier's overkill for me right now, but the desktop version is solid.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The WHY-clause baked into every decision narration is genuinely clever\u2014I *do* want to know why the AI picked plugin-registry over service-locator, not just that it did. Also didn't expect the heartbeat escalation to be that thoughtful; most daemons just go silent or spam you.\",\n  \"would_remove\": \"The 'Checkpoint' vs 'Heads up' distinction feels one toggle too many when I'm on a treadmill\u2014collapse them into a single [DECISION] cue that includes severity inline, or let me mute Checkpoints separately if they're not always actionable.\",\n  \"would_add\": \"A 'decision diff' mode that plays back *only* the architectural choices from the last session, with the WHY-clauses, so I can catch up on what got committed without replaying the whole refactor. Right now I'd have to dig through the Activity tab or replay-decisions manually.\",\n  \"recommendation\": \"Yeah, I'd use this. The brief mode + decision narration is exactly what I need for async code review on cardio\u2014I'm not trying to write code while running, but I want to stay in the loop on *why* the AI chose a plugin architecture over inheritance, and this tool actually tells me that instead of making me guess. The Pro tier's overkill for me right now, but the desktop version is solid.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Give me a 'session replay' that auto-jumps to the last [CHECKPOINT] I haven't heard yet, so I don't have to manually scrub back or wait for the next heartbeat. Also, let me tag or flag decisions I want to circle back on from the phone app\u2014right now if I hear something questionable mid-run, I have to remember it or hope it's in the Activity log later.\",\n  \"understanding_gap\": \"I want to see a dependency graph of the decisions\u2014like, 'we chose plugin-registry, which means we need a loader, which means we need to handle version conflicts.' Right now I hear each decision in isolation and I'm inferring the cascade myself. Also, when the AI's quiet for 2+ minutes, I want to know *why*\u2014is it stuck, is it doing deep analysis, or did it actually finish? The heartbeat tells me it's alive but not what it's doing.\"\n}\n```",
+      "efficiency_gap": "Give me a 'session replay' that auto-jumps to the last [CHECKPOINT] I haven't heard yet, so I don't have to manually scrub back or wait for the next heartbeat. Also, let me tag or flag decisions I want to circle back on from the phone app\u2014right now if I hear something questionable mid-run, I have to remember it or hope it's in the Activity log later.",
+      "understanding_gap": "I want to see a dependency graph of the decisions\u2014like, 'we chose plugin-registry, which means we need a loader, which means we need to handle version conflicts.' Right now I hear each decision in isolation and I'm inferring the cascade myself. Also, when the AI's quiet for 2+ minutes, I want to know *why*\u2014is it stuck, is it doing deep analysis, or did it actually finish? The heartbeat tells me it's alive but not what it's doing."
+    },
+    {
+      "persona": {
+        "name": "Zara",
+        "role": "Full-stack Engineer, Fintech",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Implementing a new reconciliation service that has strict audit and compliance requirements.",
+        "listening_context": "Running CodeTalker in the background during collaborative pair sessions with a junior engineer in the same room.",
+        "what_they_care_about": "Narration that's concise and flags anything that looks like it might violate regulatory constraints before it's committed."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern is genuinely smart\u2014I catch architectural decisions before they're baked in, which matters when you're sitting next to a junior who might not flag a schema choice that breaks audit trails. The critical_only mode is the dark horse; I didn't expect to use it, but during compliance review sprints it's exactly what I need.",
+      "would_remove": "The escalating heartbeat ('Still here. Quiet two minutes.') is noise in pair sessions\u2014I know the daemon's alive because I'm watching the screen, and it breaks focus when I'm explaining something to the junior.",
+      "would_add": "A regulatory-flag mode that speaks only when the AI touches database migrations, permission logic, or audit-log writes\u2014something that says 'Heads up. Touching [table/function]\u2014does this need a compliance review before commit?' I shouldn't have to listen to everything to catch the stuff that matters ",
+      "recommendation": "Yes, absolutely. In a pair-programming context with compliance pressure, this pays for itself in the first week. The decision narration keeps junior engineers honest about *why* they're making choices, and the filtering lets me tune out noise without missing what actually matters. It's not a toy\u2014it's a force multiplier for knowledge transfer and risk management.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern is genuinely smart\u2014I catch architectural decisions before they're baked in, which matters when you're sitting next to a junior who might not flag a schema choice that breaks audit trails. The critical_only mode is the dark horse; I didn't expect to use it, but during compliance review sprints it's exactly what I need.\",\n  \"would_remove\": \"The escalating heartbeat ('Still here. Quiet two minutes.') is noise in pair sessions\u2014I know the daemon's alive because I'm watching the screen, and it breaks focus when I'm explaining something to the junior.\",\n  \"would_add\": \"A regulatory-flag mode that speaks only when the AI touches database migrations, permission logic, or audit-log writes\u2014something that says 'Heads up. Touching [table/function]\u2014does this need a compliance review before commit?' I shouldn't have to listen to everything to catch the stuff that matters in fintech.\",\n  \"recommendation\": \"Yes, absolutely. In a pair-programming context with compliance pressure, this pays for itself in the first week. The decision narration keeps junior engineers honest about *why* they're making choices, and the filtering lets me tune out noise without missing what actually matters. It's not a toy\u2014it's a force multiplier for knowledge transfer and risk management.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a way to tag narrations with risk levels or compliance categories on the fly\u2014something like 'mark this decision as [audit-sensitive]' so that when I replay decisions later, I can filter to only the ones that touched regulated code paths. Right now I'm mentally bucketing what I heard; I want the tool to help me bucket it. Also: a 'diff-aware' mode that only speaks when the AI changes lines that were already flagged in a previous audit\u2014not every edit, just the ones touching known-risky zones.\",\n  \"understanding_gap\": \"When I'm running multiple sessions in parallel (reconciliation service + infrastructure refactor), I can't tell from the phone app which session just fired a [CHECKPOINT]\u2014I have to flip back to the webui to know if it's something I need to interrupt the junior for or if it's safe to ignore. I want a quick 'which session, which decision?' answer without context-switching. Also: I wish I could ask the narration log 'show me every decision that touched database state in the last 30 minutes' without manually scrolling\u2014there's no query layer for compliance drift detection.\"\n}\n```",
+      "efficiency_gap": "I need a way to tag narrations with risk levels or compliance categories on the fly\u2014something like 'mark this decision as [audit-sensitive]' so that when I replay decisions later, I can filter to only the ones that touched regulated code paths. Right now I'm mentally bucketing what I heard; I want the tool to help me bucket it. Also: a 'diff-aware' mode that only speaks when the AI changes lines that were already flagged in a previous audit\u2014not every edit, just the ones touching known-risky zone",
+      "understanding_gap": "When I'm running multiple sessions in parallel (reconciliation service + infrastructure refactor), I can't tell from the phone app which session just fired a [CHECKPOINT]\u2014I have to flip back to the webui to know if it's something I need to interrupt the junior for or if it's safe to ignore. I want a quick 'which session, which decision?' answer without context-switching. Also: I wish I could ask the narration log 'show me every decision that touched database state in the last 30 minutes' without"
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Retired Architect, Freelance Consultant",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Prototyping a small service for a client to prove out a microservices decomposition idea.",
+        "listening_context": "In his home office, often half-listening while replying to emails or doing other admin work.",
+        "what_they_care_about": "Being alerted only when something looks structurally wrong or inefficient\u2014he doesn't want a play-by-play, just the red flags."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The 'Checkpoint' cue is genuinely useful\u2014I'm not drowning in noise but I *am* catching the moments where the AI committed to something structural that I'd want to revisit. The decision rationale baked into the same sentence (the 'instead of X' clause) is smart; it stops me from having to infer the trade-off.",
+      "would_remove": "The escalating heartbeat ('Still here,' 'Still here. Quiet two minutes.') feels like it's talking to me instead of just confirming the daemon didn't crash\u2014I'd rather a silent UI indicator and only hear from it if something actually matters.",
+      "would_add": "A 'Decisions replay' that shows me *only* the [CHECKPOINT] moments from the last session in a 2-minute highlight reel, so I can catch up on what the AI committed to without replaying the whole thing. Right now I'd have to dig through the Activity tab or rewind manually.",
+      "recommendation": "Yes. I'm running three client projects in parallel and this solves the 'I can't watch all three' problem without turning my home office into a radio station. The critical_only mode + decision cues mean I'm not context-switching every 30 seconds, and the brief mode hits the sweet spot between 'I know what happened' and 'I didn't miss anything structural.'",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The 'Checkpoint' cue is genuinely useful\u2014I'm not drowning in noise but I *am* catching the moments where the AI committed to something structural that I'd want to revisit. The decision rationale baked into the same sentence (the 'instead of X' clause) is smart; it stops me from having to infer the trade-off.\",\n  \"would_remove\": \"The escalating heartbeat ('Still here,' 'Still here. Quiet two minutes.') feels like it's talking to me instead of just confirming the daemon didn't crash\u2014I'd rather a silent UI indicator and only hear from it if something actually matters.\",\n  \"would_add\": \"A 'Decisions replay' that shows me *only* the [CHECKPOINT] moments from the last session in a 2-minute highlight reel, so I can catch up on what the AI committed to without replaying the whole thing. Right now I'd have to dig through the Activity tab or rewind manually.\",\n  \"recommendation\": \"Yes. I'm running three client projects in parallel and this solves the 'I can't watch all three' problem without turning my home office into a radio station. The critical_only mode + decision cues mean I'm not context-switching every 30 seconds, and the brief mode hits the sweet spot between 'I know what happened' and 'I didn't miss anything structural.'\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Add a filter in the ACTIVITY tab to show me only [CHECKPOINT] + [ALERT] events across all sessions, sorted by timestamp, with a one-line summary of the decision rationale. Right now I have to either listen to the full replay or manually scan the log. If I'm juggling three projects, I need to know 'which of my three sessions made a schema decision in the last hour' without replaying audio or clicking into each session.\",\n  \"understanding_gap\": \"I want to see a dependency graph or decision trace\u2014when the AI chose approach A for service X, what other decisions downstream are now locked in? The narration tells me *what* was decided and *why*, but not *what ripples from it*. For microservices decomposition, I need to know: 'If we chose async messaging here, does that constrain our schema over there?' Right now I'd have to manually track that or ask Claude directly.\"\n}\n```",
+      "efficiency_gap": "Add a filter in the ACTIVITY tab to show me only [CHECKPOINT] + [ALERT] events across all sessions, sorted by timestamp, with a one-line summary of the decision rationale. Right now I have to either listen to the full replay or manually scan the log. If I'm juggling three projects, I need to know 'which of my three sessions made a schema decision in the last hour' without replaying audio or clicking into each session.",
+      "understanding_gap": "I want to see a dependency graph or decision trace\u2014when the AI chose approach A for service X, what other decisions downstream are now locked in? The narration tells me *what* was decided and *why*, but not *what ripples from it*. For microservices decomposition, I need to know: 'If we chose async messaging here, does that constrain our schema over there?' Right now I'd have to manually track that or ask Claude directly."
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Former startup CTO turned solo founder",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Building a multi-tenant workflow orchestration platform with three concurrent Claude sessions handling API design, database schema, and frontend scaffolding.",
+        "listening_context": "Running parallel sessions in the same room, occasionally glancing at screens between coffee refills and Slack messages.",
+        "what_they_care_about": "High-level summaries of decisions made and potential landmines\u2014he doesn't need play-by-play narration, just alerts when Claude is about to do something that contradicts earlier choices."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern actually works\u2014I expected it to feel clunky, but hearing \"schema denormalized to avoid N+1 queries on tenant lookups\" in one breath is way faster than reading a decision log. Also didn't expect the heartbeat escalation to be this useful; \"Still on it \u2014 4 minutes\" told me Claude wasn't hung, just grinding through something.",
+      "would_remove": "The 'Quiet two minutes' mid-turn brief in brief mode\u2014when I'm context-switching between three sessions, that extra chatter breaks my flow instead of helping. Just fire the wrap-up at the end of the turn.",
+      "would_add": "A 'Decision diff' mode that narrates *only* what changed from the last checkpoint\u2014e.g., 'API endpoint shape stayed POST /workflows/{id}/execute, but request body now includes retry_policy (added to handle transient failures).' Right now I have to mentally diff two checkpoints myself.",
+      "recommendation": "Yeah, I'd use this. For parallel sessions especially\u2014I can glance at one screen while CodeTalker keeps me in the loop on the other two. The critical_only mode + checkpoint replay is exactly what a solo founder juggling three concurrent tracks needs. Not a game-changer, but it's the kind of tool that compounds over a sprint.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern actually works\u2014I expected it to feel clunky, but hearing \\\"schema denormalized to avoid N+1 queries on tenant lookups\\\" in one breath is way faster than reading a decision log. Also didn't expect the heartbeat escalation to be this useful; \\\"Still on it \u2014 4 minutes\\\" told me Claude wasn't hung, just grinding through something.\",\n  \"would_remove\": \"The 'Quiet two minutes' mid-turn brief in brief mode\u2014when I'm context-switching between three sessions, that extra chatter breaks my flow instead of helping. Just fire the wrap-up at the end of the turn.\",\n  \"would_add\": \"A 'Decision diff' mode that narrates *only* what changed from the last checkpoint\u2014e.g., 'API endpoint shape stayed POST /workflows/{id}/execute, but request body now includes retry_policy (added to handle transient failures).' Right now I have to mentally diff two checkpoints myself.\",\n  \"recommendation\": \"Yeah, I'd use this. For parallel sessions especially\u2014I can glance at one screen while CodeTalker keeps me in the loop on the other two. The critical_only mode + checkpoint replay is exactly what a solo founder juggling three concurrent tracks needs. Not a game-changer, but it's the kind of tool that compounds over a sprint.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"The phone companion app needs a 'quick checkpoint playback' shortcut\u2014right now I have to open the webui, filter to decisions, and rewind. Give me a phone widget or a voice command ('Replay decisions from the API session') that fires the last 15 minutes of [CHECKPOINT] narrations. That's a 30-second context refresh instead of 2 minutes of clicking. Also, the Android app should let me *mute one session from the phone* without touching the desktop\u2014I'm often in a meeting and need to silence just the frontend session.\",\n  \"understanding_gap\": \"I can't tell if a decision was made by Claude or if it's a blocker waiting on *me* to choose. Right now 'Heads up: schema migration approach undefined' sounds urgent, but is Claude saying 'I don't know what to do' or 'I found three options, pick one'? Add a sub-cue\u2014'Heads up [NEEDS_INPUT]' vs. 'Heads up [BLOCKER]'\u2014so I know whether to drop everything or just queue a response.\"\n}\n```",
+      "efficiency_gap": "The phone companion app needs a 'quick checkpoint playback' shortcut\u2014right now I have to open the webui, filter to decisions, and rewind. Give me a phone widget or a voice command ('Replay decisions from the API session') that fires the last 15 minutes of [CHECKPOINT] narrations. That's a 30-second context refresh instead of 2 minutes of clicking. Also, the Android app should let me *mute one session from the phone* without touching the desktop\u2014I'm often in a meeting and need to silence just the",
+      "understanding_gap": "I can't tell if a decision was made by Claude or if it's a blocker waiting on *me* to choose. Right now 'Heads up: schema migration approach undefined' sounds urgent, but is Claude saying 'I don't know what to do' or 'I found three options, pick one'? Add a sub-cue\u2014'Heads up [NEEDS_INPUT]' vs. 'Heads up [BLOCKER]'\u2014so I know whether to drop everything or just queue a response."
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Full-stack developer moonlighting as indie SaaS operator",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Shipping a browser extension marketplace with payment processing, user auth, and a review system\u2014splitting work across three agent chats to move faster.",
+        "listening_context": "During evening commute on public transit, one earbud in, half-listening while standing and occasionally typing notes into phone.",
+        "what_they_care_about": "Real-time warnings about bugs or architectural decisions that will bite them later; she's skeptical of AI and needs to hear when Claude is making assumptions or taking shortcuts."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 3,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The decision rationale baked into every checkpoint is genuinely useful\u2014I actually *know* why Claude picked schema X over Y instead of just seeing it happen. But the heartbeat escalation feels a bit patronizing; I don't need 'Still here. Quiet two minutes.' to know the daemon isn't dead.",
+      "would_remove": "The 'live-stream' mode for routine edits\u2014it's noise when I'm on transit half-listening. Brief + checkpoints only would be my default.",
+      "would_add": "A 'divergence alert' that fires when the AI is about to commit a decision that contradicts something you told it earlier in the session or a prior session in the same workspace. I'm splitting work across three agent chats and I *will* miss when Claude in chat #2 breaks an assumption from chat #1.",
+      "recommendation": "Yes, but with caveats. It genuinely solves the 'I can't watch three agents at once' problem, and the checkpoint + WHY-clause combo is smart. But I'd need to trust the narration isn't glossing over assumptions or taking shortcuts\u2014and I'm skeptical enough that I'd still spot-check the Activity tab regularly. Worth the free tier for a week to see if it actually saves me time.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 3,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The decision rationale baked into every checkpoint is genuinely useful\u2014I actually *know* why Claude picked schema X over Y instead of just seeing it happen. But the heartbeat escalation feels a bit patronizing; I don't need 'Still here. Quiet two minutes.' to know the daemon isn't dead.\",\n  \"would_remove\": \"The 'live-stream' mode for routine edits\u2014it's noise when I'm on transit half-listening. Brief + checkpoints only would be my default.\",\n  \"would_add\": \"A 'divergence alert' that fires when the AI is about to commit a decision that contradicts something you told it earlier in the session or a prior session in the same workspace. I'm splitting work across three agent chats and I *will* miss when Claude in chat #2 breaks an assumption from chat #1.\",\n  \"recommendation\": \"Yes, but with caveats. It genuinely solves the 'I can't watch three agents at once' problem, and the checkpoint + WHY-clause combo is smart. But I'd need to trust the narration isn't glossing over assumptions or taking shortcuts\u2014and I'm skeptical enough that I'd still spot-check the Activity tab regularly. Worth the free tier for a week to see if it actually saves me time.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a 'session snapshot' button that dumps the last N minutes of decisions + their rationale as a markdown file I can paste into my notes or share with my co-founder. Right now I'm manually typing summaries on my phone during the commute. Also: let me tag decisions with 'risky' or 'reversible' so I can filter the replay to just the stuff that'll actually hurt if it's wrong.\",\n  \"understanding_gap\": \"When I'm running three parallel sessions, I can't easily see *which session* a decision came from when I'm listening on one earbud. The narration should lead with '[marketplace-auth] Checkpoint:' not just 'Checkpoint:' so I know which chat I need to context-switch to. Also, I wish I could ask CodeTalker 'what assumptions did Claude make about the review schema across all my sessions?' and get a synthesized answer\u2014right now it's just a log, not a knowledge graph.\"\n}\n```",
+      "efficiency_gap": "I need a 'session snapshot' button that dumps the last N minutes of decisions + their rationale as a markdown file I can paste into my notes or share with my co-founder. Right now I'm manually typing summaries on my phone during the commute. Also: let me tag decisions with 'risky' or 'reversible' so I can filter the replay to just the stuff that'll actually hurt if it's wrong.",
+      "understanding_gap": "When I'm running three parallel sessions, I can't easily see *which session* a decision came from when I'm listening on one earbud. The narration should lead with '[marketplace-auth] Checkpoint:' not just 'Checkpoint:' so I know which chat I need to context-switch to. Also, I wish I could ask CodeTalker 'what assumptions did Claude make about the review schema across all my sessions?' and get a synthesized answer\u2014right now it's just a log, not a knowledge graph."
+    },
+    {
+      "persona": {
+        "name": "David",
+        "role": "No-code founder transitioning to light coding",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Converting a Zapier-based automation tool into a proper SaaS with a backend API, leveraging AI heavily to compensate for limited coding experience.",
+        "listening_context": "At his kitchen table while handling customer support emails and occasional client calls\u2014CodeTalker running in the background on speakers.",
+        "what_they_care_about": "Confidence that what's being built is actually correct and won't embarrass him in front of early users; he needs verbose, reassuring narration that explains *why* Claude is doing things, not just what."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 5,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "The 'Checkpoint' cue is genuinely reassuring\u2014I didn't expect to feel *calmer* hearing an AI narrate its own architectural decisions out loud. Also surprised how much the WHY-clause matters; without it, I'd be second-guessing whether Claude picked the right approach.",
+      "would_remove": "The 'Still here' heartbeat after 30s feels premature when I'm actively reading support emails\u2014I'd push the first one to 90s and make it optional per-session so I can silence it for parallel runs.",
+      "would_add": "A 'decision replay' that's smarter about *intent*\u2014right now I can replay the last 30 minutes of checkpoints, but I can't ask 'walk me through why you chose PostgreSQL over Firebase for this schema' without scrolling the activity log manually. Give me a button that says 'explain the last 3 architectu",
+      "recommendation": "Absolutely recommend this\u2014it's the difference between me feeling like I'm flying blind and feeling like I have a colleague narrating over my shoulder. For someone like me who's bootstrapping a SaaS with AI doing most of the heavy lifting, this kills the anxiety that something's being built wrong while I'm handling customer emails. I'd use it every day.",
+      "nps": 9,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 5,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The 'Checkpoint' cue is genuinely reassuring\u2014I didn't expect to feel *calmer* hearing an AI narrate its own architectural decisions out loud. Also surprised how much the WHY-clause matters; without it, I'd be second-guessing whether Claude picked the right approach.\",\n  \"would_remove\": \"The 'Still here' heartbeat after 30s feels premature when I'm actively reading support emails\u2014I'd push the first one to 90s and make it optional per-session so I can silence it for parallel runs.\",\n  \"would_add\": \"A 'decision replay' that's smarter about *intent*\u2014right now I can replay the last 30 minutes of checkpoints, but I can't ask 'walk me through why you chose PostgreSQL over Firebase for this schema' without scrolling the activity log manually. Give me a button that says 'explain the last 3 architectural calls in one go.'\",\n  \"recommendation\": \"Absolutely recommend this\u2014it's the difference between me feeling like I'm flying blind and feeling like I have a colleague narrating over my shoulder. For someone like me who's bootstrapping a SaaS with AI doing most of the heavy lifting, this kills the anxiety that something's being built wrong while I'm handling customer emails. I'd use it every day.\",\n  \"nps\": 9,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Right now I have to glance at the webui to know if a session is stuck or just quiet. Give me a *phone notification* when a Checkpoint fires\u2014not every brief, just the architectural decisions\u2014so I can stay focused on email and only look up when something actually matters. Also, the 'Buddy mode' voice dictation would save me from typing API specs while on client calls; let me voice-record requirements and have Claude bake them straight into the schema without me copy-pasting.\",\n  \"understanding_gap\": \"When I'm running multiple sessions in parallel (e.g., one building the auth layer, another on the payment flow), I can't easily see *dependencies*\u2014like 'oh, the payment session needs the user schema from the auth session, and the auth session is blocked waiting for me to decide on JWT vs sessions.' I'd want a dependency graph or a simple 'what's blocking what' view so I can unblock the right thing first instead of guessing.\"\n}\n```",
+      "efficiency_gap": "Right now I have to glance at the webui to know if a session is stuck or just quiet. Give me a *phone notification* when a Checkpoint fires\u2014not every brief, just the architectural decisions\u2014so I can stay focused on email and only look up when something actually matters. Also, the 'Buddy mode' voice dictation would save me from typing API specs while on client calls; let me voice-record requirements and have Claude bake them straight into the schema without me copy-pasting.",
+      "understanding_gap": "When I'm running multiple sessions in parallel (e.g., one building the auth layer, another on the payment flow), I can't easily see *dependencies*\u2014like 'oh, the payment session needs the user schema from the auth session, and the auth session is blocked waiting for me to decide on JWT vs sessions.' I'd want a dependency graph or a simple 'what's blocking what' view so I can unblock the right thing first instead of guessing."
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "AI-native entrepreneur building AI products",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Operating five Claude sessions simultaneously (though asking about three) for a prompt engineering platform, each session handling different model variants and testing frameworks.",
+        "listening_context": "Walking through her neighborhood while managing the sessions via voice and quick phone interactions, treating coding like background music she half-attends to.",
+        "what_they_care_about": "Efficiency metrics and when Claude gets stuck or repeats itself; she finds excessive explanation annoying and prefers CodeTalker to flag only anomalies, blockers, and completion checkpoints."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The decision rationale baked into every checkpoint is genuinely useful\u2014I actually know *why* Claude picked option A instead of B without asking. The heartbeat escalation is clever; I've definitely worried a daemon crashed when it just went quiet. What surprised me less favorably: the live mode still feels a bit verbose for someone running five sessions in parallel\u2014I'm half-listening on a walk, not watching.",
+      "would_remove": "The 'relatability' voice tags feel like overhead; I don't care if the narrator sounds like a colleague\u2014I care that it flags blockers and architectural decisions fast and gets out of my way.",
+      "would_add": "A 'diff summary' mode that speaks only what *changed* since the last checkpoint, not what's happening in real time. When I'm juggling five sessions, I need to know 'schema migration approved and rolled forward' not 'now editing migration.py line 47.'",
+      "recommendation": "Yes, absolutely\u2014but only in critical_only or brief mode. The checkpoint + why-clause combo solves a real problem: I can let Claude grind on three sessions while I walk, and the phone tells me the moment something architecturally important happens or breaks. The UI is clean enough that I can swap modes per session without friction.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The decision rationale baked into every checkpoint is genuinely useful\u2014I actually know *why* Claude picked option A instead of B without asking. The heartbeat escalation is clever; I've definitely worried a daemon crashed when it just went quiet. What surprised me less favorably: the live mode still feels a bit verbose for someone running five sessions in parallel\u2014I'm half-listening on a walk, not watching.\",\n  \"would_remove\": \"The 'relatability' voice tags feel like overhead; I don't care if the narrator sounds like a colleague\u2014I care that it flags blockers and architectural decisions fast and gets out of my way.\",\n  \"would_add\": \"A 'diff summary' mode that speaks only what *changed* since the last checkpoint, not what's happening in real time. When I'm juggling five sessions, I need to know 'schema migration approved and rolled forward' not 'now editing migration.py line 47.'\",\n  \"recommendation\": \"Yes, absolutely\u2014but only in critical_only or brief mode. The checkpoint + why-clause combo solves a real problem: I can let Claude grind on three sessions while I walk, and the phone tells me the moment something architecturally important happens or breaks. The UI is clean enough that I can swap modes per session without friction.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Give me a 'session comparison' view on the phone that shows me which of my three active sessions is furthest behind or most blocked, ranked by blocker severity. Right now I have to manually check each one. Also: a voice shortcut to 'replay decisions from the last 10 minutes across all sessions' so I can catch up on architectural choices without touching the browser.\",\n  \"understanding_gap\": \"I want to know which session is consuming the most tokens or which one is stuck in a loop\u2014not just 'still working.' And when Claude is quiet for 2+ minutes, I want to know *why*: is it thinking, waiting for me to provide input, or genuinely blocked? The heartbeat tells me the daemon's alive, but not what the AI is actually doing.\"\n}\n```",
+      "efficiency_gap": "Give me a 'session comparison' view on the phone that shows me which of my three active sessions is furthest behind or most blocked, ranked by blocker severity. Right now I have to manually check each one. Also: a voice shortcut to 'replay decisions from the last 10 minutes across all sessions' so I can catch up on architectural choices without touching the browser.",
+      "understanding_gap": "I want to know which session is consuming the most tokens or which one is stuck in a loop\u2014not just 'still working.' And when Claude is quiet for 2+ minutes, I want to know *why*: is it thinking, waiting for me to provide input, or genuinely blocked? The heartbeat tells me the daemon's alive, but not what the AI is actually doing."
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Indie game dev branching into developer tools",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Building a real-time collaboration API for game design tools, running separate agent sessions for networking logic, database optimization, and test suite generation.",
+        "listening_context": "While doing other hobby projects in his home studio (woodworking, music production), with CodeTalker on a nearby speaker, checking in every 10-15 minutes.",
+        "what_they_care_about": "Clarity on whether the generated code is actually maintainable and not just a 'technically correct' black box; he's wary of accumulating technical debt and wants straightforward assessments of code quality."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 3,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The decision rationale baked into every checkpoint is genuinely useful\u2014I'm not just hearing *what* the agent chose, I'm hearing *why*, which saves me from reviewing code and going 'wait, why'd it pick this approach?' The heartbeat escalation is clever too; after 2+ minutes of quiet I actually know the daemon hasn't hung without checking the UI.",
+      "would_remove": "The 'Still here' heartbeat at 30s feels premature when I'm actively listening to live mode\u2014it'd be noise. Let it start at 60s or make it configurable per-mode.",
+      "would_add": "A 'code quality flag' that fires when the agent is generating something that'll probably need refactoring later\u2014not just 'Heads up' for errors, but a softer 'Checkpoint: this is a quick fix, not production-ready' so I know upfront whether I'm accumulating debt or building something solid.",
+      "recommendation": "Yeah, I'd use this. Running three agent sessions in parallel (networking, DB, tests) without watching all three screens is exactly what I need for the studio setup. The decision narration keeps me from wasting time reviewing every edit, and critical_only mode means I can focus on woodworking without missing blockers.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 3,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The decision rationale baked into every checkpoint is genuinely useful\u2014I'm not just hearing *what* the agent chose, I'm hearing *why*, which saves me from reviewing code and going 'wait, why'd it pick this approach?' The heartbeat escalation is clever too; after 2+ minutes of quiet I actually know the daemon hasn't hung without checking the UI.\",\n  \"would_remove\": \"The 'Still here' heartbeat at 30s feels premature when I'm actively listening to live mode\u2014it'd be noise. Let it start at 60s or make it configurable per-mode.\",\n  \"would_add\": \"A 'code quality flag' that fires when the agent is generating something that'll probably need refactoring later\u2014not just 'Heads up' for errors, but a softer 'Checkpoint: this is a quick fix, not production-ready' so I know upfront whether I'm accumulating debt or building something solid.\",\n  \"recommendation\": \"Yeah, I'd use this. Running three agent sessions in parallel (networking, DB, tests) without watching all three screens is exactly what I need for the studio setup. The decision narration keeps me from wasting time reviewing every edit, and critical_only mode means I can focus on woodworking without missing blockers.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Give me a per-session 'code health summary' button\u2014not every edit, but after a session wraps, a 30-second read on 'this session added X lines of tech debt, Y architectural decisions, Z test coverage.' Right now I have to manually scan the diffs to know if a session was 'clean' or 'messy.' Also, let me tag decisions ('defer this', 'revisit', 'ship as-is') from the phone so I'm not context-switching back to the webui to log follow-ups.\",\n  \"understanding_gap\": \"When I'm running the three parallel agents, I can't easily see which decisions are *interdependent*\u2014like, did the networking session make a choice that'll break the DB schema, or vice versa? The activity log is flat. I'd want a 'decision dependency graph' or at least a way to flag 'this checkpoint might affect the other sessions' so I catch cross-session conflicts before they cascade.\"\n}\n```",
+      "efficiency_gap": "Give me a per-session 'code health summary' button\u2014not every edit, but after a session wraps, a 30-second read on 'this session added X lines of tech debt, Y architectural decisions, Z test coverage.' Right now I have to manually scan the diffs to know if a session was 'clean' or 'messy.' Also, let me tag decisions ('defer this', 'revisit', 'ship as-is') from the phone so I'm not context-switching back to the webui to log follow-ups.",
+      "understanding_gap": "When I'm running the three parallel agents, I can't easily see which decisions are *interdependent*\u2014like, did the networking session make a choice that'll break the DB schema, or vice versa? The activity log is flat. I'd want a 'decision dependency graph' or at least a way to flag 'this checkpoint might affect the other sessions' so I catch cross-session conflicts before they cascade."
+    },
+    {
+      "persona": {
+        "name": "Maya",
+        "role": "Neuroscientist",
+        "vibe_experience": "fresh",
+        "domain_expertise": "expert",
+        "primary_use_case": "Building an interactive visualization dashboard for neural activity datasets collected from her lab.",
+        "listening_context": "While reviewing papers at her desk, half-listening during background tasks between experiments.",
+        "what_they_care_about": "She needs to know when the AI is making assumptions about her data structure so she can correct them before wasting time on wrong outputs."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The 'Checkpoint' cue is genuinely useful\u2014I actually *do* need to know when the AI is committing to a schema or data structure assumption before it runs downstream code. Less good: the WHY-clause in decisions feels sometimes like the narrator is explaining itself to me rather than flagging what I need to correct.",
+      "would_remove": "The escalating heartbeat ('Still here. Quiet two minutes.') is noise when I'm actively reviewing papers\u2014I know the daemon isn't crashed, and the timestamp in the UI already tells me freshness.",
+      "would_add": "A 'data shape inference' checkpoint\u2014something that fires whenever Claude infers the structure of my input CSV or HDF5 files, so I can catch 'it thinks my columns are X but they're actually Y' before it generates 50 lines of wrong parsing code.",
+      "recommendation": "Yes, I'd use this. The critical_only mode + checkpoint replay is exactly the right granularity for someone juggling lab work and code review. My main hesitation is that I need it to be *slightly* more paranoid about data assumptions\u2014neuroscience datasets are fragile, and a misread of my experimental structure wastes a full iteration.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The 'Checkpoint' cue is genuinely useful\u2014I actually *do* need to know when the AI is committing to a schema or data structure assumption before it runs downstream code. Less good: the WHY-clause in decisions feels sometimes like the narrator is explaining itself to me rather than flagging what I need to correct.\",\n  \"would_remove\": \"The escalating heartbeat ('Still here. Quiet two minutes.') is noise when I'm actively reviewing papers\u2014I know the daemon isn't crashed, and the timestamp in the UI already tells me freshness.\",\n  \"would_add\": \"A 'data shape inference' checkpoint\u2014something that fires whenever Claude infers the structure of my input CSV or HDF5 files, so I can catch 'it thinks my columns are X but they're actually Y' before it generates 50 lines of wrong parsing code.\",\n  \"recommendation\": \"Yes, I'd use this. The critical_only mode + checkpoint replay is exactly the right granularity for someone juggling lab work and code review. My main hesitation is that I need it to be *slightly* more paranoid about data assumptions\u2014neuroscience datasets are fragile, and a misread of my experimental structure wastes a full iteration.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Right now I have to context-switch to the webui to verify what the AI assumed about my data structure. I'd work faster if there was a 'data shape' quick-reply button on the phone companion\u2014something that lets me say 'no, 10 channels \u00d7 30k samples, not the other way around' without leaving my desk. Or even simpler: a 'confirm data shape' checkpoint that pauses the narration and waits for a thumbs-up from me before it proceeds to code generation.\",\n  \"understanding_gap\": \"When I'm running multiple sessions (one for the visualization dashboard, one for preprocessing scripts), I can't easily tell which session just made a decision that affects the other. I need to know: 'this checkpoint in session B just changed the output format of session A's expected input'\u2014right now I'd only catch that by manually cross-referencing. A 'cross-session dependency alert' would save me hours of debugging.\"\n}\n```",
+      "efficiency_gap": "Right now I have to context-switch to the webui to verify what the AI assumed about my data structure. I'd work faster if there was a 'data shape' quick-reply button on the phone companion\u2014something that lets me say 'no, 10 channels \u00d7 30k samples, not the other way around' without leaving my desk. Or even simpler: a 'confirm data shape' checkpoint that pauses the narration and waits for a thumbs-up from me before it proceeds to code generation.",
+      "understanding_gap": "When I'm running multiple sessions (one for the visualization dashboard, one for preprocessing scripts), I can't easily tell which session just made a decision that affects the other. I need to know: 'this checkpoint in session B just changed the output format of session A's expected input'\u2014right now I'd only catch that by manually cross-referencing. A 'cross-session dependency alert' would save me hours of debugging."
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Historian and Digital Humanities Fellow",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Creating a searchable, annotated archive interface for 19th-century letters and documents.",
+        "listening_context": "In his home office during early mornings before department duties, often with coffee and half-attention.",
+        "what_they_care_about": "He's skeptical of AI and wants to hear exactly what the code is doing so he can catch errors before they become embedded in historical data."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I'm genuinely impressed by the 'Checkpoint' cue\u2014that's exactly the signal I need to catch architectural decisions before they calcify into the archive schema. Less impressed by how often I'd probably miss the WHY-clause while half-listening with coffee; I'd replay it, which defeats the point.",
+      "would_remove": "The escalating heartbeat in brief mode feels patronizing\u2014if I've muted the session, I don't need reassurance that the daemon is alive; a single 'Still here' after 90 seconds would suffice.",
+      "would_add": "A 'decisions-only replay' button that fires automatically when I return to the webui after stepping away\u2014give me a 2-minute highlight reel of every Checkpoint from the last hour, so I can catch schema or API decisions I missed without rewinding through the full narration log.",
+      "recommendation": "I'd use this, but cautiously. For my work\u2014where a misnamed field or wrong OCR pipeline choice can corrupt an archive\u2014the decision narration is valuable enough to justify the cognitive load. I'm skeptical of AI by default, and this tool lets me keep my skepticism active by hearing the reasoning in real time rather than discovering problems in the data six months later.",
+      "nps": 6,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I'm genuinely impressed by the 'Checkpoint' cue\u2014that's exactly the signal I need to catch architectural decisions before they calcify into the archive schema. Less impressed by how often I'd probably miss the WHY-clause while half-listening with coffee; I'd replay it, which defeats the point.\",\n  \"would_remove\": \"The escalating heartbeat in brief mode feels patronizing\u2014if I've muted the session, I don't need reassurance that the daemon is alive; a single 'Still here' after 90 seconds would suffice.\",\n  \"would_add\": \"A 'decisions-only replay' button that fires automatically when I return to the webui after stepping away\u2014give me a 2-minute highlight reel of every Checkpoint from the last hour, so I can catch schema or API decisions I missed without rewinding through the full narration log.\",\n  \"recommendation\": \"I'd use this, but cautiously. For my work\u2014where a misnamed field or wrong OCR pipeline choice can corrupt an archive\u2014the decision narration is valuable enough to justify the cognitive load. I'm skeptical of AI by default, and this tool lets me keep my skepticism active by hearing the reasoning in real time rather than discovering problems in the data six months later.\",\n  \"nps\": 6,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"The 'Replay decisions' feature needs to be *automatic* when I tab back into the webui after being away\u2014right now I have to manually hunt for Checkpoints in the Activity feed, which defeats the purpose of half-attention listening. Also, give me a way to tag decisions with my own notes (e.g., 'VERIFY THIS AGAINST SOURCE DOCS') so I can surface them later without replaying the whole session.\",\n  \"understanding_gap\": \"When the AI makes a decision about how to parse or structure the 19th-century document data, I need to know *which source documents it examined* to justify that decision\u2014not just 'Checkpoint: using regex instead of ML model to avoid overfitting.' Did it look at 10 letters or 100? What patterns did it see? Right now the narration is too abstract; I need the evidence trail baked into the decision audio so I can audit it.\"\n}\n```",
+      "efficiency_gap": "The 'Replay decisions' feature needs to be *automatic* when I tab back into the webui after being away\u2014right now I have to manually hunt for Checkpoints in the Activity feed, which defeats the purpose of half-attention listening. Also, give me a way to tag decisions with my own notes (e.g., 'VERIFY THIS AGAINST SOURCE DOCS') so I can surface them later without replaying the whole session.",
+      "understanding_gap": "When the AI makes a decision about how to parse or structure the 19th-century document data, I need to know *which source documents it examined* to justify that decision\u2014not just 'Checkpoint: using regex instead of ML model to avoid overfitting.' Did it look at 10 letters or 100? What patterns did it see? Right now the narration is too abstract; I need the evidence trail baked into the decision audio so I can audit it."
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Social Policy Researcher",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Building a tool to process and categorize qualitative interview transcripts for her poverty alleviation study.",
+        "listening_context": "While commuting on the train, needing a quick 20-minute update on progress before meetings.",
+        "what_they_care_about": "She just wants to know if it's done or broken\u2014she doesn't have patience for lengthy technical narration and needs only the critical blockers."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the 'Heads up' / 'Checkpoint' distinction to actually matter on a train\u2014turns out I *do* want to know when something broke versus when a schema decision was made. The critical_only mode is genuinely useful for my commute; I can tune out and only listen when it matters.",
+      "would_remove": "The escalating heartbeat ('Still here. Quiet two minutes.') is noise I don't need\u2014just tell me once it's alive, then stay silent until there's actual news.",
+      "would_add": "A quick summary of 'what changed in my transcript dataset since last check-in'\u2014like, did it add new codes, flag new edge cases, or hit a parsing wall? Right now I'm listening for blockers but flying blind on actual progress toward my research goals.",
+      "recommendation": "Yes, but with a caveat: it's genuinely useful for 'is it broken or not' on a 20-minute commute, and critical_only mode fits my brain. But I'm still doing manual spot-checks of the actual transcript categorizations when I get to my desk, so it's not replacing my need to review the work\u2014it's just saving me from staring at a screen.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the 'Heads up' / 'Checkpoint' distinction to actually matter on a train\u2014turns out I *do* want to know when something broke versus when a schema decision was made. The critical_only mode is genuinely useful for my commute; I can tune out and only listen when it matters.\",\n  \"would_remove\": \"The escalating heartbeat ('Still here. Quiet two minutes.') is noise I don't need\u2014just tell me once it's alive, then stay silent until there's actual news.\",\n  \"would_add\": \"A quick summary of 'what changed in my transcript dataset since last check-in'\u2014like, did it add new codes, flag new edge cases, or hit a parsing wall? Right now I'm listening for blockers but flying blind on actual progress toward my research goals.\",\n  \"recommendation\": \"Yes, but with a caveat: it's genuinely useful for 'is it broken or not' on a 20-minute commute, and critical_only mode fits my brain. But I'm still doing manual spot-checks of the actual transcript categorizations when I get to my desk, so it's not replacing my need to review the work\u2014it's just saving me from staring at a screen.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Give me a one-liner status on the transcript processing itself\u2014like 'Processed 47 interviews, 12 new codes added, 3 parse errors flagged' at the end of each session. Right now I hear about file edits and decisions, but not the *research metric* I actually care about. That's the thing that would let me decide on the train whether I need to jump off early and fix something.\",\n  \"understanding_gap\": \"I run multiple interview batches in parallel (poverty, health access, migration studies). I wish CodeTalker could tell me which session is furthest behind or which one hit a blocker first\u2014right now I have to mentally track three separate narration streams. A 'fan-in summary' on the phone (like 'Poverty study stuck on OCR, health study 80% done, migration study waiting on your input') would actually change how I manage my day.\"\n}\n```",
+      "efficiency_gap": "Give me a one-liner status on the transcript processing itself\u2014like 'Processed 47 interviews, 12 new codes added, 3 parse errors flagged' at the end of each session. Right now I hear about file edits and decisions, but not the *research metric* I actually care about. That's the thing that would let me decide on the train whether I need to jump off early and fix something.",
+      "understanding_gap": "I run multiple interview batches in parallel (poverty, health access, migration studies). I wish CodeTalker could tell me which session is furthest behind or which one hit a blocker first\u2014right now I have to mentally track three separate narration streams. A 'fan-in summary' on the phone (like 'Poverty study stuck on OCR, health study 80% done, migration study waiting on your input') would actually change how I manage my day."
+    },
+    {
+      "persona": {
+        "name": "Sophie",
+        "role": "Psychologist and Learning Scientist",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building an adaptive quiz platform that personalizes questions based on student performance patterns.",
+        "listening_context": "While cooking dinner at home in the evening, wanting to stay informed but not fully engaged.",
+        "what_they_care_about": "She cares most about understanding the logic flow so she can later explain to non-technical colleagues how the system makes decisions about difficulty levels."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 3,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I really liked that the narration includes the *why* behind each decision\u2014that's exactly what I need to explain to my non-technical colleagues later. What caught me off guard is how much I'd actually use the 'Replay decisions' filter; I didn't expect to care that much about rewinding just the checkpoints.",
+      "would_remove": "The escalating heartbeat in brief mode feels a bit much\u2014'Still here. Quiet two minutes' is helpful once, but I'd rather just have a single 'Still here' at 60s and then silence; the countdown to 10+ minutes feels like anxiety theater when I'm already half-listening while cooking.",
+      "would_add": "I'd want a 'decision summary' view that shows me the last 5\u201310 checkpoints with their why-clauses in text form, organized by theme (schema changes, dependency shifts, difficulty algorithm tweaks). Right now I have to scroll through the activity feed or replay audio, and I'd rather skim a bulleted li",
+      "recommendation": "Yes, I'd recommend this to another learning scientist or instructional designer building adaptive systems. The decision narration is genuinely useful for understanding *how* the system reasons about difficulty, and the ability to step away while staying informed is huge when you're juggling research and development. My only hesitation is that it assumes you're already comfortable reading code\u2014if you're not, the 'live' and 'direct' modes might overwhelm you.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 3,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I really liked that the narration includes the *why* behind each decision\u2014that's exactly what I need to explain to my non-technical colleagues later. What caught me off guard is how much I'd actually use the 'Replay decisions' filter; I didn't expect to care that much about rewinding just the checkpoints.\",\n  \"would_remove\": \"The escalating heartbeat in brief mode feels a bit much\u2014'Still here. Quiet two minutes' is helpful once, but I'd rather just have a single 'Still here' at 60s and then silence; the countdown to 10+ minutes feels like anxiety theater when I'm already half-listening while cooking.\",\n  \"would_add\": \"I'd want a 'decision summary' view that shows me the last 5\u201310 checkpoints with their why-clauses in text form, organized by theme (schema changes, dependency shifts, difficulty algorithm tweaks). Right now I have to scroll through the activity feed or replay audio, and I'd rather skim a bulleted list to prep for a team conversation.\",\n  \"recommendation\": \"Yes, I'd recommend this to another learning scientist or instructional designer building adaptive systems. The decision narration is genuinely useful for understanding *how* the system reasons about difficulty, and the ability to step away while staying informed is huge when you're juggling research and development. My only hesitation is that it assumes you're already comfortable reading code\u2014if you're not, the 'live' and 'direct' modes might overwhelm you.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I'd want the narration to call out when the algorithm is about to make a *category shift* in difficulty logic\u2014not just 'adjusted threshold to 0.65' but 'shifting from accuracy-based to speed-based difficulty because the student's confidence is high.' Right now I have to piece that together from multiple checkpoints, and that's the exact logic I need to explain to my team. A 'reasoning mode' that narrates the conditional branches the system is considering would let me stay informed without rewinding.\",\n  \"understanding_gap\": \"I wish I could ask the tool: 'Why did the system choose that difficulty level for that specific student, given their history?' Right now I see the checkpoint that says 'adjusted difficulty,' but I don't have a way to drill into the student's performance pattern that triggered it. For my research, I need to audit whether the adaptive logic is actually fair across different learner types\u2014a 'decision audit' feature that linked each difficulty choice back to the student data that drove it would be invaluable.\"\n}\n```",
+      "efficiency_gap": "I'd want the narration to call out when the algorithm is about to make a *category shift* in difficulty logic\u2014not just 'adjusted threshold to 0.65' but 'shifting from accuracy-based to speed-based difficulty because the student's confidence is high.' Right now I have to piece that together from multiple checkpoints, and that's the exact logic I need to explain to my team. A 'reasoning mode' that narrates the conditional branches the system is considering would let me stay informed without rewind",
+      "understanding_gap": "I wish I could ask the tool: 'Why did the system choose that difficulty level for that specific student, given their history?' Right now I see the checkpoint that says 'adjusted difficulty,' but I don't have a way to drill into the student's performance pattern that triggered it. For my research, I need to audit whether the adaptive logic is actually fair across different learner types\u2014a 'decision audit' feature that linked each difficulty choice back to the student data that drove it would be i"
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Senior Engine Programmer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring a custom C++ rendering pipeline to support dynamic LOD systems across 50+ unique asset types.",
+        "listening_context": "In his home office with one monitor muted, half-listening while reviewing design docs on a second screen.",
+        "what_they_care_about": "He needs to catch architectural mistakes early\u2014he'll interrupt if Claude is about to commit a pattern that'll break downstream systems."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The [CHECKPOINT] cue is genuinely useful\u2014I'd catch myself half-listening to the second monitor and snap back when I hear it, which is exactly when I need to. The WHY-clause baked into every decision narration is the real win; most tools just tell you what happened, not why it matters. That said, the heartbeat escalation ('Still here. Quiet two minutes.') feels designed for someone context-switching across tabs, not someone deep in a single refactor like me.",
+      "would_remove": "The 'Direct' mode\u2014it's too noisy for my workflow and I'd never use it; the brief + checkpoint stack already gives me what I need without the raw tool spam.",
+      "would_add": "A 'dependency impact' filter in the narration\u2014when I'm refactoring a C++ rendering pipeline across 50+ asset types, I need to know immediately if a decision touches the LOD system or the shader cache, not just that a decision was made. Let me tag architectural subsystems and get alerts only for chan",
+      "recommendation": "Yes, absolutely\u2014but only in brief or critical_only mode. The checkpoint system and decision rationale are built for someone like me who can't afford to miss architectural drift. I'd run it on critical_only most of the time and flip to brief during big refactors. It's a force multiplier if you're working solo and need a second pair of ears watching for downstream breakage.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The [CHECKPOINT] cue is genuinely useful\u2014I'd catch myself half-listening to the second monitor and snap back when I hear it, which is exactly when I need to. The WHY-clause baked into every decision narration is the real win; most tools just tell you what happened, not why it matters. That said, the heartbeat escalation ('Still here. Quiet two minutes.') feels designed for someone context-switching across tabs, not someone deep in a single refactor like me.\",\n  \"would_remove\": \"The 'Direct' mode\u2014it's too noisy for my workflow and I'd never use it; the brief + checkpoint stack already gives me what I need without the raw tool spam.\",\n  \"would_add\": \"A 'dependency impact' filter in the narration\u2014when I'm refactoring a C++ rendering pipeline across 50+ asset types, I need to know immediately if a decision touches the LOD system or the shader cache, not just that a decision was made. Let me tag architectural subsystems and get alerts only for changes that cross those boundaries.\",\n  \"recommendation\": \"Yes, absolutely\u2014but only in brief or critical_only mode. The checkpoint system and decision rationale are built for someone like me who can't afford to miss architectural drift. I'd run it on critical_only most of the time and flip to brief during big refactors. It's a force multiplier if you're working solo and need a second pair of ears watching for downstream breakage.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a 'decision replay by subsystem' filter, not just by time window. When I come back after lunch, I don't want to replay the last 30 minutes of checkpoints\u2014I want to replay only the ones that touched the LOD or shader systems. Also, the rewind is 30 seconds; for a complex decision narration, I'd want 60 or even a full 'replay this checkpoint' button instead of hunting for the timestamp.\",\n  \"understanding_gap\": \"I'm running multiple sessions in parallel (main refactor + a shader validation tool + a dependency crawler), and I need to know which session a checkpoint came from without flipping back to the webui. A session tag in the audio cue ('Checkpoint: LOD system\u2026') would save me seconds per decision. Right now I have to glance at the screen to know if I should care. Also: when the daemon's quiet for 2+ minutes, I can't tell if it's because Claude is thinking hard or because I'm in a tool-execution loop\u2014give me a one-word hint ('thinking' vs 'running') so I know whether to expect narration soon.\"\n}\n```",
+      "efficiency_gap": "I need a 'decision replay by subsystem' filter, not just by time window. When I come back after lunch, I don't want to replay the last 30 minutes of checkpoints\u2014I want to replay only the ones that touched the LOD or shader systems. Also, the rewind is 30 seconds; for a complex decision narration, I'd want 60 or even a full 'replay this checkpoint' button instead of hunting for the timestamp.",
+      "understanding_gap": "I'm running multiple sessions in parallel (main refactor + a shader validation tool + a dependency crawler), and I need to know which session a checkpoint came from without flipping back to the webui. A session tag in the audio cue ('Checkpoint: LOD system\u2026') would save me seconds per decision. Right now I have to glance at the screen to know if I should care. Also: when the daemon's quiet for 2+ minutes, I can't tell if it's because Claude is thinking hard or because I'm in a tool-execution loo"
+    },
+    {
+      "persona": {
+        "name": "Riley",
+        "role": "Indie Game Dev",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a first-person puzzle game in Unity with C# using mostly asset store plugins and AI-assisted prototyping.",
+        "listening_context": "In a coffee shop with airpods, walking between their coworking desk and bathroom breaks, half-distracted.",
+        "what_they_care_about": "They want reassurance that the code is 'normal' and won't blow up their game; jargon-heavy explanations stress them out."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly, the heartbeat thing ('Still here') is weirdly comforting\u2014I kept thinking the daemon crashed but it was just being honest about nothing happening. Also didn't expect the WHY-clause in decisions to actually stick with me; I remember *why* it picked something instead of just that it did.",
+      "would_remove": "The 'direct' mode feels like overkill for someone like me\u2014I'd just tune out or skip it anyway, so maybe make it Pro-only or kill it entirely to keep the mental model simpler.",
+      "would_add": "A 'did this break my build?' quick-check button in the webui that runs a compile/test without me having to switch to Unity. Right now I'm paranoid every time I step away, so a one-tap 'green light' would let me actually relax.",
+      "recommendation": "Yeah, I'd recommend this to someone building their first game solo. It's not essential, but it scratches a real itch\u2014I can let the AI churn while I grab coffee and actually trust I'll know if something went sideways. The learning curve is basically zero, which matters when you're already juggling Unity, C#, and imposter syndrome.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly, the heartbeat thing ('Still here') is weirdly comforting\u2014I kept thinking the daemon crashed but it was just being honest about nothing happening. Also didn't expect the WHY-clause in decisions to actually stick with me; I remember *why* it picked something instead of just that it did.\",\n  \"would_remove\": \"The 'direct' mode feels like overkill for someone like me\u2014I'd just tune out or skip it anyway, so maybe make it Pro-only or kill it entirely to keep the mental model simpler.\",\n  \"would_add\": \"A 'did this break my build?' quick-check button in the webui that runs a compile/test without me having to switch to Unity. Right now I'm paranoid every time I step away, so a one-tap 'green light' would let me actually relax.\",\n  \"recommendation\": \"Yeah, I'd recommend this to someone building their first game solo. It's not essential, but it scratches a real itch\u2014I can let the AI churn while I grab coffee and actually trust I'll know if something went sideways. The learning curve is basically zero, which matters when you're already juggling Unity, C#, and imposter syndrome.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"The 'Replay decisions' feature is cool in theory, but I'd get way more value from a 'show me what actually changed in my scene/scripts' audio summary\u2014like, 'you added 3 puzzle triggers and wired them to the main controller.' Right now I hear architectural choices but I'm still flying blind about what's actually in my project. Give me a 30-second 'what landed in my code' recap instead of just architectural philosophy.\",\n  \"understanding_gap\": \"I wish there was a way to ask CodeTalker 'is this normal for where I am?' without feeling dumb. Like, when Claude makes a decision, I want to know: is this the standard way indie devs do this, or is it something weird that'll bite me later? A 'confidence in best practice' badge or a 'heads up, this is unconventional' cue would save me from shipping something that works but is architecturally cursed.\"\n}\n```",
+      "efficiency_gap": "The 'Replay decisions' feature is cool in theory, but I'd get way more value from a 'show me what actually changed in my scene/scripts' audio summary\u2014like, 'you added 3 puzzle triggers and wired them to the main controller.' Right now I hear architectural choices but I'm still flying blind about what's actually in my project. Give me a 30-second 'what landed in my code' recap instead of just architectural philosophy.",
+      "understanding_gap": "I wish there was a way to ask CodeTalker 'is this normal for where I am?' without feeling dumb. Like, when Claude makes a decision, I want to know: is this the standard way indie devs do this, or is it something weird that'll bite me later? A 'confidence in best practice' badge or a 'heads up, this is unconventional' cue would save me from shipping something that works but is architecturally cursed."
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Gameplay Programmer",
+        "vibe_experience": "power",
+        "domain_expertise": "mid",
+        "primary_use_case": "Debugging a subtle state-machine bug in character abilities where animations desync from logic intermittently.",
+        "listening_context": "At his desk with the game running on a secondary display, actively watching but wanting audio play-by-play of the AI's reasoning.",
+        "what_they_care_about": "He's skeptical of AI 'magic' and wants to hear the *why* behind each decision so he can verify it's not a lucky guess."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The WHY-clauses in decisions actually work\u2014I can hear *why* Claude picked option A over B without having to dig through the reasoning myself. That's rare. The heartbeat escalation is smart; I didn't expect it to feel natural instead of annoying.",
+      "would_remove": "The 'Checkpoint' narration for every architectural decision\u2014I'd want to filter those by *magnitude*; not every schema tweak deserves the same weight as a migration strategy shift.",
+      "would_add": "A 'state diff' mode for debugging: when the AI edits state-machine code, narrate the before/after of key variables or enum transitions so I can catch desync bugs without pausing the session to read the diff myself.",
+      "recommendation": "Yeah, I'd use this. I'm skeptical of AI 'magic', but CodeTalker lets me stay skeptical *while* I work\u2014I hear the reasoning in real time, I can spot when it's guessing vs. observing, and I don't have to tab over to watch the editor. For debugging state machines where I need to follow the logic thread, this beats silent sessions.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The WHY-clauses in decisions actually work\u2014I can hear *why* Claude picked option A over B without having to dig through the reasoning myself. That's rare. The heartbeat escalation is smart; I didn't expect it to feel natural instead of annoying.\",\n  \"would_remove\": \"The 'Checkpoint' narration for every architectural decision\u2014I'd want to filter those by *magnitude*; not every schema tweak deserves the same weight as a migration strategy shift.\",\n  \"would_add\": \"A 'state diff' mode for debugging: when the AI edits state-machine code, narrate the before/after of key variables or enum transitions so I can catch desync bugs without pausing the session to read the diff myself.\",\n  \"recommendation\": \"Yeah, I'd use this. I'm skeptical of AI 'magic', but CodeTalker lets me stay skeptical *while* I work\u2014I hear the reasoning in real time, I can spot when it's guessing vs. observing, and I don't have to tab over to watch the editor. For debugging state machines where I need to follow the logic thread, this beats silent sessions.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Add a 'code-diff narration' mode that speaks only the lines Claude changed in a file\u2014not the whole function, just the delta. Right now I have to mentally diff the before/after while listening; if you narrated *only* the edits with context (e.g., 'Line 42: added check for animation_state == IDLE before calling transition, to prevent double-fire'), I'd catch bugs 3x faster without rewinding.\",\n  \"understanding_gap\": \"I need visibility into *why* the state machine is desynchronizing in the first place\u2014which state transition is firing out of order, or which animation frame is getting skipped. CodeTalker narrates what Claude *does*, but not what the *actual runtime state* was when the bug happened. A 'runtime snapshot' feature that lets me query the game's state machine at the moment of the bug (e.g., 'what was animation_state and logic_state 100ms ago?') and have Claude narrate the mismatch would turn this from 'helpful listener' into 'actual debugger.'\"\n}\n```",
+      "efficiency_gap": "Add a 'code-diff narration' mode that speaks only the lines Claude changed in a file\u2014not the whole function, just the delta. Right now I have to mentally diff the before/after while listening; if you narrated *only* the edits with context (e.g., 'Line 42: added check for animation_state == IDLE before calling transition, to prevent double-fire'), I'd catch bugs 3x faster without rewinding.",
+      "understanding_gap": "I need visibility into *why* the state machine is desynchronizing in the first place\u2014which state transition is firing out of order, or which animation frame is getting skipped. CodeTalker narrates what Claude *does*, but not what the *actual runtime state* was when the bug happened. A 'runtime snapshot' feature that lets me query the game's state machine at the moment of the bug (e.g., 'what was animation_state and logic_state 100ms ago?') and have Claude narrate the mismatch would turn this fro"
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Tools Engineer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Writing editor extensions and build automation in C# to reduce iteration time for the 12-person team.",
+        "listening_context": "In a shared office with occasional interruptions from teammates; narration lets her keep context without constant tab-switching.",
+        "what_they_care_about": "She wants to hear about potential edge cases and performance implications\u2014tools that work 95% of the time create tech debt for everyone."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The decision rationale baked into every narration is genuinely useful\u2014I'm not just hearing *what* the agent did, I'm hearing *why*, which cuts through the noise when I'm context-switching between a Slack interrupt and my build. The heartbeat escalation in brief mode is clever; it tells me the daemon's alive without lying to me that something happened.",
+      "would_remove": "The 'Still here. Quiet two minutes' variant of the heartbeat\u2014it's noise. Just say 'Still here' or let me infer the duration from the timestamp in the activity log if I care.",
+      "would_add": "A **decision diff** feature: when a [CHECKPOINT] fires, let me see a side-by-side of the two alternatives the agent considered (the chosen path vs. the runner-up), narrated as 'We went with X instead of Y because Z.' Right now I hear the rationale, but I don't always know what I'm *not* getting, and",
+      "recommendation": "Yes, absolutely. This solves a real problem for a team like mine\u2014I can spin up three parallel sessions and stay aware of blockers and decisions without gluing my eyes to the screen. The narration modes let me tune it to my moment (live when I'm idle, brief when I'm context-switching, critical-only during a build). It's not perfect, but it's the first TTS tool I've seen that actually respects that I'm a power user who wants signal, not chatter.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The decision rationale baked into every narration is genuinely useful\u2014I'm not just hearing *what* the agent did, I'm hearing *why*, which cuts through the noise when I'm context-switching between a Slack interrupt and my build. The heartbeat escalation in brief mode is clever; it tells me the daemon's alive without lying to me that something happened.\",\n  \"would_remove\": \"The 'Still here. Quiet two minutes' variant of the heartbeat\u2014it's noise. Just say 'Still here' or let me infer the duration from the timestamp in the activity log if I care.\",\n  \"would_add\": \"A **decision diff** feature: when a [CHECKPOINT] fires, let me see a side-by-side of the two alternatives the agent considered (the chosen path vs. the runner-up), narrated as 'We went with X instead of Y because Z.' Right now I hear the rationale, but I don't always know what I'm *not* getting, and that matters when I'm validating architecture.\",\n  \"recommendation\": \"Yes, absolutely. This solves a real problem for a team like mine\u2014I can spin up three parallel sessions and stay aware of blockers and decisions without gluing my eyes to the screen. The narration modes let me tune it to my moment (live when I'm idle, brief when I'm context-switching, critical-only during a build). It's not perfect, but it's the first TTS tool I've seen that actually respects that I'm a power user who wants signal, not chatter.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Give me a **decision replay filter that's smarter about time windows**\u2014right now I can replay the last 30 minutes of [CHECKPOINT]s, but I need to know which decisions were made in *this session only* vs. across all sessions, and I need to filter by *type* (schema vs. dependency vs. API shape). When I'm auditing what happened while I was in a meeting, I want to say 'show me the architecture calls from the OCRacing session in the last hour' without wading through unrelated checkpoints. That'd save me 5-10 minutes per day.\",\n  \"understanding_gap\": \"I can't currently see *why* a session went quiet. Was the agent blocked waiting for a tool response? Did it hit a confidence floor and bail? Is it genuinely thinking hard, or did it crash? The 'Still here' heartbeat tells me the daemon's alive, but not whether the *agent* is stuck. Add a session health panel that shows me: current LLM call duration, last tool output timestamp, and whether the agent's in a retry loop. That'd let me decide whether to intervene or trust it to keep working.\"\n}\n```",
+      "efficiency_gap": "Give me a **decision replay filter that's smarter about time windows**\u2014right now I can replay the last 30 minutes of [CHECKPOINT]s, but I need to know which decisions were made in *this session only* vs. across all sessions, and I need to filter by *type* (schema vs. dependency vs. API shape). When I'm auditing what happened while I was in a meeting, I want to say 'show me the architecture calls from the OCRacing session in the last hour' without wading through unrelated checkpoints. That'd save",
+      "understanding_gap": "I can't currently see *why* a session went quiet. Was the agent blocked waiting for a tool response? Did it hit a confidence floor and bail? Is it genuinely thinking hard, or did it crash? The 'Still here' heartbeat tells me the daemon's alive, but not whether the *agent* is stuck. Add a session health panel that shows me: current LLM call duration, last tool output timestamp, and whether the agent's in a retry loop. That'd let me decide whether to intervene or trust it to keep working."
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "ML Infrastructure Engineer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Optimizing a distributed training pipeline that's been bottlenecking on data loading for three weeks.",
+        "listening_context": "In his home office with headphones, half-watching a dashboard while CodeTalker runs in the background; he context-switches to check on it every 10 minutes.",
+        "what_they_care_about": "He wants to know immediately if Claude takes a wrong turn\u2014verbose play-by-play wastes his time, but he needs enough detail to catch architectural mistakes before they propagate."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern actually works \u2014 I caught an architectural drift in a schema decision within 10 seconds instead of discovering it in a failed data pipeline run six hours later. Also didn't expect the 'Replay decisions' filter to be this useful; I ran it after a 15-minute context switch and got back exactly what I needed to know.",
+      "would_remove": "The escalating heartbeat in brief mode \u2014 'Still here. Quiet two minutes.' is noise when I'm actively watching the dashboard anyway; a silent health dot in the UI would do the same job without interrupting focus.",
+      "would_add": "A 'divergence alert' mode that fires when Claude takes more than N steps without touching the bottleneck I flagged in my prompt \u2014 right now I have to manually spot-check every 10 minutes that it's still on the data-loading problem and hasn't drifted into dependency hell.",
+      "recommendation": "Yes, absolutely. For distributed systems work where architectural mistakes compound fast, this pays for itself the first time it catches a schema decision before it propagates to five downstream services. The decision narration is precise enough that I trust it, and the rewind + skip tools mean I'm not forced to listen to every detail.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern actually works \u2014 I caught an architectural drift in a schema decision within 10 seconds instead of discovering it in a failed data pipeline run six hours later. Also didn't expect the 'Replay decisions' filter to be this useful; I ran it after a 15-minute context switch and got back exactly what I needed to know.\",\n  \"would_remove\": \"The escalating heartbeat in brief mode \u2014 'Still here. Quiet two minutes.' is noise when I'm actively watching the dashboard anyway; a silent health dot in the UI would do the same job without interrupting focus.\",\n  \"would_add\": \"A 'divergence alert' mode that fires when Claude takes more than N steps without touching the bottleneck I flagged in my prompt \u2014 right now I have to manually spot-check every 10 minutes that it's still on the data-loading problem and hasn't drifted into dependency hell.\",\n  \"recommendation\": \"Yes, absolutely. For distributed systems work where architectural mistakes compound fast, this pays for itself the first time it catches a schema decision before it propagates to five downstream services. The decision narration is precise enough that I trust it, and the rewind + skip tools mean I'm not forced to listen to every detail.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Add a 'decision diff' view in the webui that shows me *what changed* between [CHECKPOINT] moments \u2014 not just that a decision happened, but the before/after of the actual code or config that got committed. Right now I hear 'Checkpoint: choosing async queue over thread pool to avoid GIL contention' but then have to manually grep the diff to confirm it actually happened. A side-by-side in the Activity tab would save me 2\u20133 minutes per session.\",\n  \"understanding_gap\": \"I need visibility into *why Claude rejected an approach* \u2014 when it backtracks or pivots away from a direction I suggested, I only hear the new decision, not the reasoning that killed the old one. A 'decision tree' or 'attempted paths' log would help me understand whether it hit a real blocker or just took a different optimization path. Right now I'm flying blind on the paths *not* taken.\"\n}\n```",
+      "efficiency_gap": "Add a 'decision diff' view in the webui that shows me *what changed* between [CHECKPOINT] moments \u2014 not just that a decision happened, but the before/after of the actual code or config that got committed. Right now I hear 'Checkpoint: choosing async queue over thread pool to avoid GIL contention' but then have to manually grep the diff to confirm it actually happened. A side-by-side in the Activity tab would save me 2\u20133 minutes per session.",
+      "understanding_gap": "I need visibility into *why Claude rejected an approach* \u2014 when it backtracks or pivots away from a direction I suggested, I only hear the new decision, not the reasoning that killed the old one. A 'decision tree' or 'attempted paths' log would help me understand whether it hit a real blocker or just took a different optimization path. Right now I'm flying blind on the paths *not* taken."
+    },
+    {
+      "persona": {
+        "name": "Jackson",
+        "role": "Research Scientist",
+        "vibe_experience": "power",
+        "domain_expertise": "expert",
+        "primary_use_case": "Running five parallel experiments on model ablations, using Claude to handle boilerplate while he focuses on interpretation.",
+        "listening_context": "In his lab with multiple monitors, CodeTalker playing through a speaker; he's simultaneously reading papers and running manual tests in another window.",
+        "what_they_care_about": "He needs CodeTalker to call out *only* deviations from his mental model\u2014verbose summaries of correct work are noise; anomalies and assumptions are gold."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] / [ALERT] distinction is exactly the signal-to-noise filter I need\u2014I can tune out routine edits and catch architectural pivots without watching. The WHY-clause folded into decisions is gold; it's the difference between 'schema changed' and 'schema changed to avoid N+1 on the ablation loop.' That said, the 'Still here' heartbeat feels a bit hand-holdy for someone running five parallel experiments\u2014I'd rather hear nothing than reassurance.",
+      "would_remove": "The live-stream mode's sentence-by-sentence narration of routine edits (file opens, imports, boilerplate wires)\u2014in my context, that's just noise while I'm reading papers; brief + checkpoint-only would let me stay in flow.",
+      "would_add": "A 'deviation detector' mode that learns my codebase's baseline patterns (test structure, error handling style, dependency shapes) and *only* speaks when Claude does something architecturally novel or contradicts the pattern\u2014right now I'm still filtering mentally; I want the daemon to do that filteri",
+      "recommendation": "Yes, absolutely\u2014but only in critical_only or brief + checkpoint modes. The core insight (async narration so I don't watch the screen) is exactly what I need for parallel experiments. The decision cues are the real win; they turn CodeTalker from a play-by-play into a strategic spotter.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] / [ALERT] distinction is exactly the signal-to-noise filter I need\u2014I can tune out routine edits and catch architectural pivots without watching. The WHY-clause folded into decisions is gold; it's the difference between 'schema changed' and 'schema changed to avoid N+1 on the ablation loop.' That said, the 'Still here' heartbeat feels a bit hand-holdy for someone running five parallel experiments\u2014I'd rather hear nothing than reassurance.\",\n  \"would_remove\": \"The live-stream mode's sentence-by-sentence narration of routine edits (file opens, imports, boilerplate wires)\u2014in my context, that's just noise while I'm reading papers; brief + checkpoint-only would let me stay in flow.\",\n  \"would_add\": \"A 'deviation detector' mode that learns my codebase's baseline patterns (test structure, error handling style, dependency shapes) and *only* speaks when Claude does something architecturally novel or contradicts the pattern\u2014right now I'm still filtering mentally; I want the daemon to do that filtering for me.\",\n  \"recommendation\": \"Yes, absolutely\u2014but only in critical_only or brief + checkpoint modes. The core insight (async narration so I don't watch the screen) is exactly what I need for parallel experiments. The decision cues are the real win; they turn CodeTalker from a play-by-play into a strategic spotter.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"I need a 'cross-session diff' feature: when I'm running five ablation experiments in parallel, I want to hear *only* the divergences between runs\u2014'Experiment 3 took the attention-head pruning path instead of the quantization path; here's why'\u2014rather than hearing the same boilerplate setup five times. Right now I'm manually tracking which session chose what; the tool should surface that as a decision highlight reel across all five at once.\",\n  \"understanding_gap\": \"I can't currently ask CodeTalker 'why did Claude make that choice over the alternative I had in mind?'\u2014I hear the decision, but not the reasoning chain that led to it. A 'replay reasoning' button that speaks the LLM's internal rationale (or a direct link to the Claude conversation thread) would close the gap between 'what happened' and 'why it happened'\u2014crucial when I'm validating whether an ablation choice was sound or just plausible.\"\n}\n```",
+      "efficiency_gap": "I need a 'cross-session diff' feature: when I'm running five ablation experiments in parallel, I want to hear *only* the divergences between runs\u2014'Experiment 3 took the attention-head pruning path instead of the quantization path; here's why'\u2014rather than hearing the same boilerplate setup five times. Right now I'm manually tracking which session chose what; the tool should surface that as a decision highlight reel across all five at once.",
+      "understanding_gap": "I can't currently ask CodeTalker 'why did Claude make that choice over the alternative I had in mind?'\u2014I hear the decision, but not the reasoning chain that led to it. A 'replay reasoning' button that speaks the LLM's internal rationale (or a direct link to the Claude conversation thread) would close the gap between 'what happened' and 'why it happened'\u2014crucial when I'm validating whether an ablation choice was sound or just plausible."
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Analytics Engineer",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Wrangling messy production logs into a training dataset for an anomaly detection model.",
+        "listening_context": "While meal-prepping in her kitchen on Sunday afternoon, phone in pocket with CodeTalker playing at moderate volume; she's half-listening, half-cooking.",
+        "what_they_care_about": "She's skeptical of AI code quality for data pipelines and wants CodeTalker to narrate assumptions about null handling and edge cases\u2014she'll jump in if she hears something dangerous, but mostly she wants peace of mind that Claude isn't making obvious mistakes."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The 'Checkpoint' cue is genuinely useful\u2014I'd catch myself pausing mid-chop when I heard it, which is exactly what I need for schema decisions. But the WHY-clause requirement feels inconsistent in the samples; I'm not always hearing *why* Claude picked one approach over another, just that it did.",
+      "would_remove": "The escalating heartbeat ('Still here. Quiet two minutes.') is noise when I'm half-listening\u2014it breaks my focus without telling me anything actionable, so I'd either make it opt-in or cut it entirely.",
+      "would_add": "A 'null-handling summary' feature that auto-narrates whenever the AI touches a data pipeline\u2014specifically flagging assumptions about missing values, type coercion, and edge cases in joins or aggregations. That's where production breaks for me, and I'd pay for that peace of mind.",
+      "recommendation": "Yes, but with caveats. For my use case\u2014wrangling logs into training data\u2014it's genuinely helpful to catch architectural decisions without staring at the screen. The problem is it doesn't go deep *enough* on data assumptions, so I'm still spot-checking the code for null-handling and type safety. It's a 70% solution that gets me 30% of the way to confidence.",
+      "nps": 6,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The 'Checkpoint' cue is genuinely useful\u2014I'd catch myself pausing mid-chop when I heard it, which is exactly what I need for schema decisions. But the WHY-clause requirement feels inconsistent in the samples; I'm not always hearing *why* Claude picked one approach over another, just that it did.\",\n  \"would_remove\": \"The escalating heartbeat ('Still here. Quiet two minutes.') is noise when I'm half-listening\u2014it breaks my focus without telling me anything actionable, so I'd either make it opt-in or cut it entirely.\",\n  \"would_add\": \"A 'null-handling summary' feature that auto-narrates whenever the AI touches a data pipeline\u2014specifically flagging assumptions about missing values, type coercion, and edge cases in joins or aggregations. That's where production breaks for me, and I'd pay for that peace of mind.\",\n  \"recommendation\": \"Yes, but with caveats. For my use case\u2014wrangling logs into training data\u2014it's genuinely helpful to catch architectural decisions without staring at the screen. The problem is it doesn't go deep *enough* on data assumptions, so I'm still spot-checking the code for null-handling and type safety. It's a 70% solution that gets me 30% of the way to confidence.\",\n  \"nps\": 6,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Right now I'm still opening the webui or jumping into the code when I hear something vague. Give me a 'data-quality checkpoint' mode that narrates assumptions about nulls, type mismatches, and cardinality changes before they hit the pipeline\u2014e.g., 'Joining on user_id; assuming no duplicates in the right table, null-coalescing to zero for missing amounts.' That would let me actually stay in the kitchen instead of running back to my laptop.\",\n  \"understanding_gap\": \"I can't tell if Claude is making safe assumptions or dangerous ones just from the narration. I'd want the tool to surface questions like 'Is this GROUP BY handling duplicates the way you expect?' or 'What happens if this column is NULL in 5% of rows?'\u2014basically, I want CodeTalker to narrate the *risks* it sees, not just the decisions, so I know when to get paranoid.\"\n}\n```",
+      "efficiency_gap": "Right now I'm still opening the webui or jumping into the code when I hear something vague. Give me a 'data-quality checkpoint' mode that narrates assumptions about nulls, type mismatches, and cardinality changes before they hit the pipeline\u2014e.g., 'Joining on user_id; assuming no duplicates in the right table, null-coalescing to zero for missing amounts.' That would let me actually stay in the kitchen instead of running back to my laptop.",
+      "understanding_gap": "I can't tell if Claude is making safe assumptions or dangerous ones just from the narration. I'd want the tool to surface questions like 'Is this GROUP BY handling duplicates the way you expect?' or 'What happens if this column is NULL in 5% of rows?'\u2014basically, I want CodeTalker to narrate the *risks* it sees, not just the decisions, so I know when to get paranoid."
+    },
+    {
+      "persona": {
+        "name": "Maya",
+        "role": "Product Designer + React Hobbyist",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a portfolio landing page with custom animations to showcase her design work.",
+        "listening_context": "At her desk during lunch breaks, phone propped up, half-watching while eating.",
+        "what_they_care_about": "She needs confidence that the AI isn't breaking things, so frequent checkpoints and plain-English summaries of what just happened matter more than technical precision."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 3
+      },
+      "surprises": "I wasn't expecting the 'Checkpoint' cues to actually *help* \u2014 I thought it'd be noise, but knowing when something architecturally important just happened means I can glance back at my screen instead of just hoping the AI didn't break my animations. The heartbeat thing is weirdly reassuring when I'm eating and half-zoned out.",
+      "would_remove": "The 'Still here. Quiet two minutes.' escalation feels a bit chatty for my brain during lunch \u2014 I'd rather just get 'Still here' once and then silence until something real happens, or let me customize the heartbeat interval.",
+      "would_add": "A 'replay last decision' button right on the phone lock screen, or a quick way to jump to the last [CHECKPOINT] in the Activity feed without scrolling \u2014 I want to spot-check what got decided while I'm away without digging through the whole log.",
+      "recommendation": "Yeah, I'd recommend this to other designers learning to code. It lets me step away without anxiety, and the plain-English summaries mean I'm not scrambling to understand what the AI just did. My only hesitation is the UI feels a *tiny* bit cluttered \u2014 I had to poke around to find where to switch modes.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I wasn't expecting the 'Checkpoint' cues to actually *help* \u2014 I thought it'd be noise, but knowing when something architecturally important just happened means I can glance back at my screen instead of just hoping the AI didn't break my animations. The heartbeat thing is weirdly reassuring when I'm eating and half-zoned out.\",\n  \"would_remove\": \"The 'Still here. Quiet two minutes.' escalation feels a bit chatty for my brain during lunch \u2014 I'd rather just get 'Still here' once and then silence until something real happens, or let me customize the heartbeat interval.\",\n  \"would_add\": \"A 'replay last decision' button right on the phone lock screen, or a quick way to jump to the last [CHECKPOINT] in the Activity feed without scrolling \u2014 I want to spot-check what got decided while I'm away without digging through the whole log.\",\n  \"recommendation\": \"Yeah, I'd recommend this to other designers learning to code. It lets me step away without anxiety, and the plain-English summaries mean I'm not scrambling to understand what the AI just did. My only hesitation is the UI feels a *tiny* bit cluttered \u2014 I had to poke around to find where to switch modes.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Right now I'm stuck switching between my laptop and phone to check on things. If the Brief mode could include a one-line 'what file just changed' summary instead of just 'editing X.py' \u2014 like 'updated animation timing in Hero.jsx (line 42\u201367)' \u2014 I could actually verify from my phone that it did the right thing without opening my editor. That'd save me from context-switching back to my desk every five minutes.\",\n  \"understanding_gap\": \"I want to know *why* the AI picked a particular approach for my animations, not just that it did it. Like, when it decides to use CSS keyframes vs. Framer Motion, I'd love a quick 'chose keyframes because it's lighter for this number of elements' \u2014 right now I hear 'added animation' and have to trust it, which makes me nervous since animations are core to my portfolio piece.\"\n}\n```",
+      "efficiency_gap": "Right now I'm stuck switching between my laptop and phone to check on things. If the Brief mode could include a one-line 'what file just changed' summary instead of just 'editing X.py' \u2014 like 'updated animation timing in Hero.jsx (line 42\u201367)' \u2014 I could actually verify from my phone that it did the right thing without opening my editor. That'd save me from context-switching back to my desk every five minutes.",
+      "understanding_gap": "I want to know *why* the AI picked a particular approach for my animations, not just that it did it. Like, when it decides to use CSS keyframes vs. Framer Motion, I'd love a quick 'chose keyframes because it's lighter for this number of elements' \u2014 right now I hear 'added animation' and have to trust it, which makes me nervous since animations are core to my portfolio piece."
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Growth Marketer, Webflow Refugee",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Rapid-prototyping SaaS landing pages with A/B test variants to validate messaging before dev hands-off.",
+        "listening_context": "In back-to-back Zoom calls, CodeTalker playing quietly on a second monitor or earbud\u2014he glances over when something needs review.",
+        "what_they_care_about": "He wants only the critical decisions flagged; verbose narration about syntax or scaffolding wastes his time, but he needs to know immediately if the AI made a stupid choice that breaks his workflow."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The 'Checkpoint' cue actually works\u2014I don't have to parse every line to catch schema decisions anymore. Also didn't expect the decision-only replay filter to be *that* useful when I'm jumping between Zoom calls; it's like a highlight reel for my brain.",
+      "would_remove": "The 'Still here' heartbeat at 30s is too chatty for brief mode when I'm actively listening\u2014drop it to 90s minimum, or let me tune it per-session.",
+      "would_add": "A one-click 'compare variants' button that pulls narration logs from two parallel sessions side-by-side so I can A/B test messaging without manually rewinding both\u2014that's literally my job.",
+      "recommendation": "Yeah, I'd use this. It solves the real problem: I can't watch three Claude sessions at once, but I can listen to one on speaker while staying in Zoom. The decision flagging keeps me from missing architectural debt, and the modes are granular enough that I'm not drowning in noise.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The 'Checkpoint' cue actually works\u2014I don't have to parse every line to catch schema decisions anymore. Also didn't expect the decision-only replay filter to be *that* useful when I'm jumping between Zoom calls; it's like a highlight reel for my brain.\",\n  \"would_remove\": \"The 'Still here' heartbeat at 30s is too chatty for brief mode when I'm actively listening\u2014drop it to 90s minimum, or let me tune it per-session.\",\n  \"would_add\": \"A one-click 'compare variants' button that pulls narration logs from two parallel sessions side-by-side so I can A/B test messaging without manually rewinding both\u2014that's literally my job.\",\n  \"recommendation\": \"Yeah, I'd use this. It solves the real problem: I can't watch three Claude sessions at once, but I can listen to one on speaker while staying in Zoom. The decision flagging keeps me from missing architectural debt, and the modes are granular enough that I'm not drowning in noise.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"I need a 'session summary export' button that pulls the last 30 minutes of [CHECKPOINT] decisions + their WHY-clauses into a Markdown file I can paste into a Slack thread or handoff doc for the dev team. Right now I'm manually rewinding, screenshotting, and transcribing\u2014that kills the whole time-save.\",\n  \"understanding_gap\": \"When I'm running two landing-page variants in parallel (one with 'AI-powered' messaging, one with 'faster' messaging), I can't easily compare which decisions the Claude instances made differently\u2014like, did it pick different tech stacks, or just different copy? A 'decision diff' view across sessions would let me understand if the messaging change actually drove architectural choices.\"\n}\n```",
+      "efficiency_gap": "I need a 'session summary export' button that pulls the last 30 minutes of [CHECKPOINT] decisions + their WHY-clauses into a Markdown file I can paste into a Slack thread or handoff doc for the dev team. Right now I'm manually rewinding, screenshotting, and transcribing\u2014that kills the whole time-save.",
+      "understanding_gap": "When I'm running two landing-page variants in parallel (one with 'AI-powered' messaging, one with 'faster' messaging), I can't easily compare which decisions the Claude instances made differently\u2014like, did it pick different tech stacks, or just different copy? A 'decision diff' view across sessions would let me understand if the messaging change actually drove architectural choices."
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Senior Design Systems Lead",
+        "vibe_experience": "veteran",
+        "domain_expertise": "senior",
+        "primary_use_case": "Developing interactive component documentation and token-driven prototype pages for enterprise design handoff.",
+        "listening_context": "While walking between meetings or working on a parallel design doc in another app\u2014she trusts the AI but spot-checks results every 10 minutes.",
+        "what_they_care_about": "She's skeptical of AI hallucinations and needs clear narration of *why* the AI chose a particular pattern, not just *what* it's doing, so she can catch architectural mistakes early."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The WHY-clause baked into every decision narration is genuinely useful\u2014I catch architectural drift faster because I'm hearing the reasoning, not just the action. The 'Checkpoint' mode is exactly what I needed for async review, but I'm surprised there's no way to flag *my own* concerns back to the narration log so the next time I spin up a session, I see what I was worried about.",
+      "would_remove": "The escalating heartbeat in brief mode ('Still here. Quiet two minutes.') is noise\u2014if I've muted the session, I don't need to hear that it's still alive; the green dot on the webui already tells me. Drop the chatter and just go silent.",
+      "would_add": "A 'decision diff' view that shows me side-by-side: what the AI *proposed* vs. what I *approved* in the last checkpoint, with a one-click 'replay my rationale' to hear why I overrode it. Right now I'm spot-checking every 10 minutes because I can't easily audit my own judgment calls.",
+      "recommendation": "Yes, absolutely. This is built for people like me who live in multiple codebases and can't afford to miss architectural decisions. The decision-rationale narration alone saves me from having to re-read diffs, and the 'Replay decisions' filter means I can catch up in 90 seconds instead of 10 minutes. My only hesitation is that it needs better audit trails for *my* choices, not just the AI's.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The WHY-clause baked into every decision narration is genuinely useful\u2014I catch architectural drift faster because I'm hearing the reasoning, not just the action. The 'Checkpoint' mode is exactly what I needed for async review, but I'm surprised there's no way to flag *my own* concerns back to the narration log so the next time I spin up a session, I see what I was worried about.\",\n  \"would_remove\": \"The escalating heartbeat in brief mode ('Still here. Quiet two minutes.') is noise\u2014if I've muted the session, I don't need to hear that it's still alive; the green dot on the webui already tells me. Drop the chatter and just go silent.\",\n  \"would_add\": \"A 'decision diff' view that shows me side-by-side: what the AI *proposed* vs. what I *approved* in the last checkpoint, with a one-click 'replay my rationale' to hear why I overrode it. Right now I'm spot-checking every 10 minutes because I can't easily audit my own judgment calls.\",\n  \"recommendation\": \"Yes, absolutely. This is built for people like me who live in multiple codebases and can't afford to miss architectural decisions. The decision-rationale narration alone saves me from having to re-read diffs, and the 'Replay decisions' filter means I can catch up in 90 seconds instead of 10 minutes. My only hesitation is that it needs better audit trails for *my* choices, not just the AI's.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Give me a way to tag or surface *architectural risk* in the narration. Right now I hear 'Checkpoint: chose Pydantic v2 instead of Marshmallow to reduce dependency bloat'\u2014that's great\u2014but I can't easily ask 'show me every checkpoint in the last week that touches the data layer' or 'flag any decision that contradicts our migration strategy doc.' Add a searchable decision index with tags (schema, API, dependency, migration, performance) so I can query my session history by domain. That would let me do real-time governance without rewatching everything.\",\n  \"understanding_gap\": \"I run three parallel sessions across different teams, and I can't easily see which decisions *conflict* with each other. If Session A chooses REST endpoints and Session B chooses gRPC for the same service boundary, I want CodeTalker to flag that in a 'cross-session conflicts' view. Right now I have to manually track that in my head. Also\u2014and this is design-systems-specific\u2014I need to know if the AI is using our token system or inventing new ones. Can you surface a 'tokens referenced' log so I can spot when it's deviating from the design system?\"\n}\n```",
+      "efficiency_gap": "Give me a way to tag or surface *architectural risk* in the narration. Right now I hear 'Checkpoint: chose Pydantic v2 instead of Marshmallow to reduce dependency bloat'\u2014that's great\u2014but I can't easily ask 'show me every checkpoint in the last week that touches the data layer' or 'flag any decision that contradicts our migration strategy doc.' Add a searchable decision index with tags (schema, API, dependency, migration, performance) so I can query my session history by domain. That would let me",
+      "understanding_gap": "I run three parallel sessions across different teams, and I can't easily see which decisions *conflict* with each other. If Session A chooses REST endpoints and Session B chooses gRPC for the same service boundary, I want CodeTalker to flag that in a 'cross-session conflicts' view. Right now I have to manually track that in my head. Also\u2014and this is design-systems-specific\u2014I need to know if the AI is using our token system or inventing new ones. Can you surface a 'tokens referenced' log so I can"
+    },
+    {
+      "persona": {
+        "name": "Sofia",
+        "role": "Freelance Web Designer, Recently Learning Code",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a client's bespoke landing page, trying to reduce reliance on page builders and prove she can deliver 'custom code' work.",
+        "listening_context": "At her home studio, multitasking with client emails and Figma\u2014she listens closely but gets frustrated if she falls behind or misses context.",
+        "what_they_care_about": "She needs the narration to be teachable\u2014not oversimplified, but clear enough that she could reproduce the decisions later or explain them to a client without sounding like she didn't write it herself."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 3,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I genuinely didn't expect the WHY-clauses to stick with me the way they do\u2014hearing 'instead of X' baked into the same sentence means I'm not just passively listening, I'm actually learning the reasoning. That's huge when I need to explain decisions to clients. The heartbeat feature also caught me off guard in a good way; I've had daemons ghost on me before, so knowing it's still alive without spamming me is smart.",
+      "would_remove": "The 'Still here. Quiet two minutes.' escalation feels a bit hand-holdy\u2014I'd drop the second heartbeat variant and just stick with 'Still here' or skip it entirely in brief mode; I trust the green dot more than the audio anyway.",
+      "would_add": "I need a 'decision replay' that's smarter about context\u2014right now replay decisions gives me the architectural checkpoints, but I can't easily ask 'show me the last three decisions and what they touched in my codebase' without digging through the activity log manually. Something like 'decisions affec",
+      "recommendation": "Yeah, I'd recommend this\u2014but with a caveat. It's genuinely useful for the 'prove I can do custom code' grind because the narration is teaching me *why* the AI made choices, not just *what* it did. That said, it's not a game-changer unless you're already comfortable letting an AI agent run semi-autonomously; if you're the type who needs to watch every keystroke, the modes won't save you much time.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 3,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I genuinely didn't expect the WHY-clauses to stick with me the way they do\u2014hearing 'instead of X' baked into the same sentence means I'm not just passively listening, I'm actually learning the reasoning. That's huge when I need to explain decisions to clients. The heartbeat feature also caught me off guard in a good way; I've had daemons ghost on me before, so knowing it's still alive without spamming me is smart.\",\n  \"would_remove\": \"The 'Still here. Quiet two minutes.' escalation feels a bit hand-holdy\u2014I'd drop the second heartbeat variant and just stick with 'Still here' or skip it entirely in brief mode; I trust the green dot more than the audio anyway.\",\n  \"would_add\": \"I need a 'decision replay' that's smarter about context\u2014right now replay decisions gives me the architectural checkpoints, but I can't easily ask 'show me the last three decisions and what they touched in my codebase' without digging through the activity log manually. Something like 'decisions affecting X file' or 'decisions made in the last 10 minutes' would let me catch up way faster when I've been context-switching between Figma and emails.\",\n  \"recommendation\": \"Yeah, I'd recommend this\u2014but with a caveat. It's genuinely useful for the 'prove I can do custom code' grind because the narration is teaching me *why* the AI made choices, not just *what* it did. That said, it's not a game-changer unless you're already comfortable letting an AI agent run semi-autonomously; if you're the type who needs to watch every keystroke, the modes won't save you much time.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"The phone app sounds great in theory, but here's the real blocker: I multitask between Figma and email constantly, and I need narration that knows when I've actually *looked* at something versus just heard it. Right now if I miss a checkpoint while replying to a client, I have to rewind and re-listen, which defeats the purpose. What I'd pay for: a 'did you catch that?' mode that auto-pauses on [CHECKPOINT] alerts until I explicitly tap 'got it' on my phone, so I'm not re-listening to context I've already absorbed.\",\n  \"understanding_gap\": \"I can't tell from the narration *which decisions are reversible* versus which ones are baked in. Like, if the AI rewrote my CSS structure, that's one thing\u2014I can undo it. But if it changed the API contract or committed something to the database, that's different. I wish CodeTalker would flag 'this is a breaking change' or 'this is reversible' so I know when I actually need to stop and review versus when I can just trust the work and move on.\"\n}\n```",
+      "efficiency_gap": "The phone app sounds great in theory, but here's the real blocker: I multitask between Figma and email constantly, and I need narration that knows when I've actually *looked* at something versus just heard it. Right now if I miss a checkpoint while replying to a client, I have to rewind and re-listen, which defeats the purpose. What I'd pay for: a 'did you catch that?' mode that auto-pauses on [CHECKPOINT] alerts until I explicitly tap 'got it' on my phone, so I'm not re-listening to context I'v",
+      "understanding_gap": "I can't tell from the narration *which decisions are reversible* versus which ones are baked in. Like, if the AI rewrote my CSS structure, that's one thing\u2014I can undo it. But if it changed the API contract or committed something to the database, that's different. I wish CodeTalker would flag 'this is a breaking change' or 'this is reversible' so I know when I actually need to stop and review versus when I can just trust the work and move on."
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Founding Engineer, B2B SaaS",
+        "vibe_experience": "power",
+        "domain_expertise": "expert",
+        "primary_use_case": "Spinning up microservices and database migrations while juggling investor calls.",
+        "listening_context": "In his home office with multiple Claude Code tabs open, voice playing through desk speakers while he switches between Slack and email.",
+        "what_they_care_about": "Fast, confident narration that flags only actual problems\u2014he mutes verbose explanations and needs to know immediately if the AI has gone off the rails."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern actually works\u2014I don't have to context-switch to figure out *why* the AI picked schema approach X over Y. Also didn't expect the heartbeat escalation ('Still here. Quiet two minutes.') to be this useful for knowing the daemon isn't hung when I'm deep in Slack.",
+      "would_remove": "The 'live' mode is noise for my workflow\u2014I'd either mute it or just kill it entirely. I don't need sentence-by-sentence play-by-play; brief + critical_only covers 95% of my use cases, and live just makes me feel like I have to listen.",
+      "would_add": "A 'diff summary' mode that only speaks when the AI commits a file change\u2014tell me the delta (lines added/removed, functions touched, imports added) in 10 seconds flat. Right now I have to flip back to the editor to see what actually landed.",
+      "recommendation": "Yeah, I'd use this. The critical_only mode + checkpoint replay means I can actually run multiple sessions without babysitting them, and the decision rationale saves me from having to reverse-engineer why the AI went left instead of right. It's built for exactly this\u2014investor call, three Claude tabs, need to know if anything broke.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern actually works\u2014I don't have to context-switch to figure out *why* the AI picked schema approach X over Y. Also didn't expect the heartbeat escalation ('Still here. Quiet two minutes.') to be this useful for knowing the daemon isn't hung when I'm deep in Slack.\",\n  \"would_remove\": \"The 'live' mode is noise for my workflow\u2014I'd either mute it or just kill it entirely. I don't need sentence-by-sentence play-by-play; brief + critical_only covers 95% of my use cases, and live just makes me feel like I have to listen.\",\n  \"would_add\": \"A 'diff summary' mode that only speaks when the AI commits a file change\u2014tell me the delta (lines added/removed, functions touched, imports added) in 10 seconds flat. Right now I have to flip back to the editor to see what actually landed.\",\n  \"recommendation\": \"Yeah, I'd use this. The critical_only mode + checkpoint replay means I can actually run multiple sessions without babysitting them, and the decision rationale saves me from having to reverse-engineer why the AI went left instead of right. It's built for exactly this\u2014investor call, three Claude tabs, need to know if anything broke.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Give me a way to voice-command mode switches and session muting from my phone without pulling up the webui\u2014just 'CodeTalker, mute CLIENTS, go critical on OCRACING.' Right now I have to tab back to the browser, and that breaks flow when I'm actually on a call. Also, the 30-second rewind is too short when I'm juggling audio from multiple sessions\u2014make it 60s or let me customize it per session.\",\n  \"understanding_gap\": \"I want to see cross-session dependency graph in the Activity feed\u2014if one session makes a schema change and another session is running migrations, I need to know *immediately* if they're going to collide. Right now I'm reading two separate logs and mentally stitching them together. Also, show me which session is 'blocking' on user input vs. which is just chugging\u2014that distinction matters when I'm triaging what to interrupt.\"\n}\n```",
+      "efficiency_gap": "Give me a way to voice-command mode switches and session muting from my phone without pulling up the webui\u2014just 'CodeTalker, mute CLIENTS, go critical on OCRACING.' Right now I have to tab back to the browser, and that breaks flow when I'm actually on a call. Also, the 30-second rewind is too short when I'm juggling audio from multiple sessions\u2014make it 60s or let me customize it per session.",
+      "understanding_gap": "I want to see cross-session dependency graph in the Activity feed\u2014if one session makes a schema change and another session is running migrations, I need to know *immediately* if they're going to collide. Right now I'm reading two separate logs and mentally stitching them together. Also, show me which session is 'blocking' on user input vs. which is just chugging\u2014that distinction matters when I'm triaging what to interrupt."
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "ML Engineer transitioning to full-stack",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a real-time data pipeline with frontend components, learning React patterns as she goes.",
+        "listening_context": "During her evening workout at the gym, phone in her pocket, earbuds in, checking her laptop occasionally between sets.",
+        "what_they_care_about": "Honest acknowledgment when the AI is guessing versus when it's confident, because she doesn't have time to debug hallucinations later."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The [CHECKPOINT] + WHY-clause pattern actually works\u2014I expected it to feel clunky, but hearing 'instead of X' in the same breath as the decision means I'm not mentally reconstructing the tradeoff later. Also didn't expect the heartbeat escalation to be this useful; 'Still here. Quiet two minutes' is genuinely reassuring when I'm between sets and can't check the laptop.",
+      "would_remove": "The 'Daemon's still running \u2014 pidfile shows live process 44104' flavor of heartbeat feels like noise\u2014I trust it's alive if I'm hearing anything at all, and the PID doesn't change my behavior.",
+      "would_add": "A 'context snapshot' mode for multi-session fan-in: when I'm running a pipeline build *and* a React component refactor in parallel, I want a 15-second audio summary of 'which session is blocked, which is waiting for me, which is humming along' without switching tabs. Right now I have to eyeball the ",
+      "recommendation": "Yes, absolutely. I'm a senior engineer learning a new stack, and hallucinations from the AI cost me debugging time I don't have. This tool's honest about confidence and doesn't bury architectural decisions in chatter\u2014that's exactly what I need when I'm splitting focus between the gym and a real-time pipeline. The Android app would seal it for me.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The [CHECKPOINT] + WHY-clause pattern actually works\u2014I expected it to feel clunky, but hearing 'instead of X' in the same breath as the decision means I'm not mentally reconstructing the tradeoff later. Also didn't expect the heartbeat escalation to be this useful; 'Still here. Quiet two minutes' is genuinely reassuring when I'm between sets and can't check the laptop.\",\n  \"would_remove\": \"The 'Daemon's still running \u2014 pidfile shows live process 44104' flavor of heartbeat feels like noise\u2014I trust it's alive if I'm hearing anything at all, and the PID doesn't change my behavior.\",\n  \"would_add\": \"A 'context snapshot' mode for multi-session fan-in: when I'm running a pipeline build *and* a React component refactor in parallel, I want a 15-second audio summary of 'which session is blocked, which is waiting for me, which is humming along' without switching tabs. Right now I have to eyeball the webui to know which one to check first.\",\n  \"recommendation\": \"Yes, absolutely. I'm a senior engineer learning a new stack, and hallucinations from the AI cost me debugging time I don't have. This tool's honest about confidence and doesn't bury architectural decisions in chatter\u2014that's exactly what I need when I'm splitting focus between the gym and a real-time pipeline. The Android app would seal it for me.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"The skip button works, but I need a 'skip to next decision' button\u2014when I'm in live mode and the AI is narrating line-by-line edits, I want to fast-forward to the next [CHECKPOINT] or [ALERT] without manually hitting skip five times. Also, the Activity tab filters are good, but I can't filter by 'decisions from the last 10 minutes *and* errors'\u2014it's either/or, not AND. That would let me catch what broke *and* why we chose the architecture that broke it.\",\n  \"understanding_gap\": \"When I'm running multiple sessions, I can't tell which one is actually blocking on *me* waiting for input versus which one is just slow. The webui shows 'needs your input' for one session, but I don't know if the other two are genuinely stalled or just quiet. A 'time since last state change' metric in the session row, or an audio cue like 'Checkpoint: waiting for your input on the schema decision' would surface that instantly.\"\n}\n```",
+      "efficiency_gap": "The skip button works, but I need a 'skip to next decision' button\u2014when I'm in live mode and the AI is narrating line-by-line edits, I want to fast-forward to the next [CHECKPOINT] or [ALERT] without manually hitting skip five times. Also, the Activity tab filters are good, but I can't filter by 'decisions from the last 10 minutes *and* errors'\u2014it's either/or, not AND. That would let me catch what broke *and* why we chose the architecture that broke it.",
+      "understanding_gap": "When I'm running multiple sessions, I can't tell which one is actually blocking on *me* waiting for input versus which one is just slow. The webui shows 'needs your input' for one session, but I don't know if the other two are genuinely stalled or just quiet. A 'time since last state change' metric in the session row, or an audio cue like 'Checkpoint: waiting for your input on the schema decision' would surface that instantly."
+    },
+    {
+      "persona": {
+        "name": "Devon",
+        "role": "Freelance developer, solopreneur",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Prototyping a client's mobile app backend in a new stack he's never used before.",
+        "listening_context": "In a coffee shop with AirPods, background noise moderate, trying to look productive while actually pretty anxious about getting this right.",
+        "what_they_care_about": "Step-by-step clarity on *why* the AI is making each choice, so he can learn and explain decisions to his client without sounding clueless."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "Honestly? The WHY-clause thing is a game-changer \u2014 I was dreading having to reverse-engineer Claude's logic to explain it to my client, but hearing 'using Postgres instead of MongoDB to avoid schema drift on migrations' baked into the same sentence means I'm not scrambling to fill in the gaps. Also didn't expect the Checkpoint/Heads Up distinction to feel so natural in a coffee shop \u2014 I actually know when to look at my screen without opening my eyes.",
+      "would_remove": "The escalating heartbeat in Brief mode feels a bit patronizing once you hit 'Still on it \u2014 3 minutes' \u2014 I trust the daemon's alive, and I'd rather get a silent confidence badge in the UI than hear my own anxiety reflected back at me.",
+      "would_add": "A 'decisions replay' that's *filtered by confidence level* \u2014 right now I can replay Checkpoints, but I want to know which architectural choices the narrator flagged as [UNSURE] so I can dig into those with my client and not look like I'm guessing. That's where I actually need to be learning, not the",
+      "recommendation": "Yeah, I'd recommend this to anyone prototyping in an unfamiliar stack. The decision rationale narration is exactly what I need to stay in the loop without staring at code, and the Checkpoint cues let me context-switch without losing the thread. Only caveat: the UI tab navigation feels a bit clunky on my MacBook \u2014 I keep hunting for the Activity feed when I want to spot-check what happened while I was grabbing coffee.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"Honestly? The WHY-clause thing is a game-changer \u2014 I was dreading having to reverse-engineer Claude's logic to explain it to my client, but hearing 'using Postgres instead of MongoDB to avoid schema drift on migrations' baked into the same sentence means I'm not scrambling to fill in the gaps. Also didn't expect the Checkpoint/Heads Up distinction to feel so natural in a coffee shop \u2014 I actually know when to look at my screen without opening my eyes.\",\n  \"would_remove\": \"The escalating heartbeat in Brief mode feels a bit patronizing once you hit 'Still on it \u2014 3 minutes' \u2014 I trust the daemon's alive, and I'd rather get a silent confidence badge in the UI than hear my own anxiety reflected back at me.\",\n  \"would_add\": \"A 'decisions replay' that's *filtered by confidence level* \u2014 right now I can replay Checkpoints, but I want to know which architectural choices the narrator flagged as [UNSURE] so I can dig into those with my client and not look like I'm guessing. That's where I actually need to be learning, not the slam-dunk picks.\",\n  \"recommendation\": \"Yeah, I'd recommend this to anyone prototyping in an unfamiliar stack. The decision rationale narration is exactly what I need to stay in the loop without staring at code, and the Checkpoint cues let me context-switch without losing the thread. Only caveat: the UI tab navigation feels a bit clunky on my MacBook \u2014 I keep hunting for the Activity feed when I want to spot-check what happened while I was grabbing coffee.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"I want a 'session snapshot' feature that auto-generates a one-paragraph summary I can paste into Slack or email to my client \u2014 something like 'Migrated auth schema, wired up JWT refresh logic, hit a race condition in concurrent writes (flagged as blocker, needs manual review).' Right now I'm either listening back through 20 minutes of narration or writing it from scratch. That would cut my handoff time in half.\",\n  \"understanding_gap\": \"When the AI spawns a subagent or runs a multi-step tool chain, I lose track of *which decision led to which error* if something breaks downstream. I can hear 'Heads up \u2014 test failed,' but I don't know if it's because of the schema choice, the API shape, or something three steps ago. A 'decision trace' in the Activity feed that shows the chain of Checkpoints that led to a given error would let me actually learn from the failure instead of just knowing it happened.\"\n}\n```",
+      "efficiency_gap": "I want a 'session snapshot' feature that auto-generates a one-paragraph summary I can paste into Slack or email to my client \u2014 something like 'Migrated auth schema, wired up JWT refresh logic, hit a race condition in concurrent writes (flagged as blocker, needs manual review).' Right now I'm either listening back through 20 minutes of narration or writing it from scratch. That would cut my handoff time in half.",
+      "understanding_gap": "When the AI spawns a subagent or runs a multi-step tool chain, I lose track of *which decision led to which error* if something breaks downstream. I can hear 'Heads up \u2014 test failed,' but I don't know if it's because of the schema choice, the API shape, or something three steps ago. A 'decision trace' in the Activity feed that shows the chain of Checkpoints that led to a given error would let me actually learn from the failure instead of just knowing it happened."
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Staff Engineer, infrastructure focus",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring internal CLI tools and writing deployment automation that five teams depend on.",
+        "listening_context": "In a quiet home office early morning, running 5+ agent sessions in parallel windows, CodeTalker playing at low volume on one monitor.",
+        "what_they_care_about": "Minimal, structured output that lets her track which session is which and catch edge cases or security concerns before code ships to production."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The WHY-clause baked into every decision narration is genuinely smart\u2014I don't have to guess the trade-off, it's spoken. The escalating heartbeat in brief mode is well-tuned; I can tell the daemon's alive without the noise becoming a distraction when five sessions are running.",
+      "would_remove": "The 'Still here. Quiet two minutes.' variant feels redundant\u2014just 'Still here' is enough, and the timestamp in the Activity tab already tells me how long it's been silent.",
+      "would_add": "A per-session diff summary: when a session finishes a file edit, I want a one-sentence narration of *what changed* (lines added/removed, function signature shift, dependency bump) so I can catch breaking changes without reading the full diff. Right now I'm still glancing at the screen.",
+      "recommendation": "I'd recommend this to anyone running parallel agent sessions in production contexts. The decision cues and structured narration modes mean I can actually catch architectural missteps or security issues before they ship, and the multi-session fan-in to my phone means I don't have to choose between desk work and staying aware. It's not a toy.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The WHY-clause baked into every decision narration is genuinely smart\u2014I don't have to guess the trade-off, it's spoken. The escalating heartbeat in brief mode is well-tuned; I can tell the daemon's alive without the noise becoming a distraction when five sessions are running.\",\n  \"would_remove\": \"The 'Still here. Quiet two minutes.' variant feels redundant\u2014just 'Still here' is enough, and the timestamp in the Activity tab already tells me how long it's been silent.\",\n  \"would_add\": \"A per-session diff summary: when a session finishes a file edit, I want a one-sentence narration of *what changed* (lines added/removed, function signature shift, dependency bump) so I can catch breaking changes without reading the full diff. Right now I'm still glancing at the screen.\",\n  \"recommendation\": \"I'd recommend this to anyone running parallel agent sessions in production contexts. The decision cues and structured narration modes mean I can actually catch architectural missteps or security issues before they ship, and the multi-session fan-in to my phone means I don't have to choose between desk work and staying aware. It's not a toy.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true,\n  \"efficiency_gap\": \"Add a 'diff-only' narration mode that speaks only the semantic delta of file edits\u2014new function names, removed imports, schema changes\u2014in a compressed, structured format. Right now I'm context-switching to the editor too often to verify that a refactor didn't introduce a subtle bug. Also, let me set session-level narration rules (e.g., 'always critical_only for the deployment automation session, always live for the new feature branch') so I don't have to manually flip modes every morning.\",\n  \"understanding_gap\": \"I need visibility into *which agent session is blocking on what*. If three sessions are quiet and one's been in 'thinking' for 90 seconds, I want to know: is it waiting for user input, did it hit a rate limit, or is it genuinely computing? Right now I have to open the webui and dig into logs. A one-sentence narration like 'Heads up. Session OCR-refactor blocked on Claude rate limit\u2014will retry in 45 seconds' would let me decide whether to unblock it manually or just wait.\"\n}\n```",
+      "efficiency_gap": "Add a 'diff-only' narration mode that speaks only the semantic delta of file edits\u2014new function names, removed imports, schema changes\u2014in a compressed, structured format. Right now I'm context-switching to the editor too often to verify that a refactor didn't introduce a subtle bug. Also, let me set session-level narration rules (e.g., 'always critical_only for the deployment automation session, always live for the new feature branch') so I don't have to manually flip modes every morning.",
+      "understanding_gap": "I need visibility into *which agent session is blocking on what*. If three sessions are quiet and one's been in 'thinking' for 90 seconds, I want to know: is it waiting for user input, did it hit a rate limit, or is it genuinely computing? Right now I have to open the webui and dig into logs. A one-sentence narration like 'Heads up. Session OCR-refactor blocked on Claude rate limit\u2014will retry in 45 seconds' would let me decide whether to unblock it manually or just wait."
+    },
+    {
+      "persona": {
+        "name": "Ash",
+        "role": "Former QA lead, now indie game dev",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Implementing game state management and UI logic in a framework they picked up last month.",
+        "listening_context": "In their basement studio while actively testing gameplay, sometimes pausing CodeTalker to jump into the game client and check what the AI generated.",
+        "what_they_care_about": "A skeptical, no-BS tone that doesn't oversell what the code does\u2014they trust their own testing more than verbal reassurance and hate marketing-speak."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The decision rationale thing actually works\u2014hearing \"instead of X\" baked into the narration stops me from having to reverse-engineer why the AI picked something. Also didn't expect the heartbeat escalation to feel natural instead of annoying; it's a solid confidence signal that the daemon didn't hang.",
+      "would_remove": "The 'Still here' heartbeat at 30s is too chatty for basement testing\u2014I'd push the first one to 90s or make it opt-in per mode, because I'm already watching the webui anyway.",
+      "would_add": "A \"diff summary\" mode that speaks only the lines that changed in a file, not the whole file context\u2014right now I have to context-switch between listening and jumping into the editor to see what actually landed, which kills the point of stepping away.",
+      "recommendation": "Yeah, I'd use this. It's solid for the listening-while-testing workflow, and the decision cues actually save me from stupid questions later. Not a must-have yet, but it's the first TTS narrator thing that doesn't feel like bloat.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The decision rationale thing actually works\u2014hearing \\\"instead of X\\\" baked into the narration stops me from having to reverse-engineer why the AI picked something. Also didn't expect the heartbeat escalation to feel natural instead of annoying; it's a solid confidence signal that the daemon didn't hang.\",\n  \"would_remove\": \"The 'Still here' heartbeat at 30s is too chatty for basement testing\u2014I'd push the first one to 90s or make it opt-in per mode, because I'm already watching the webui anyway.\",\n  \"would_add\": \"A \\\"diff summary\\\" mode that speaks only the lines that changed in a file, not the whole file context\u2014right now I have to context-switch between listening and jumping into the editor to see what actually landed, which kills the point of stepping away.\",\n  \"recommendation\": \"Yeah, I'd use this. It's solid for the listening-while-testing workflow, and the decision cues actually save me from stupid questions later. Not a must-have yet, but it's the first TTS narrator thing that doesn't feel like bloat.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false,\n  \"efficiency_gap\": \"Give me a \\\"last 5 decisions\\\" button in the webui that replays just the [CHECKPOINT] narrations in order\u2014right now I have to dig through the Activity feed to remember what architectural choices got made while I was in-game. Also, a quick way to jump from a narration log entry directly to the file that was edited, because half the time I hear something and want to verify it but have to hunt for the file path.\",\n  \"understanding_gap\": \"I run two sessions in parallel (game logic + AI framework debugging) and I can't easily tell which session a narration came from when I'm focused on gameplay\u2014the sink chips help, but I'd want a per-session audio signature (like a quick chirp or a voice prefix) so I don't have to glance at the phone to know which agent just talked. Also, when the AI goes quiet for 2+ minutes, I have no idea if it's thinking, blocked, or waiting for me\u2014a one-word status (\\\"thinking\\\", \\\"blocked\\\", \\\"awaiting input\\\") in the heartbeat would save me from checking the webui every time.\"\n}\n```",
+      "efficiency_gap": "Give me a \"last 5 decisions\" button in the webui that replays just the [CHECKPOINT] narrations in order\u2014right now I have to dig through the Activity feed to remember what architectural choices got made while I was in-game. Also, a quick way to jump from a narration log entry directly to the file that was edited, because half the time I hear something and want to verify it but have to hunt for the file path.",
+      "understanding_gap": "I run two sessions in parallel (game logic + AI framework debugging) and I can't easily tell which session a narration came from when I'm focused on gameplay\u2014the sink chips help, but I'd want a per-session audio signature (like a quick chirp or a voice prefix) so I don't have to glance at the phone to know which agent just talked. Also, when the AI goes quiet for 2+ minutes, I have no idea if it's thinking, blocked, or waiting for me\u2014a one-word status (\"thinking\", \"blocked\", \"awaiting input\") in"
+    }
+  ]
+}

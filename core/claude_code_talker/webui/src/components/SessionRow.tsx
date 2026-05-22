@@ -6,6 +6,12 @@
 //   - Strong pulse when `is_speaking` (canonical TTS-in-flight signal)
 //   - Ambient pulse when last hook event was within 10s (recency proxy)
 //   - Steady green outline when this is the companion's currently-active session
+//
+// Health chip states (derived from session + narration data):
+//   - Running (green): is_live && last_hook within 60s
+//   - Working (cyan): is_live && last_hook within 5 min but > 60s
+//   - Blocked (amber): most recent narration has alert=true OR silent >5 min with recent hooks
+//   - Dormant (zinc): !is_live OR no hook activity in 15+ min
 import { motion } from "framer-motion";
 import type { Session, AudioOutput, NarrationEvent } from "../types";
 import {
@@ -54,6 +60,9 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
   const auto = !!session.auto_mode_enabled;
   const outputs = session.audio_outputs;
 
+  // Health chip: derive state from is_live, last_hook_at, and narration alerts
+  const health = deriveSessionHealth(session, latestNarration);
+
   // v0.1.0 unification (card-style restyle) — promotes from compact
   // 1-line row to a 2-section card. Top section is the identity (dot +
   // name + pin glyph), bottom section is always-visible controls
@@ -86,12 +95,13 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
         (isCompanionActive ? " ring-1 ring-emerald-500/40" : "")
       }
     >
-      {/* Identity row: dot + pin-glyph (when pinned) + name + chips.
+      {/* Identity row: health-chip + dot + pin-glyph (when pinned) + name + chips.
           flex-wrap lets the chip cluster drop below the name on narrow
           viewports instead of crashing into the wrapped 2nd line of the
           name (UX B10). gap-y-1 gives a small breathing line in that
           wrapped state. */}
       <div className="flex items-center gap-x-2 gap-y-1 min-w-0 flex-wrap">
+        <SessionHealthChip state={health} />
         <FlashDot speaking={isSpeaking} recent={isRecent} muted={muted} />
         {pinned && (
           <PinIcon
@@ -412,4 +422,104 @@ function formatRelativeTime(timestampSeconds: number): string {
 
   const ageDays = Math.floor(ageHours / 24);
   return `${ageDays}d ago`;
+}
+
+/** Session health state derived from is_live, last_hook_at, and narration alerts. */
+export type SessionHealthState = "running" | "working" | "blocked" | "dormant";
+
+/** Derive session health state from session and latest narration.
+ *
+ *  Running (green): is_live && last_hook within 60s
+ *  Working (cyan): is_live && last_hook within 5 min but > 60s
+ *  Blocked (amber): most recent narration has alert=true OR silent >5 min with recent hooks
+ *  Dormant (zinc): !is_live OR no hook activity in 15+ min
+ */
+function deriveSessionHealth(
+  session: Session,
+  latestNarration: NarrationEvent | undefined
+): SessionHealthState {
+  const now = Date.now();
+  const lastHookMs = session.last_hook_at ? now - session.last_hook_at * 1000 : Infinity;
+
+  // Check for alert in most recent narration.
+  if (latestNarration?.alert) {
+    return "blocked";
+  }
+
+  // Not live → dormant.
+  if (!session.is_live) {
+    return "dormant";
+  }
+
+  // Live but no hooks ever → treat as dormant.
+  if (lastHookMs === Infinity) {
+    return "dormant";
+  }
+
+  // Live: classify by recency of last hook.
+  const RUNNING_THRESHOLD = 60 * 1000;      // 60 seconds
+  const WORKING_THRESHOLD = 5 * 60 * 1000;  // 5 minutes
+  const DORMANT_THRESHOLD = 15 * 60 * 1000; // 15 minutes
+
+  if (lastHookMs < RUNNING_THRESHOLD) {
+    return "running";
+  }
+  if (lastHookMs < WORKING_THRESHOLD) {
+    return "working";
+  }
+  if (lastHookMs < DORMANT_THRESHOLD) {
+    // Still have recent activity but silent >5 min → "stuck" tier
+    return "blocked";
+  }
+
+  // No hooks in 15+ min → abandoned
+  return "dormant";
+}
+
+type HealthChipConfig = {
+  label: string;
+  bgColor: string;
+  textColor: string;
+  title: string;
+};
+
+/** Render a tiny session health pill. ~40–50px wide. */
+function SessionHealthChip({ state }: { state: SessionHealthState }) {
+  const config: Record<SessionHealthState, HealthChipConfig> = {
+    running: {
+      label: "running",
+      bgColor: "bg-emerald-900/60",
+      textColor: "text-emerald-200",
+      title: "Session is running",
+    },
+    working: {
+      label: "working",
+      bgColor: "bg-cyan-900/60",
+      textColor: "text-cyan-200",
+      title: "Session active but idle",
+    },
+    blocked: {
+      label: "blocked",
+      bgColor: "bg-amber-900/60",
+      textColor: "text-amber-200",
+      title: "Session may be stuck",
+    },
+    dormant: {
+      label: "dormant",
+      bgColor: "bg-zinc-800",
+      textColor: "text-zinc-400",
+      title: "Session inactive",
+    },
+  };
+
+  const { label, bgColor, textColor, title } = config[state];
+
+  return (
+    <span
+      className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold uppercase tracking-tight shrink-0 max-w-[50px] truncate ${bgColor} ${textColor}`}
+      title={title}
+    >
+      {label}
+    </span>
+  );
 }
