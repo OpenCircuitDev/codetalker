@@ -152,6 +152,15 @@ export const api = {
     if (!r.ok) throw new Error(`audio-defaults PUT failed: ${r.status}`);
     return r.json() as Promise<AudioDefaults>;
   },
+  audioRewind: async (seconds: number = 30, sessionId?: string) => {
+    const r = await fetch("/api/audio/rewind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seconds, ...(sessionId ? { session_id: sessionId } : {}) }),
+    });
+    if (!r.ok) throw new Error(`rewind POST failed: ${r.status}`);
+    return r.json() as Promise<{ requeued: number; skipped_dupes: number; message?: string }>;
+  },
   characters: () => fetchJson<CharacterRecord[]>("/api/characters"),
   attachCharacter: async (sessionId: string, characterId: string) => {
     const r = await fetch(

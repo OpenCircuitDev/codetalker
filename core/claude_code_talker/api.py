@@ -392,6 +392,84 @@ def build_routes(state) -> list[Route]:
             return JSONResponse({"error": str(e)}, status_code=500)
         return JSONResponse(result)
 
+    async def audio_rewind(request: Request) -> JSONResponse:
+        """POST /api/audio/rewind — re-narrate the last N seconds of log.
+
+        Body (optional):
+            {"seconds": 30, "session_id": "..."}
+            seconds defaults to 30; session_id filters to that session (otherwise
+            all sessions in the window).
+
+        Response:
+            {"requeued": int, "skipped_dupes": int}
+
+        Mechanism: read narration_log for entries within the window, filter to
+        live-stream / brief / live / direct modes (the things the user actually
+        heard), and re-submit each as a fresh AudioJob via the audio_queue.
+        Drop-on-overlap will collapse stale older replays naturally.
+        """
+        import time as _time
+        from claude_code_talker.schemas.audio_job import AudioJob
+
+        seconds = 30.0
+        session_id: str | None = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                seconds = float(body.get("seconds", 30.0))
+                sid = (body.get("session_id") or "").strip()
+                if sid:
+                    session_id = sid
+        except Exception:
+            pass
+        if state.narration_log is None or state.audio_queue is None:
+            return JSONResponse({"error": "narration log or audio queue unavailable"}, status_code=503)
+
+        cutoff = _time.time() - max(1.0, seconds)
+        # Read recent entries from the JSONL log directly.
+        entries = []
+        try:
+            if state.narration_log.path.exists():
+                for raw in state.narration_log.path.read_text(encoding="utf-8").splitlines()[-300:]:
+                    try:
+                        e = json.loads(raw)
+                    except Exception:
+                        continue
+                    if e.get("timestamp", 0) < cutoff:
+                        continue
+                    if (e.get("mode") or "").lower() not in ("live-stream", "brief", "live", "direct"):
+                        continue
+                    if session_id and e.get("session_id") != session_id:
+                        continue
+                    entries.append(e)
+        except Exception as exc:
+            return JSONResponse({"error": f"narration log read failed: {exc}"}, status_code=500)
+
+        if not entries:
+            return JSONResponse({"requeued": 0, "skipped_dupes": 0, "message": "no entries in window"})
+
+        from claude_code_talker.schemas.voice import VoiceConfig
+
+        requeued = 0
+        for e in entries:
+            try:
+                # Determine audio format based on engine
+                engine = e.get("engine") or "piper"
+
+                state.audio_queue.submit(AudioJob(
+                    job_id=str(uuid.uuid4()),
+                    text=e.get("text", ""),
+                    voice=VoiceConfig(engine=engine, model=e.get("voice") or "", rate=1.0),
+                    session_id=e.get("session_id") or "",
+                    state="created",
+                    created_at=_time.time(),
+                    bytes_synthesized=None,
+                ))
+                requeued += 1
+            except Exception:
+                continue
+        return JSONResponse({"requeued": requeued, "skipped_dupes": 0})
+
     async def license_status(request: Request) -> JSONResponse:
         """GET /api/license/status — current entitlement snapshot.
 
@@ -3401,6 +3479,7 @@ Each emotive_states value: single short phrase describing pose + expression + ar
         Route("/api/license/status", license_status, methods=["GET"]),
         Route("/api/license/activate", license_activate, methods=["POST"]),
         Route("/api/audio/skip", audio_skip, methods=["POST"]),
+        Route("/api/audio/rewind", audio_rewind, methods=["POST"]),
         Route("/api/catalog", list_catalog, methods=["GET"]),
         Route("/api/catalog/refresh", refresh_catalog, methods=["POST"]),
         Route("/api/persistent-sessions/{session_id}", get_persistent_session, methods=["GET"]),

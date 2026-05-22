@@ -1,10 +1,14 @@
 """Tests for REST API routes via httpx ASGITransport."""
+import json
+import time
 import pytest
 import httpx
 from starlette.applications import Starlette
 from claude_code_talker.api import build_routes
 from claude_code_talker.server import build_server_state
 from claude_code_talker.profiles import ProfileStore
+from claude_code_talker.audio import AudioQueue, AudioJob
+from claude_code_talker.narration_log import NarrationLog
 
 
 @pytest.fixture
@@ -625,3 +629,184 @@ async def test_put_persistent_session_auto_registers_when_missing_from_live(app)
         "PUT did not auto-register the cold-start session in the live registry"
     )
     assert live.enabled is False
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# POST /api/audio/rewind — replay last N seconds of narration (2026-05-21)
+# ────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_audio_rewind_requeus_recent_entries(app, tmp_path):
+    """Rewind endpoint reads narration_log, filters by timestamp and mode,
+    and resubmits matching entries to the audio queue."""
+    application, state = app
+
+    # Wire a narration log and audio queue to the state
+    narration_log = NarrationLog(log_path=tmp_path / "narration-log.jsonl")
+    state.narration_log = narration_log
+
+    # Mock audio queue with a list to capture submitted jobs
+    submitted_jobs = []
+    
+    class MockAudioQueue:
+        def submit(self, job):
+            submitted_jobs.append(job)
+    
+    state.audio_queue = MockAudioQueue()
+
+    # Build fake narration log with 3 entries within the 30s window
+    # and 1 entry outside the window
+    now = time.time()
+    old_entry = {
+        "timestamp": now - 60.0,  # 60s ago, outside 30s window
+        "session_id": "sid-old",
+        "text": "this is too old",
+        "voice": "voice1",
+        "engine": "piper",
+        "mode": "live",
+    }
+    recent_entries = [
+        {
+            "timestamp": now - 20.0,  # 20s ago, within window
+            "session_id": "sid-1",
+            "text": "message one",
+            "voice": "voice1",
+            "engine": "piper",
+            "mode": "live",
+        },
+        {
+            "timestamp": now - 15.0,  # 15s ago, within window
+            "session_id": "sid-2",
+            "text": "message two",
+            "voice": "voice2",
+            "engine": "piper",
+            "mode": "brief",
+        },
+        {
+            "timestamp": now - 5.0,  # 5s ago, within window
+            "session_id": "sid-1",
+            "text": "message three",
+            "voice": "voice1",
+            "engine": "piper",
+            "mode": "direct",
+        },
+    ]
+
+    # Append entries to the narration log
+    narration_log.append(old_entry)
+    for entry in recent_entries:
+        narration_log.append(entry)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/audio/rewind", json={"seconds": 30})
+
+    assert r.status_code == 200
+    body = r.json()
+    # Should requeue the 3 entries within the window, drop the old one
+    assert body["requeued"] == 3
+    assert len(submitted_jobs) == 3
+    
+    # Verify the submitted jobs have the correct text
+    texts = {job.text for job in submitted_jobs}
+    assert texts == {"message one", "message two", "message three"}
+    
+    # Verify they were submitted with the correct session IDs
+    sessions = {job.session_id for job in submitted_jobs}
+    assert sessions == {"sid-1", "sid-2"}
+
+
+@pytest.mark.asyncio
+async def test_audio_rewind_filters_by_session(app, tmp_path):
+    """When session_id is provided, only entries for that session are requeued."""
+    application, state = app
+
+    narration_log = NarrationLog(log_path=tmp_path / "narration-log.jsonl")
+    state.narration_log = narration_log
+
+    submitted_jobs = []
+    
+    class MockAudioQueue:
+        def submit(self, job):
+            submitted_jobs.append(job)
+    
+    state.audio_queue = MockAudioQueue()
+
+    now = time.time()
+    entries = [
+        {
+            "timestamp": now - 10.0,
+            "session_id": "sid-A",
+            "text": "from A",
+            "voice": "voice1",
+            "engine": "piper",
+            "mode": "live",
+        },
+        {
+            "timestamp": now - 5.0,
+            "session_id": "sid-B",
+            "text": "from B",
+            "voice": "voice2",
+            "engine": "piper",
+            "mode": "live",
+        },
+    ]
+
+    for entry in entries:
+        narration_log.append(entry)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/audio/rewind", json={"seconds": 30, "session_id": "sid-A"})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["requeued"] == 1
+    assert len(submitted_jobs) == 1
+    assert submitted_jobs[0].session_id == "sid-A"
+    assert submitted_jobs[0].text == "from A"
+
+
+@pytest.mark.asyncio
+async def test_audio_rewind_returns_error_when_queue_missing(app):
+    """Rewind returns 503 when audio_queue is not available."""
+    application, state = app
+    state.narration_log = NarrationLog()
+    state.audio_queue = None
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/audio/rewind", json={"seconds": 30})
+
+    assert r.status_code == 503
+    assert "unavailable" in r.json()["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_audio_rewind_returns_zero_when_no_entries(app, tmp_path):
+    """Rewind returns requeued=0 when narration log is empty or outside window."""
+    application, state = app
+
+    narration_log = NarrationLog(log_path=tmp_path / "narration-log-empty.jsonl")
+    state.narration_log = narration_log
+
+    submitted_jobs = []
+    
+    class MockAudioQueue:
+        def submit(self, job):
+            submitted_jobs.append(job)
+    
+    state.audio_queue = MockAudioQueue()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=application), base_url="http://test"
+    ) as c:
+        r = await c.post("/api/audio/rewind", json={"seconds": 30})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["requeued"] == 0
+    assert "no entries in window" in body.get("message", "").lower()

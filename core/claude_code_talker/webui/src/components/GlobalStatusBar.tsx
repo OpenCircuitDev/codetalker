@@ -41,6 +41,17 @@ export function GlobalStatusBar() {
   });
   const masterEnabled = master.data?.enabled ?? true;
 
+  // Rewind last 30 seconds button — re-narrates the last N seconds of the log
+  const rewindMutation = useMutation({
+    mutationFn: () => api.audioRewind(30),
+    onSuccess: () => {
+      // Show success feedback briefly; no toast needed for this low-friction action
+    },
+    onError: () => {
+      // Silently fail on error; the button remains clickable
+    },
+  });
+
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/60">
       <div className="flex items-center gap-3">
@@ -72,6 +83,16 @@ export function GlobalStatusBar() {
           }
         >
           {masterEnabled ? "🔊 Narration ON" : "🔇 Narration OFF"}
+        </button>
+        {/* Rewind last 30 seconds button */}
+        <button
+          type="button"
+          onClick={() => rewindMutation.mutate()}
+          disabled={rewindMutation.isPending}
+          className="px-3 py-1 rounded-full text-xs font-medium transition-colors border bg-slate-800/40 text-slate-200 border-slate-600 hover:bg-slate-700/60 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Re-play the last 30 seconds of narration (useful when you missed something)"
+        >
+          {rewindMutation.isPending ? "Rewinding…" : "⏮ Rewind 30s"}
         </button>
         <span className="text-xs text-slate-400 font-mono">
           {live} live session{live === 1 ? "" : "s"}
