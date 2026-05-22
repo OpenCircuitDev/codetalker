@@ -135,6 +135,22 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
       {latestNarration && (
         <div className="text-xs text-ct-muted bg-ct-elevated/50 rounded p-2 border border-ct-border/40">
           <span className="font-mono text-ct-cyan/70 mr-2">{latestNarration.mode}</span>
+          {latestNarration.alert && (
+            <span
+              className="inline-block font-mono text-red-200 mr-2 border border-red-500/50 rounded px-1 bg-red-500/20"
+              title="Alert: something broke, blocked, or needs input"
+            >
+              ALERT
+            </span>
+          )}
+          {latestNarration.checkpoint && (
+            <span
+              className="inline-block font-mono text-green-200 mr-2 border border-green-500/50 rounded px-1 bg-green-500/20"
+              title="Checkpoint: progress marker"
+            >
+              ✓
+            </span>
+          )}
           {latestNarration.confidence === "low" && (
             <span
               className="inline-block font-mono text-ct-amber mr-2 border border-ct-amber/50 rounded px-1"

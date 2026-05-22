@@ -315,11 +315,32 @@ CodeTalker speaks out loud — file edits, command runs, decisions, summaries
 — so you can step away, listen on a commute, or run multiple sessions in
 parallel without watching them.
 
+NARRATION MODES (per-session, switchable in webui or phone):
+  - brief         — one-sentence wrap-up at the end of each AI turn (default).
+  - live          — streaming sentence-by-sentence as the AI works.
+  - direct        — raw tool outputs near-verbatim (deepest detail).
+  - critical_only — silent unless something breaks, blocks, or needs your input.
+
+DECISION & CONFIDENCE CUES (audible, prepended before TTS):
+  - "Heads up." → an [ALERT] from the narrator: error, blocker, or
+                  "drop everything" moment (build broke, migration stuck).
+  - "Checkpoint." → a [CHECKPOINT] from the narrator: architecturally-
+                    significant decision (schema, API shape, dependency,
+                    migration approach) — not routine edits.
+  - silent "low confidence" badge → a [UNSURE] from the narrator: hedging
+                    an inference rather than reporting a direct observation.
+  - "Still here." → heartbeat when the daemon's alive but nothing's worth
+                    speaking aloud, so you know it's not crashed.
+
+DECISION RATIONALE — every decision narration must fold a short WHY-clause
+("instead of X" / "to avoid Y") into the same sentence, so listeners know
+not just WHAT was chosen but why it beat the alternative.
+
 It has two tiers:
-  BASIC (free)     — desktop browser narration via webui. Live + brief +
-                     direct modes. Per-session voices via Piper local TTS.
-                     OpenRouter / OpenAI / Anthropic LLM for narration.
-                     Workspace grouping + session pinning.
+  BASIC (free)     — desktop browser narration via webui. All four modes.
+                     Per-session voices via Piper local TTS. OpenRouter /
+                     OpenAI / Anthropic LLM for narration. Workspace
+                     grouping + session pinning. Rewind-30s + skip pills.
   PRO ($10/mo)     — Android companion app (phone speaker routing).
                      Local voice cloning (XTTS, your own 10s sample).
                      Animated character avatars (XREAL glasses ready).
@@ -346,12 +367,22 @@ Top bar: "codetalker" + green health dot + master "Narration ON/OFF" toggle
 """
 
 CADENCE_DESCRIPTION = """\
-Narration modes:
-  - Live mode: streams summaries every 8-12s as the AI works (LLM-driven).
-  - Brief mode: speaks a one-sentence wrap-up at end of each Claude turn,
-    plus a mid-turn brief if quiet for 2+ minutes.
-  - Direct mode: speaks raw tool outputs (rare; mostly for debugging).
-  - Each session can independently be muted, paused, or live-mode-only.
+Narration modes (per-session, switchable from webui or phone):
+  - Live: streams sentence-by-sentence as the AI works (LLM-driven, 8-12s).
+  - Brief: one-sentence wrap-up at the end of each Claude turn, plus a
+    mid-turn brief if quiet for 2+ minutes, plus a "Still here." heartbeat
+    every 30s if the daemon is alive but nothing's worth speaking.
+  - Direct: raw tool outputs spoken near-verbatim (deepest detail, most noise).
+  - Critical_only: stays silent unless an error, blocker, or "needs your
+    input" moment fires — uses a 20-word cap, no chatter.
+
+Within any mode, the narrator can prepend the audible cues "Heads up."
+(an [ALERT] — error/blocker) or "Checkpoint." (an architectural decision
+that warrants attention), and decisions always include a short WHY-clause
+in the same sentence ("instead of X", "to avoid Y"). Low-confidence
+inferences are silently flagged in the UI badge rather than spoken.
+
+Each session can independently be muted, paused, or have its mode swapped.
 """
 
 

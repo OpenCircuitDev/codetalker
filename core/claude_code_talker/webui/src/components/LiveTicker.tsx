@@ -8,6 +8,7 @@ export interface TickerEvent {
   kind: string; // "speak" | "tool" | "system" | "error" | "subagent"
   text: string;
   ts: number;
+  alert?: boolean;  // true when something broke, blocked, or needs input
 }
 
 const FILTER_OPTIONS = [
@@ -65,6 +66,14 @@ export function LiveTicker({
               exit="exit"
               className="text-sm p-1 rounded bg-[var(--color-surface-2)] flex gap-2 items-center"
             >
+              {e.alert && (
+                <span
+                  className="inline-block px-1.5 rounded text-xs uppercase font-semibold bg-red-500/20 text-red-200 border border-red-500/50"
+                  title="Alert: something broke, blocked, or needs input"
+                >
+                  alert
+                </span>
+              )}
               <span
                 className={
                   "inline-block px-1.5 rounded text-xs uppercase " + kindBg(e.kind)

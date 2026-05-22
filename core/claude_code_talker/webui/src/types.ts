@@ -158,6 +158,8 @@ export type NarrationEvent = {
   mode: string;
   status: "queued" | "speaking" | "done" | "skipped" | "overflow";
   confidence?: "normal" | "low";  // "low" when [UNSURE] hedge was present
+  alert?: boolean;  // "true" when something broke, blocked, or needs user input
+  checkpoint?: boolean;  // "true" for checkpoint events
 };
 
 export type DaemonHealth = {

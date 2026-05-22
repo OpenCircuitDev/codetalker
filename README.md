@@ -63,3 +63,34 @@ See [`docs/integrations/README.md`](docs/integrations/README.md) for an overview
 - **Using bare Claude Code (terminal, JetBrains, etc.)?** Install `claude-code-plugin/` via `/plugin install`. Slash commands `/codetalker:*`, daemon-aware skill, `tts_set_*` MCP tools Claude can call to self-modulate.
 - **Using a different AI-coding agent?** See the [per-agent integration guides](docs/integrations/README.md) above. One `pip install --user claude-code-talker` covers the daemon for all of them.
 - **Multiple at once?** They coexist — same daemon, same hooks; the daemon dedupes any duplicate hook firings.
+
+## Narration modes
+
+CodeTalker's narrator can run in different modes depending on how much context you need:
+
+| Mode | Behavior | Best for |
+|------|----------|----------|
+| `brief` | One-sentence summary at the end of each turn (default) | Most users; low-distraction continuous narration |
+| `live` | Sentence-by-sentence streaming as the agent works | Real-time awareness; ideal for pairing sessions |
+| `direct` | Tool outputs spoken near-verbatim, minimal filtering | Deep technical detail; verbose but most complete |
+| `critical_only` | Silent unless something errors, blocks, or needs input | Heads-down coding; narration only on obstacles |
+
+Set your mode with `/codetalker:set-mode <mode>` (Claude Code plugin) or via the Pro app.
+
+## Prompt prefixes (advanced)
+
+The narrator LLM can emit special prefixes to tag narration with urgency, architecture weight, or confidence. The daemon parses these and applies audible cues or metadata:
+
+**`[ALERT]`** — Error, blocker, or "drop everything" moment.  
+Daemon audible cue: "Heads up."  
+Example: `[ALERT] Schema migration failed — vendor API changed.`
+
+**`[CHECKPOINT]`** — Architecturally-significant decision (schema shape, API contract, dependency add, migration path).  
+Daemon audible cue: "Checkpoint."  
+Example: `[CHECKPOINT] Switching from SQLite to Postgres for replication support.`
+
+**`[UNSURE]`** — Narrator is hedging an inference (not a direct observation).  
+Daemon audible cue: None; tags entry `confidence=low` in audit log.  
+Example: `[UNSURE] Looks like this fetch failed due to network, but I didn't see the error.`
+
+Multiple prefixes can apply to one narration; they parse in order (`[ALERT]` → `[CHECKPOINT]` → `[UNSURE]`), and audible cues fire in sequence.

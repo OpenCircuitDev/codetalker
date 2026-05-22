@@ -29,6 +29,7 @@ export function ActivityTab() {
         kind: KIND_FROM_STATUS[ev.status] || "system",
         text: ev.text || `(${ev.status})`,
         ts: (ev.timestamp || Date.now() / 1000) * 1000,
+        alert: ev.alert,
       })),
     [narrationEvents],
   );
