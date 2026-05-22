@@ -1,0 +1,1690 @@
+{
+  "generated_at": "2026-05-21T19:16:59.663204",
+  "label": "iter2",
+  "model": "anthropic/claude-haiku-4.5",
+  "since_ts": 1779397200.0,
+  "efficiency_questions": false,
+  "narration_samples": [
+    {
+      "timestamp": 1779400968.3676012,
+      "session_id": "7e0312b3-2aaf-4c36-9b78-eb1d67c32b71",
+      "text": "Still running the post-migration checks on the blueprint node creation tool.",
+      "voice": "en_GB-alan-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779402881.3139458,
+      "session_id": "e7717254-634d-4979-902c-3c8bd2dc46d6",
+      "text": "Still hunting the AeroSandbox Beam API \u2014 grepping the installed module for the actual class interface.",
+      "voice": "en_GB-cori-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779400365.063604,
+      "session_id": "e7717254-634d-4979-902c-3c8bd2dc46d6",
+      "text": "Asking which construction method fits best: welded tube cluster joints (stronger, requires equipment) or bolted aluminum fittings (builder-friendly, more compliance margin).",
+      "voice": "en_GB-jenny_dioco-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779408368.7566915,
+      "session_id": "7e0312b3-2aaf-4c36-9b78-eb1d67c32b71",
+      "text": "Removed the ray-tracing debug lines from the engine config and rebuilt; running the performance suite now to confirm the quality restore holds.",
+      "voice": "en_US-kristin-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779411775.4027336,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "Organizing all projects by kind and verifying their status across your file system now.",
+      "voice": "en_US-lessac-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779397261.3544264,
+      "session_id": "87b24267-c8fc-43bb-abb1-a53484910082",
+      "text": "Tests passed and committed \u2014 your race condition fix for the virtual eval subscriber is landed on the Android app.",
+      "voice": "en_US-amy-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779407053.5471022,
+      "session_id": "2eb5c985-63fc-4731-af93-1e824011f3c6",
+      "text": "Railway redeploy and migration queue are live.",
+      "voice": "en_US-ryan-high",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779410423.6003401,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "Still working through the layer-by-layer cross-walk against the video's optimization strategy \u2014 the plan file is live and waiting for your next vector.",
+      "voice": "af-ZA-AdriNeural",
+      "engine": "edge",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779405974.1103442,
+      "session_id": "7e0312b3-2aaf-4c36-9b78-eb1d67c32b71",
+      "text": "Wrote the actor survey script \u2014 starting the foreground PIE probe now.",
+      "voice": "en_GB-alan-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "normal",
+      "cached": false,
+      "extra": {}
+    },
+    {
+      "timestamp": 1779408982.4905477,
+      "session_id": "cbde89fd-385a-4c8d-92ba-0509b8abd7ce",
+      "text": "I can't access external links or watch YouTube videos, so I'm blocked on that half of your request right now.",
+      "voice": "en_GB-jenny_dioco-medium",
+      "engine": "piper",
+      "mode": "live-stream",
+      "priority": "alert",
+      "cached": false,
+      "extra": {}
+    }
+  ],
+  "aggregate": {
+    "n": 50,
+    "dimensions": {
+      "clarity": {
+        "mean": 4,
+        "median": 4.0,
+        "stdev": 0.0,
+        "min": 4,
+        "max": 4,
+        "n": 50
+      },
+      "decision_helpfulness": {
+        "mean": 4.18,
+        "median": 4.0,
+        "stdev": 0.87,
+        "min": 3,
+        "max": 5,
+        "n": 50
+      },
+      "cadence": {
+        "mean": 4.1,
+        "median": 4.0,
+        "stdev": 0.3,
+        "min": 4,
+        "max": 5,
+        "n": 50
+      },
+      "freshness": {
+        "mean": 4.78,
+        "median": 5.0,
+        "stdev": 0.42,
+        "min": 4,
+        "max": 5,
+        "n": 50
+      },
+      "relatability": {
+        "mean": 3.92,
+        "median": 4.0,
+        "stdev": 0.27,
+        "min": 3,
+        "max": 4,
+        "n": 50
+      },
+      "ui_usability": {
+        "mean": 3.84,
+        "median": 4.0,
+        "stdev": 0.42,
+        "min": 3,
+        "max": 5,
+        "n": 50
+      },
+      "feature_completeness": {
+        "mean": 3.44,
+        "median": 3.0,
+        "stdev": 0.54,
+        "min": 2,
+        "max": 4,
+        "n": 50
+      }
+    },
+    "by_vibe_experience": {
+      "power": {
+        "n": 9,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 5,
+          "cadence": 4.22,
+          "freshness": 5,
+          "relatability": 3.89,
+          "ui_usability": 4.11,
+          "feature_completeness": 4
+        }
+      },
+      "fresh": {
+        "n": 17,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 4,
+          "cadence": 4,
+          "freshness": 4.88,
+          "relatability": 3.94,
+          "ui_usability": 3.59,
+          "feature_completeness": 3.18
+        }
+      },
+      "mid": {
+        "n": 15,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 3.6,
+          "cadence": 4.07,
+          "freshness": 4.53,
+          "relatability": 3.87,
+          "ui_usability": 4,
+          "feature_completeness": 3.2
+        }
+      },
+      "veteran": {
+        "n": 9,
+        "means": {
+          "clarity": 4,
+          "decision_helpfulness": 4.67,
+          "cadence": 4.22,
+          "freshness": 4.78,
+          "relatability": 4,
+          "ui_usability": 3.78,
+          "feature_completeness": 3.78
+        }
+      }
+    },
+    "nps": {
+      "promoters": 0,
+      "passives": 47,
+      "detractors": 3,
+      "score": -6.0,
+      "mean": 7.4
+    },
+    "would_subscribe_pro": 24
+  },
+  "evals": [
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Marketing manager learning to code",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a simple customer feedback form to embed on the company website.",
+        "listening_context": "At his desk between meetings, volume low, half-listening while checking Slack.",
+        "what_they_care_about": "Knowing when something is actually done so he can stop Claude and move on\u2014he doesn't care about the implementation details."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "Honestly? The fact that I can just *leave* and still know when Claude's actually done\u2014that's huge for someone like me who's juggling Slack and back-to-back meetings. The brief mode especially feels like it was built for my brain. Less surprised by the character avatars (cool but feels like feature creep for what I need).",
+      "would_remove": "The ACTIVITY tab\u2014I don't need a global feed of every line spoken across every workspace; it feels like noise when I just want to know 'is my feedback form done yet?'",
+      "would_add": "A simple 'DONE' chime or notification that pops to my phone when a session completes, so I don't have to check back at all\u2014just a ping and I know I can stop Claude.",
+      "recommendation": "Yeah, I'd recommend this. For someone building one-off projects like me, the peace of mind of stepping away and trusting audio updates is worth it. The webui is a bit cluttered and I'd need a minute to find things, but the core idea\u2014knowing when to stop without staring at the screen\u2014actually solves a real problem.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"Honestly? The fact that I can just *leave* and still know when Claude's actually done\u2014that's huge for someone like me who's juggling Slack and back-to-back meetings. The brief mode especially feels like it was built for my brain. Less surprised by the character avatars (cool but feels like feature creep for what I need).\",\n  \"would_remove\": \"The ACTIVITY tab\u2014I don't need a global feed of every line spoken across every workspace; it feels like noise when I just want to know 'is my feedback form done yet?'\",\n  \"would_add\": \"A simple 'DONE' chime or notification that pops to my phone when a session completes, so I don't have to check back at all\u2014just a ping and I know I can stop Claude.\",\n  \"recommendation\": \"Yeah, I'd recommend this. For someone building one-off projects like me, the peace of mind of stepping away and trusting audio updates is worth it. The webui is a bit cluttered and I'd need a minute to find things, but the core idea\u2014knowing when to stop without staring at the screen\u2014actually solves a real problem.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Product designer exploring code",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Creating an interactive prototype that lets users drag elements around to test a new layout concept.",
+        "listening_context": "While cooking dinner in the evening, phone propped on the counter, following along casually.",
+        "what_they_care_about": "Understanding whether the thing Claude is building will actually match what she asked for before she has to redo it."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live narration to be this conversational \u2014 it actually sounds like someone thinking out loud rather than a robot reading logs, which is weirdly comforting while I'm chopping vegetables. The multi-session fan-in to my phone is clever, though I'm not sure I'd use it yet.",
+      "would_remove": "The ACTIVITY tab feels like noise to me \u2014 I don't need a global firehose of every line ever spoken; I just want to know if my current prototype build is on track.",
+      "would_add": "A quick 'did this match what I asked for?' summary at the end of each session \u2014 something that pulls the key decisions and outputs into one place so I can skim it before deciding whether to iterate or hand it off.",
+      "recommendation": "I'd recommend this to someone like me, but only if they're willing to keep their phone nearby and actually listen. It's genuinely useful for staying in the loop while you're doing other stuff, but the UI needs to be simpler \u2014 I shouldn't have to dig through tabs to understand what's happening in my one active session.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live narration to be this conversational \u2014 it actually sounds like someone thinking out loud rather than a robot reading logs, which is weirdly comforting while I'm chopping vegetables. The multi-session fan-in to my phone is clever, though I'm not sure I'd use it yet.\",\n  \"would_remove\": \"The ACTIVITY tab feels like noise to me \u2014 I don't need a global firehose of every line ever spoken; I just want to know if my current prototype build is on track.\",\n  \"would_add\": \"A quick 'did this match what I asked for?' summary at the end of each session \u2014 something that pulls the key decisions and outputs into one place so I can skim it before deciding whether to iterate or hand it off.\",\n  \"recommendation\": \"I'd recommend this to someone like me, but only if they're willing to keep their phone nearby and actually listen. It's genuinely useful for staying in the loop while you're doing other stuff, but the UI needs to be simpler \u2014 I shouldn't have to dig through tabs to understand what's happening in my one active session.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Retired accountant picking up Python",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Writing a script to parse his personal investment spreadsheets and generate monthly summaries.",
+        "listening_context": "In his home office with full attention, notebook open, treating this like a serious project.",
+        "what_they_care_about": "Detailed explanations of what each step does so he can understand the logic and modify it himself later if needed."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I was genuinely surprised how natural it feels to have someone narrating what the AI is doing \u2014 I expected it to feel gimmicky, but after ten minutes I stopped watching the screen and just listened. The one thing that caught me off guard: I have no idea how to tell if the narration is actually accurate or if it's just *sounding* confident while the AI does something wrong.",
+      "would_remove": "The 'Direct mode' for raw tool outputs sounds like debugging noise I don't need cluttering my head while I'm trying to follow the logic.",
+      "would_add": "I'd want a way to replay just the narration from a completed session without re-running the whole thing \u2014 so I can review my notes against what was actually said, step by step.",
+      "recommendation": "Yes, I'd recommend this. For someone like me who's learning Python and wants to understand what's happening at each step without staring at a screen the whole time, this is genuinely useful. The Brief mode is my speed \u2014 I don't need constant chatter, just a checkpoint summary so I can follow along in my notebook.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I was genuinely surprised how natural it feels to have someone narrating what the AI is doing \u2014 I expected it to feel gimmicky, but after ten minutes I stopped watching the screen and just listened. The one thing that caught me off guard: I have no idea how to tell if the narration is actually accurate or if it's just *sounding* confident while the AI does something wrong.\",\n  \"would_remove\": \"The 'Direct mode' for raw tool outputs sounds like debugging noise I don't need cluttering my head while I'm trying to follow the logic.\",\n  \"would_add\": \"I'd want a way to replay just the narration from a completed session without re-running the whole thing \u2014 so I can review my notes against what was actually said, step by step.\",\n  \"recommendation\": \"Yes, I'd recommend this. For someone like me who's learning Python and wants to understand what's happening at each step without staring at a screen the whole time, this is genuinely useful. The Brief mode is my speed \u2014 I don't need constant chatter, just a checkpoint summary so I can follow along in my notebook.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Jade",
+        "role": "Freelance writer dabbling in side projects",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a small blog site to showcase her portfolio and automatically pull in her Medium articles.",
+        "listening_context": "On her commute via train, earbuds in, mentally checked out from the day, wants passive updates only.",
+        "what_they_care_about": "Fast, plain-English summaries of what's happening\u2014she actively dislikes technical jargon and will skip ahead if it gets too dense."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 2
+      },
+      "surprises": "I didn't expect to actually *want* to listen to code running\u2014those sample narrations sound like a friend texting me updates, not a robot. But honestly? I'm realizing I have no idea what half of it means (\"ray-tracing debug lines,\" \"virtual eval subscriber\")\u2014it's clear *English*, but it's still very much a developer tool.",
+      "would_remove": "The CHARACTERS tab feels like overkill for me\u2014I don't need 3D avatars or voice cloning; I just want to know if my Medium sync broke while I'm on the train.",
+      "would_add": "A super-dumb \"plain English\" narration mode that translates tech stuff into actual human language\u2014like 'your code is still thinking' instead of 'running the performance suite' so I can actually understand what's happening without Googling.",
+      "recommendation": "It's clever and I'd probably use the free tier while building my blog, but it feels built for engineers who already speak code fluently. For me, it's a nice-to-have, not a must-have\u2014I'd rather just check Slack or GitHub occasionally than try to parse narration about things I don't fully understand anyway.",
+      "nps": 6,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 2\n  },\n  \"surprises\": \"I didn't expect to actually *want* to listen to code running\u2014those sample narrations sound like a friend texting me updates, not a robot. But honestly? I'm realizing I have no idea what half of it means (\\\"ray-tracing debug lines,\\\" \\\"virtual eval subscriber\\\")\u2014it's clear *English*, but it's still very much a developer tool.\",\n  \"would_remove\": \"The CHARACTERS tab feels like overkill for me\u2014I don't need 3D avatars or voice cloning; I just want to know if my Medium sync broke while I'm on the train.\",\n  \"would_add\": \"A super-dumb \\\"plain English\\\" narration mode that translates tech stuff into actual human language\u2014like 'your code is still thinking' instead of 'running the performance suite' so I can actually understand what's happening without Googling.\",\n  \"recommendation\": \"It's clever and I'd probably use the free tier while building my blog, but it feels built for engineers who already speak code fluently. For me, it's a nice-to-have, not a must-have\u2014I'd rather just check Slack or GitHub occasionally than try to parse narration about things I don't fully understand anyway.\",\n  \"nps\": 6,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Vincent",
+        "role": "Hobbyist game tinkerer",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Hacking together a text-based dungeon crawler to learn how game loops and state work.",
+        "listening_context": "At home in the evening with Claude on one monitor and game running on another, actively experimenting in parallel.",
+        "what_they_care_about": "Quick confirmation of whether the AI did what he asked before he tests it\u2014he's impatient with over-explanation and trusts his own eyes more than narration."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Didn't expect the live 8-12s summaries to actually be *useful* \u2014 I thought it'd be noise, but it's genuinely handy for catching when Claude goes off a cliff without me staring at the screen. The multi-session fan-in to phone is clever, though I'm not sure I'd use it yet.",
+      "would_remove": "The ACTIVITY tab feels like overkill for someone like me \u2014 I don't need a global feed of every line spoken; I just want to know if my current session is still working.",
+      "would_add": "A quick 'replay last 30 seconds of narration' button on the webui. I'm half-listening while testing my game, and I'll miss something and have to dig through the log.",
+      "recommendation": "Yeah, I'd use this. It solves the 'is Claude still working or did it hang?' problem without me having to alt-tab constantly, and Brief mode is the right default for someone who wants to stay in the flow. Not a must-have yet, but solid for parallel tinkering.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Didn't expect the live 8-12s summaries to actually be *useful* \u2014 I thought it'd be noise, but it's genuinely handy for catching when Claude goes off a cliff without me staring at the screen. The multi-session fan-in to phone is clever, though I'm not sure I'd use it yet.\",\n  \"would_remove\": \"The ACTIVITY tab feels like overkill for someone like me \u2014 I don't need a global feed of every line spoken; I just want to know if my current session is still working.\",\n  \"would_add\": \"A quick 'replay last 30 seconds of narration' button on the webui. I'm half-listening while testing my game, and I'll miss something and have to dig through the log.\",\n  \"recommendation\": \"Yeah, I'd use this. It solves the 'is Claude still working or did it hang?' problem without me having to alt-tab constantly, and Brief mode is the right default for someone who wants to stay in the flow. Not a must-have yet, but solid for parallel tinkering.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Senior Frontend Engineer transitioning to Node.js",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a real-time notification service to replace their REST API polling mess",
+        "listening_context": "During morning commute on the train, phone propped up with one earbud",
+        "what_they_care_about": "They want to know if the AI is taking shortcuts that will bite them in production, not a play-by-play of every line"
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The live-stream summaries are actually *useful* \u2014 I expected robot noise but they're hitting the right level of abstraction for what I need to know while commuting. The one thing that caught me off guard: no mention of cost tracking or token budgeting, which matters when you're spinning up multiple sessions with different LLM backends.",
+      "would_remove": "The CHARACTERS tab feels like feature creep for my use case \u2014 I don't need animated avatars or voice cloning; I just need to know what my agent did while I wasn't looking.",
+      "would_add": "A 'replay this session' feature that lets me jump back to any point in the narration log and re-hear what happened around a specific tool call or error \u2014 right now if I miss something critical on the train, I have to dig through the webui later.",
+      "recommendation": "Yeah, I'd use this. It solves the real problem \u2014 I can actually step away from my IDE and trust I'll catch the important bits. For someone building a real-time notification service, this is exactly the kind of async awareness tool that lets you run hot without burning out watching screens.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The live-stream summaries are actually *useful* \u2014 I expected robot noise but they're hitting the right level of abstraction for what I need to know while commuting. The one thing that caught me off guard: no mention of cost tracking or token budgeting, which matters when you're spinning up multiple sessions with different LLM backends.\",\n  \"would_remove\": \"The CHARACTERS tab feels like feature creep for my use case \u2014 I don't need animated avatars or voice cloning; I just need to know what my agent did while I wasn't looking.\",\n  \"would_add\": \"A 'replay this session' feature that lets me jump back to any point in the narration log and re-hear what happened around a specific tool call or error \u2014 right now if I miss something critical on the train, I have to dig through the webui later.\",\n  \"recommendation\": \"Yeah, I'd use this. It solves the real problem \u2014 I can actually step away from my IDE and trust I'll catch the important bits. For someone building a real-time notification service, this is exactly the kind of async awareness tool that lets you run hot without burning out watching screens.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```\n\n**Why I'm not going Pro yet:** The Android app is nice, but I'm not in a glasses-forward workflow. If the buddy mode (voice-to-Claude dictation) works as smoothly as it sounds, that's a different story \u2014 that's where I'd actually save time on my commute. Right now it feels like I'm paying for polish I don't need. Prove the STT integration is rock-solid and I'm in.",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Self-taught React developer learning Go",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Converting a side project dashboard into a performant API service that can handle 10k concurrent users",
+        "listening_context": "In the background while working on UI bugs in a parallel browser window, checking in every few minutes",
+        "what_they_care_about": "They need reassurance that the AI isn't making assumptions about Go idioms they don't understand yet, and they want to learn as it goes"
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The live-stream summaries are way less annoying than I expected \u2014 I was worried it'd be constant noise, but 8-12s gaps actually let me stay in the zone. The thing that caught me off-guard though is that there's no explicit 'explain this Go idiom to me' mode \u2014 like, when Claude suggests a goroutine pattern or a context.Context usage, I'd love CodeTalker to flag it as 'unfamiliar Go concept' and ask if I want a 30-second explainer before moving on.",
+      "would_remove": "The 'Direct mode' feels like debug cruft for 99% of use cases \u2014 I'd honestly just nuke it and use that UX real estate for something that matters.",
+      "would_add": "A 'learning mode' toggle that, when I'm working in an unfamiliar language (Go, in my case), flags idioms, stdlib calls, or patterns that are language-specific and offers to narrate a quick explanation or link to docs \u2014 basically a 'hey, you might not know this one' heads-up.",
+      "recommendation": "Yeah, I'd recommend this to someone in my exact spot \u2014 someone juggling a side project, learning a new stack, and tired of alt-tabbing to check progress. The fact that it works in the background while I'm debugging UI stuff in another window is genuinely useful. My only hesitation is that it assumes you already know your language pretty well; if you're green to Go like I am, you'll still need to ask Claude follow-up questions about what it's doing.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The live-stream summaries are way less annoying than I expected \u2014 I was worried it'd be constant noise, but 8-12s gaps actually let me stay in the zone. The thing that caught me off-guard though is that there's no explicit 'explain this Go idiom to me' mode \u2014 like, when Claude suggests a goroutine pattern or a context.Context usage, I'd love CodeTalker to flag it as 'unfamiliar Go concept' and ask if I want a 30-second explainer before moving on.\",\n  \"would_remove\": \"The 'Direct mode' feels like debug cruft for 99% of use cases \u2014 I'd honestly just nuke it and use that UX real estate for something that matters.\",\n  \"would_add\": \"A 'learning mode' toggle that, when I'm working in an unfamiliar language (Go, in my case), flags idioms, stdlib calls, or patterns that are language-specific and offers to narrate a quick explanation or link to docs \u2014 basically a 'hey, you might not know this one' heads-up.\",\n  \"recommendation\": \"Yeah, I'd recommend this to someone in my exact spot \u2014 someone juggling a side project, learning a new stack, and tired of alt-tabbing to check progress. The fact that it works in the background while I'm debugging UI stuff in another window is genuinely useful. My only hesitation is that it assumes you already know your language pretty well; if you're green to Go like I am, you'll still need to ask Claude follow-up questions about what it's doing.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Burned-out full-stack dev now focused on backend infrastructure",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Migrating legacy Python code to Rust for a data processing pipeline",
+        "listening_context": "Half-listening while doing household chores on a Saturday; skipping ahead if it gets too granular",
+        "what_they_care_about": "They're skeptical of AI and want only high-level status updates\u2014if something looks wrong, they want to know immediately, not hear about correct boilerplate"
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The live-stream samples are way less annoying than I expected\u2014they're actual status, not fluff. But I'm also noticing the narration leans conversational when I just want 'migration check: pass/fail' in two words.",
+      "would_remove": "The character avatar stuff for XREAL glasses feels like feature creep; I'd axe it and spend that complexity budget on a 'raw JSON event stream' mode so I can pipe alerts to my own monitoring stack.",
+      "would_add": "A dead-simple 'error interrupt' mode that breaks through and speaks *only* when Claude hits a blocker or exception, with configurable severity thresholds\u2014right now I'd have to babysit the Activity tab anyway.",
+      "recommendation": "Yeah, I'd use this for the Rust migration work\u2014especially the multi-session fan-in on my phone so I'm not tethered to the desktop. But only if I can tune the verbosity down. It's a solid tool for async monitoring, not a chatty companion.",
+      "nps": 7,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The live-stream samples are way less annoying than I expected\u2014they're actual status, not fluff. But I'm also noticing the narration leans conversational when I just want 'migration check: pass/fail' in two words.\",\n  \"would_remove\": \"The character avatar stuff for XREAL glasses feels like feature creep; I'd axe it and spend that complexity budget on a 'raw JSON event stream' mode so I can pipe alerts to my own monitoring stack.\",\n  \"would_add\": \"A dead-simple 'error interrupt' mode that breaks through and speaks *only* when Claude hits a blocker or exception, with configurable severity thresholds\u2014right now I'd have to babysit the Activity tab anyway.\",\n  \"recommendation\": \"Yeah, I'd use this for the Rust migration work\u2014especially the multi-session fan-in on my phone so I'm not tethered to the desktop. But only if I can tune the verbosity down. It's a solid tool for async monitoring, not a chatty companion.\",\n  \"nps\": 7,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Angular specialist jumping into FastAPI",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Prototyping a machine learning model serving endpoint with async task queues",
+        "listening_context": "At their desk with one monitor on the code, listening actively, frequently pausing to ask follow-up questions",
+        "what_they_care_about": "They want to understand the 'why' behind architectural decisions the AI makes, not just what's being typed"
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to be *that* conversational \u2014 I was bracing for robotic play-by-plays, but it actually sounds like someone narrating their own debugging session. Also surprised there's no built-in way to drill into *why* the AI made an architectural choice; it tells me what happened, not the reasoning.",
+      "would_remove": "The 'Direct mode' for raw tool outputs feels like debug cruft that'll clutter my listening \u2014 I'd rather have a toggleable 'reasoning trace' mode that explains decision forks instead.",
+      "would_add": "A 'decision log' that captures key architectural choices the AI made (e.g., 'chose async task queue over sync polling because of latency budget') so I can review *why* later without rewinding through 20 minutes of narration.",
+      "recommendation": "Yeah, I'd recommend this \u2014 but with a caveat. For prototyping a FastAPI + async queue setup, it's gold because I can listen while context-switching and stay oriented on what's blocking. The live summaries actually help me spot when the AI's gone down a rabbit hole. But I'd want that decision reasoning layer before I'd trust it for production architecture calls.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to be *that* conversational \u2014 I was bracing for robotic play-by-plays, but it actually sounds like someone narrating their own debugging session. Also surprised there's no built-in way to drill into *why* the AI made an architectural choice; it tells me what happened, not the reasoning.\",\n  \"would_remove\": \"The 'Direct mode' for raw tool outputs feels like debug cruft that'll clutter my listening \u2014 I'd rather have a toggleable 'reasoning trace' mode that explains decision forks instead.\",\n  \"would_add\": \"A 'decision log' that captures key architectural choices the AI made (e.g., 'chose async task queue over sync polling because of latency budget') so I can review *why* later without rewinding through 20 minutes of narration.\",\n  \"recommendation\": \"Yeah, I'd recommend this \u2014 but with a caveat. For prototyping a FastAPI + async queue setup, it's gold because I can listen while context-switching and stay oriented on what's blocking. The live summaries actually help me spot when the AI's gone down a rabbit hole. But I'd want that decision reasoning layer before I'd trust it for production architecture calls.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Jamal",
+        "role": "Ex-Vue developer now on a backend platform team",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building internal gRPC services and CLI tooling to standardize how the team deploys microservices",
+        "listening_context": "During back-to-back meetings, checking CodeTalker on mute during Zoom calls to validate the AI is tracking requirements correctly",
+        "what_they_care_about": "They care most about whether the AI is respecting their team's existing conventions and not reinventing wheels; verbosity is a feature, not a bug"
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The Activity tab as a global audit log is genuinely useful \u2014 I can mute a session mid-Zoom and still catch what the AI decided to do by scrolling back. The Direct-STT mode on Pro caught me off guard; I wasn't expecting to dictate fixes to Claude while on a call without breaking context.",
+      "would_remove": "The character avatars feel like feature creep for my use case \u2014 I'd rather that engineering went into richer filtering on the Activity feed (filter by file, by tool type, by error severity) so I can actually audit what happened in a 2-hour multi-session run.",
+      "would_add": "Built-in integration hooks so the narration log can push to our Slack #deployments channel or our internal audit system \u2014 right now I'm manually spot-checking sessions, but if CodeTalker could post a structured summary (what changed, what broke, what deployed) to our conventions, it becomes part of ",
+      "recommendation": "Yes, I'd recommend this to my team, especially for async validation during meetings. The verbosity is exactly what we need \u2014 I want to know *why* the AI made a choice, not just that it made one. Pro tier is worth it for the Buddy mode alone if you're coordinating deployments across time zones.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The Activity tab as a global audit log is genuinely useful \u2014 I can mute a session mid-Zoom and still catch what the AI decided to do by scrolling back. The Direct-STT mode on Pro caught me off guard; I wasn't expecting to dictate fixes to Claude while on a call without breaking context.\",\n  \"would_remove\": \"The character avatars feel like feature creep for my use case \u2014 I'd rather that engineering went into richer filtering on the Activity feed (filter by file, by tool type, by error severity) so I can actually audit what happened in a 2-hour multi-session run.\",\n  \"would_add\": \"Built-in integration hooks so the narration log can push to our Slack #deployments channel or our internal audit system \u2014 right now I'm manually spot-checking sessions, but if CodeTalker could post a structured summary (what changed, what broke, what deployed) to our conventions, it becomes part of our deployment story instead of just a listening aid.\",\n  \"recommendation\": \"Yes, I'd recommend this to my team, especially for async validation during meetings. The verbosity is exactly what we need \u2014 I want to know *why* the AI made a choice, not just that it made one. Pro tier is worth it for the Buddy mode alone if you're coordinating deployments across time zones.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Staff Engineer, Infrastructure",
+        "vibe_experience": "fresh",
+        "domain_expertise": "expert",
+        "primary_use_case": "Building a Kubernetes operator for managing database migrations across multiple clusters.",
+        "listening_context": "In his home office during early mornings before standup, half-listening while reviewing PRs on a second monitor.",
+        "what_they_care_about": "He wants CodeTalker to flag when the AI makes architectural assumptions that don't match his mental model, so he can course-correct before wasting 20 minutes."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "The decision-flagging angle is exactly what I need \u2014 hearing 'still hunting the API' tells me the AI is thrashing before I waste time. Less surprised that it exists, more surprised it's *this* good at surfacing when assumptions diverge from reality without me having to babysit.",
+      "would_remove": "The CHARACTERS tab feels like a distraction for my use case; I'd bin the avatar stuff and redirect that UX budget to the Activity feed \u2014 make it queryable by session + error type so I can actually audit what went wrong across parallel runs.",
+      "would_add": "A lightweight 'assumption checkpoint' mode that explicitly asks me (via phone buddy or a webui prompt) to confirm architectural decisions before the AI commits \u2014 like 'About to assume single etcd cluster per namespace, is that your model?' \u2014 because that's where I lose 20 minutes today.",
+      "recommendation": "Yes, absolutely. I'm running three Kubernetes operator branches in parallel and CodeTalker lets me context-switch without losing the thread. The real win is catching when Claude's mental model of my infrastructure drifts from mine \u2014 that's worth the cognitive load of another daemon. Just lock down the Activity feed UX first.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The decision-flagging angle is exactly what I need \u2014 hearing 'still hunting the API' tells me the AI is thrashing before I waste time. Less surprised that it exists, more surprised it's *this* good at surfacing when assumptions diverge from reality without me having to babysit.\",\n  \"would_remove\": \"The CHARACTERS tab feels like a distraction for my use case; I'd bin the avatar stuff and redirect that UX budget to the Activity feed \u2014 make it queryable by session + error type so I can actually audit what went wrong across parallel runs.\",\n  \"would_add\": \"A lightweight 'assumption checkpoint' mode that explicitly asks me (via phone buddy or a webui prompt) to confirm architectural decisions before the AI commits \u2014 like 'About to assume single etcd cluster per namespace, is that your model?' \u2014 because that's where I lose 20 minutes today.\",\n  \"recommendation\": \"Yes, absolutely. I'm running three Kubernetes operator branches in parallel and CodeTalker lets me context-switch without losing the thread. The real win is catching when Claude's mental model of my infrastructure drifts from mine \u2014 that's worth the cognitive load of another daemon. Just lock down the Activity feed UX first.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Senior Backend Engineer, ex-startup founder",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Porting a legacy monolith service to gRPC microservices with minimal downtime.",
+        "listening_context": "While cooking dinner or doing household tasks, with one earbud in, treating it like a podcast she can tune in and out of.",
+        "what_they_care_about": "She needs confidence that edge cases and error handling are being covered, not just happy paths\u2014she's skeptical of AI and wants to catch when it's being lazy."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I'm genuinely impressed by the multi-session fan-in to phone\u2014that's exactly the kind of thoughtful detail a founder would build. But I'm surprised there's no explicit circuit-breaker or timeout config for narration itself; what happens if the LLM hangs on a summary while your agent is still working?",
+      "would_remove": "The 'Direct mode' feels like a debug footgun that'll ship to production and never get cleaned up\u2014I'd either hide it behind a dev flag or drop it entirely.",
+      "would_add": "A 'replay' feature in the Activity tab that lets me re-narrate a past session's decisions and errors in real time\u2014right now I can only scroll and read, which defeats the point when I'm cooking.",
+      "recommendation": "I'd recommend this to my team for parallel session monitoring, especially during migrations where you need to keep context across multiple agents without staring at screens. But I'm not confident enough in the error-handling narrative yet\u2014I need to hear it catch a retry loop or a permission denied, not just happy-path summaries, before I'd trust it to catch my blind spots.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I'm genuinely impressed by the multi-session fan-in to phone\u2014that's exactly the kind of thoughtful detail a founder would build. But I'm surprised there's no explicit circuit-breaker or timeout config for narration itself; what happens if the LLM hangs on a summary while your agent is still working?\",\n  \"would_remove\": \"The 'Direct mode' feels like a debug footgun that'll ship to production and never get cleaned up\u2014I'd either hide it behind a dev flag or drop it entirely.\",\n  \"would_add\": \"A 'replay' feature in the Activity tab that lets me re-narrate a past session's decisions and errors in real time\u2014right now I can only scroll and read, which defeats the point when I'm cooking.\",\n  \"recommendation\": \"I'd recommend this to my team for parallel session monitoring, especially during migrations where you need to keep context across multiple agents without staring at screens. But I'm not confident enough in the error-handling narrative yet\u2014I need to hear it catch a retry loop or a permission denied, not just happy-path summaries, before I'd trust it to catch my blind spots.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```\n\n**Why the hesitation on Pro:** The local voice cloning and buddy mode are neat, but I don't need avatars or STT dictation for this workflow. The Android fan-in is tempting, but I'd need to see how it handles session switching and whether narration keeps up when I'm jumping between three gRPC services simultaneously. Prove to me the error narrative is tight first, then I'll pay.",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "David",
+        "role": "Principal Engineer, DevOps & Automation",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Writing custom observability dashboards and alerting rules for a distributed system.",
+        "listening_context": "During his commute on public transit, standing with noise-canceling headphones, wanting to stay loosely connected to the work.",
+        "what_they_care_about": "He wants concise, jargon-appropriate narration that respects his expertise\u2014skip the explanations of basic concepts, just tell him what changed and why it matters."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream narration actually gets the *why* behind tool decisions\u2014not just 'running tests' but 'confirming the quality restore holds.' That's the kind of narrative threading I'd write myself. The one gap: I can't tell from the samples how it handles long-running silent periods or whether it'll interrupt with false positives when the agent is genuinely blocked.",
+      "would_remove": "The 'Buddy mode' feels like feature creep for my use case\u2014I'm listening to stay loosely tethered, not having a two-way conversation with Claude through my phone on the 6 train.",
+      "would_add": "A configurable threshold to suppress narration on repetitive tool loops (like retries or polling)\u2014I don't need to hear 'still checking status' every 10 seconds if the agent's in a retry spiral; give me a single 'looping on X, will alert on change' instead.",
+      "recommendation": "Yes. This is built for someone like me\u2014it respects that I know what observability means and just tells me what changed and why it matters. The local voice cloning and multi-session fan-in on Pro are genuinely useful for running parallel agent tasks without context-switching. Worth the $10/mo if you're already living in Claude Code or Cursor.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream narration actually gets the *why* behind tool decisions\u2014not just 'running tests' but 'confirming the quality restore holds.' That's the kind of narrative threading I'd write myself. The one gap: I can't tell from the samples how it handles long-running silent periods or whether it'll interrupt with false positives when the agent is genuinely blocked.\",\n  \"would_remove\": \"The 'Buddy mode' feels like feature creep for my use case\u2014I'm listening to stay loosely tethered, not having a two-way conversation with Claude through my phone on the 6 train.\",\n  \"would_add\": \"A configurable threshold to suppress narration on repetitive tool loops (like retries or polling)\u2014I don't need to hear 'still checking status' every 10 seconds if the agent's in a retry spiral; give me a single 'looping on X, will alert on change' instead.\",\n  \"recommendation\": \"Yes. This is built for someone like me\u2014it respects that I know what observability means and just tells me what changed and why it matters. The local voice cloning and multi-session fan-in on Pro are genuinely useful for running parallel agent tasks without context-switching. Worth the $10/mo if you're already living in Claude Code or Cursor.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Sarah",
+        "role": "Engineering Manager turned Individual Contributor",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Adding real-time collaboration features to an existing SaaS platform using WebSockets.",
+        "listening_context": "In back-to-back meetings, checking in via audio whenever she has a 5-minute gap between calls.",
+        "what_they_care_about": "She wants quick status updates and early warnings about complexity or scope creep\u2014she's time-constrained and needs to know if the AI is heading off the rails."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "I didn't expect the live-stream summaries to actually *warn* me about blockers (like that YouTube link one) \u2014 that's exactly the early-warning signal I need between calls. Also pleasantly surprised the brief mode exists; I thought I'd be drowning in audio.",
+      "would_remove": "The CHARACTERS tab feels like a nice-to-have that I'd honestly deprioritize \u2014 I care about what the agent is doing, not whether it has a 3D avatar.",
+      "would_add": "A quick 'complexity meter' or 'scope-drift flag' that fires when the narration starts talking about new files/tools outside the original scope \u2014 I need that *spoken* the moment it happens, not buried in the activity log.",
+      "recommendation": "Yeah, I'd use this. I'm in back-to-back meetings constantly, and hearing 'still running checks' every 10 seconds while I'm on mute is way better than checking a terminal tab I'd forget about. The brief mode + activity log combo means I can dip in for 30 seconds and know exactly what I missed.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to actually *warn* me about blockers (like that YouTube link one) \u2014 that's exactly the early-warning signal I need between calls. Also pleasantly surprised the brief mode exists; I thought I'd be drowning in audio.\",\n  \"would_remove\": \"The CHARACTERS tab feels like a nice-to-have that I'd honestly deprioritize \u2014 I care about what the agent is doing, not whether it has a 3D avatar.\",\n  \"would_add\": \"A quick 'complexity meter' or 'scope-drift flag' that fires when the narration starts talking about new files/tools outside the original scope \u2014 I need that *spoken* the moment it happens, not buried in the activity log.\",\n  \"recommendation\": \"Yeah, I'd use this. I'm in back-to-back meetings constantly, and hearing 'still running checks' every 10 seconds while I'm on mute is way better than checking a terminal tab I'd forget about. The brief mode + activity log combo means I can dip in for 30 seconds and know exactly what I missed.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false\n}\n```\n\n**Why no Pro:** The local voice cloning and phone app are cool, but I don't have a 10-second voice sample handy and I'm not doing multi-session fan-in yet. If I scale to running 3+ agents in parallel, I'd reconsider \u2014 but right now the free tier covers my listening-between-calls workflow. The buddy mode *could* be useful for voice dictation, but honestly I'd rather type a quick fix than context-switch to talking to Claude through my phone.",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Senior Full-Stack Engineer, long-time IC",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Refactoring a React/Node codebase to use server components and streaming responses.",
+        "listening_context": "Running parallel coding sessions in the same room\u2014one monitor with Claude/Cursor, another with his own editor, listening to narration while writing tests.",
+        "what_they_care_about": "He wants real-time feedback on performance implications and whether the generated code follows his team's conventions, so he can validate or intervene immediately."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream summaries are genuinely useful \u2014 I expected generic play-by-play but they're actually capturing intent and blockers in real time, which means I can intervene before the AI goes down a rabbit hole. The multi-session fan-in to phone is a game-changer for parallel work.",
+      "would_remove": "The character avatars and XREAL glasses integration feel like feature bloat for my use case \u2014 I'm listening while coding, not watching; strip that and keep the audio pipeline lean.",
+      "would_add": "A 'convention checker' narration layer that flags when generated code violates my team's linting rules or patterns in real time, not just at the end \u2014 let me catch style drift before it lands.",
+      "recommendation": "Yeah, I'd use this. The basic tier is solid for parallel sessions and real-time feedback while refactoring, and the narration cadence is tuned right for someone who's actually working, not just watching. Pro tier is worth it only if you're doing this full-time across multiple projects.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream summaries are genuinely useful \u2014 I expected generic play-by-play but they're actually capturing intent and blockers in real time, which means I can intervene before the AI goes down a rabbit hole. The multi-session fan-in to phone is a game-changer for parallel work.\",\n  \"would_remove\": \"The character avatars and XREAL glasses integration feel like feature bloat for my use case \u2014 I'm listening while coding, not watching; strip that and keep the audio pipeline lean.\",\n  \"would_add\": \"A 'convention checker' narration layer that flags when generated code violates my team's linting rules or patterns in real time, not just at the end \u2014 let me catch style drift before it lands.\",\n  \"recommendation\": \"Yeah, I'd use this. The basic tier is solid for parallel sessions and real-time feedback while refactoring, and the narration cadence is tuned right for someone who's actually working, not just watching. Pro tier is worth it only if you're doing this full-time across multiple projects.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Maya",
+        "role": "Founder, AI-powered scheduling SaaS",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a multi-tenant calendar sync agent that handles timezone conflicts across 3 different calendar APIs simultaneously.",
+        "listening_context": "In her home office running three Cursor windows side-by-side, switching between them while on async Slack calls with her co-founder.",
+        "what_they_care_about": "She wants CodeTalker to flag when the AI is about to make architectural decisions or hit a blocker\u2014the high-level shape of things, not every variable name."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream cadence actually *works* \u2014 I was skeptical that 8-12s summaries wouldn't feel like death by a thousand cuts, but it's genuinely the right granularity when you're juggling three Cursor windows. What caught me off-guard: the Activity tab with cross-session filtering is way more useful than I expected for async debugging with my co-founder \u2014 we can both reference the same narration log without rewinding.",
+      "would_remove": "The 'Direct mode' feels like technical debt; I've never needed raw tool output spoken aloud, and it's just noise in the UI.",
+      "would_add": "A 'blocker detection' mode that *only* speaks when Claude hits an error, says 'I'm blocked,' or is about to refactor the core sync logic \u2014 right now I'm getting too much color commentary and not enough signal on the architectural decisions I actually care about.",
+      "recommendation": "Yeah, I'd use this. The async Slack + three-window setup is my life, and CodeTalker actually lets me stay in the flow without context-switching to check status. The Pro tier feels worth it mainly for Buddy mode \u2014 being able to dictate a quick timezone fix to Claude through my phone while I'm in a call is a real productivity unlock.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream cadence actually *works* \u2014 I was skeptical that 8-12s summaries wouldn't feel like death by a thousand cuts, but it's genuinely the right granularity when you're juggling three Cursor windows. What caught me off-guard: the Activity tab with cross-session filtering is way more useful than I expected for async debugging with my co-founder \u2014 we can both reference the same narration log without rewinding.\",\n  \"would_remove\": \"The 'Direct mode' feels like technical debt; I've never needed raw tool output spoken aloud, and it's just noise in the UI.\",\n  \"would_add\": \"A 'blocker detection' mode that *only* speaks when Claude hits an error, says 'I'm blocked,' or is about to refactor the core sync logic \u2014 right now I'm getting too much color commentary and not enough signal on the architectural decisions I actually care about.\",\n  \"recommendation\": \"Yeah, I'd use this. The async Slack + three-window setup is my life, and CodeTalker actually lets me stay in the flow without context-switching to check status. The Pro tier feels worth it mainly for Buddy mode \u2014 being able to dictate a quick timezone fix to Claude through my phone while I'm in a call is a real productivity unlock.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Jordan",
+        "role": "Solo founder, content workflow automation",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Spinning up a tool that auto-generates LinkedIn captions from YouTube transcripts using Claude API and vector embeddings.",
+        "listening_context": "On his morning commute, earbuds in, listening while walking to coffee\u2014can't look at a screen but needs to know if things are going sideways.",
+        "what_they_care_about": "He's skeptical about AI reliability and wants CodeTalker to tell him plainly when Claude is guessing or when edge cases might break the flow."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The last sample where it just *told me* it was blocked on YouTube \u2014 that's exactly the plain talk I need to hear. But I'm also surprised there's no built-in way to flag 'Claude is hallucinating here' or 'this edge case might break your pipeline,' which feels like a missed opportunity for someone like me who doesn't trust AI to know when it's guessing.",
+      "would_remove": "The character avatars and XREAL glasses stuff \u2014 that's cool but feels like feature creep when what I actually need is rock-solid reliability signals and maybe a confidence meter on what Claude just said.",
+      "would_add": "A 'doubt flag' or 'confidence mode' where CodeTalker narrates not just *what* Claude did, but *when Claude admitted uncertainty* \u2014 like 'Claude says this might not work because X' \u2014 so I'm not walking into a broken LinkedIn caption generator on launch day.",
+      "recommendation": "Yeah, I'd recommend it, but with a caveat: it's solid for keeping tabs on long-running jobs while you're away from the screen, and the live-stream summaries actually work. But if you're paranoid about AI reliability like I am, you'll still need to spot-check the logs manually. It's a good *awareness* tool, not a replacement for skepticism.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The last sample where it just *told me* it was blocked on YouTube \u2014 that's exactly the plain talk I need to hear. But I'm also surprised there's no built-in way to flag 'Claude is hallucinating here' or 'this edge case might break your pipeline,' which feels like a missed opportunity for someone like me who doesn't trust AI to know when it's guessing.\",\n  \"would_remove\": \"The character avatars and XREAL glasses stuff \u2014 that's cool but feels like feature creep when what I actually need is rock-solid reliability signals and maybe a confidence meter on what Claude just said.\",\n  \"would_add\": \"A 'doubt flag' or 'confidence mode' where CodeTalker narrates not just *what* Claude did, but *when Claude admitted uncertainty* \u2014 like 'Claude says this might not work because X' \u2014 so I'm not walking into a broken LinkedIn caption generator on launch day.\",\n  \"recommendation\": \"Yeah, I'd recommend it, but with a caveat: it's solid for keeping tabs on long-running jobs while you're away from the screen, and the live-stream summaries actually work. But if you're paranoid about AI reliability like I am, you'll still need to spot-check the logs manually. It's a good *awareness* tool, not a replacement for skepticism.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Co-founder, B2B invoice processing platform",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring three legacy Python agents into a unified orchestration layer while keeping backwards compatibility with existing client integrations.",
+        "listening_context": "Working from a coworking space with her laptop open, headphones on, but frequently stepping away to take investor calls or grab meetings.",
+        "what_they_care_about": "She trusts the AI but hates wasted motion\u2014CodeTalker should be surgical, only speaking when there's a decision point or something unexpected, otherwise silence is golden."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 5,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The Brief mode cadence is exactly what I needed\u2014I don't want play-by-play narration while I'm context-switching between investor calls, just the landing summary. What surprised me is how *not* annoying the multi-session fan-in would be; I expected audio chaos but the phone sink model actually feels surgical.",
+      "would_remove": "The ACTIVITY global feed feels like noise\u2014I care about *my* sessions, not a firehose of every line spoken across every workspace; make it opt-in or archive it.",
+      "would_add": "Native Slack/Teams integration to post session summaries + blockers automatically so I don't have to manually report back to my tech lead after stepping away.",
+      "recommendation": "Yes, absolutely\u2014but only if you're running 3+ parallel agents and actually leaving your desk. For a solo refactor you're babysitting, it's overkill. For my use case (legacy migration + investor meetings), it's a force multiplier because I can context-switch without losing the thread.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 5,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The Brief mode cadence is exactly what I needed\u2014I don't want play-by-play narration while I'm context-switching between investor calls, just the landing summary. What surprised me is how *not* annoying the multi-session fan-in would be; I expected audio chaos but the phone sink model actually feels surgical.\",\n  \"would_remove\": \"The ACTIVITY global feed feels like noise\u2014I care about *my* sessions, not a firehose of every line spoken across every workspace; make it opt-in or archive it.\",\n  \"would_add\": \"Native Slack/Teams integration to post session summaries + blockers automatically so I don't have to manually report back to my tech lead after stepping away.\",\n  \"recommendation\": \"Yes, absolutely\u2014but only if you're running 3+ parallel agents and actually leaving your desk. For a solo refactor you're babysitting, it's overkill. For my use case (legacy migration + investor meetings), it's a force multiplier because I can context-switch without losing the thread.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Alex",
+        "role": "Indie founder, developer tools",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a VS Code extension that lets developers prompt-manage 5+ LLM sessions at once with unified context memory.",
+        "listening_context": "Late night in their apartment, running Windsurf + Claude Code + custom agent scaffolding, often cooking dinner or pacing while thinking through system design.",
+        "what_they_care_about": "CodeTalker's narration should be technically precise and assume deep knowledge\u2014they want to hear about token usage, reasoning traces, and subtle API gotchas, not explanations of basics."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream summaries actually nail the right level of abstraction\u2014I'm hearing what the agent *decided* to do next, not token counts or reasoning traces, which at first felt like a miss but honestly keeps cognitive load down when you're juggling five sessions. The one thing that caught me off-guard: no mention of context window utilization or token spend per narration event\u2014for someone managing unified memory across 5+ LLM calls, that's data I'd want piped into the activity feed.",
+      "would_remove": "The 'Direct mode' for raw tool outputs feels like a debug escape hatch that'll never get used in production; I'd fold that complexity into a verbose toggle in Brief mode instead.",
+      "would_add": "A 'reasoning trace' optional layer in Live mode that speaks out the LLM's actual thinking steps when you're stuck\u2014especially useful when an agent pivots strategy and you weren't watching. Right now I'd have to dig into logs to understand *why* it switched approaches.",
+      "recommendation": "Yeah, I'd run this. The core insight\u2014let me context-switch away from the screen while staying in the loop\u2014solves a real friction point when you're orchestrating multiple agent sessions. The webui is clean enough that I'm not fighting it, and the voice routing (desktop + phone + glasses ready) means it scales with how I actually work. My only hesitation is whether the narration stays precise enough as session complexity grows; I'd need to stress-test it with my full agent scaffolding before betti",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream summaries actually nail the right level of abstraction\u2014I'm hearing what the agent *decided* to do next, not token counts or reasoning traces, which at first felt like a miss but honestly keeps cognitive load down when you're juggling five sessions. The one thing that caught me off-guard: no mention of context window utilization or token spend per narration event\u2014for someone managing unified memory across 5+ LLM calls, that's data I'd want piped into the activity feed.\",\n  \"would_remove\": \"The 'Direct mode' for raw tool outputs feels like a debug escape hatch that'll never get used in production; I'd fold that complexity into a verbose toggle in Brief mode instead.\",\n  \"would_add\": \"A 'reasoning trace' optional layer in Live mode that speaks out the LLM's actual thinking steps when you're stuck\u2014especially useful when an agent pivots strategy and you weren't watching. Right now I'd have to dig into logs to understand *why* it switched approaches.\",\n  \"recommendation\": \"Yeah, I'd run this. The core insight\u2014let me context-switch away from the screen while staying in the loop\u2014solves a real friction point when you're orchestrating multiple agent sessions. The webui is clean enough that I'm not fighting it, and the voice routing (desktop + phone + glasses ready) means it scales with how I actually work. My only hesitation is whether the narration stays precise enough as session complexity grows; I'd need to stress-test it with my full agent scaffolding before betting on it for client work.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Sam",
+        "role": "Founder, data ops automation",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Launching three concurrent dbt workflow agents that validate data quality, surface anomalies, and auto-remediate schema issues across warehouses.",
+        "listening_context": "Listening through AirPods while doing customer support calls, rotating between browser tabs and a Cursor window, context switching constantly.",
+        "what_they_care_about": "They need CodeTalker to be conversational but concise\u2014speak up about errors or major progress, but keep the ambient noise low so they can jump back in when needed without feeling lost."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 5,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "Honestly, the fact that I can spin up three dbt agents in parallel and just *know* what's happening across all of them without tab-switching is huge\u2014I didn't expect the multi-session fan-in to actually feel ambient rather than chaotic. The 8-12s live cadence is perfect for my brain; it's like having a colleague narrating over my shoulder without being annoying.",
+      "would_remove": "The ACTIVITY tab feels like noise to me\u2014I don't need a global feed when I'm already context-switching like crazy; maybe make it collapsible or remove it from the default view so it's not cluttering the real estate.",
+      "would_add": "A quick-mute hotkey or AirPods double-tap integration so I can pause narration mid-call without reaching for the browser\u2014right now I have to fumble with the UI when a customer question lands.",
+      "recommendation": "Yeah, I'd recommend this to anyone running multiple concurrent agents, especially if you're not glued to your screen. It's built for people like me who need to stay in the loop but can't afford to stare at logs. The Brief mode + Live mode toggle is chef's kiss for my workflow.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 5,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"Honestly, the fact that I can spin up three dbt agents in parallel and just *know* what's happening across all of them without tab-switching is huge\u2014I didn't expect the multi-session fan-in to actually feel ambient rather than chaotic. The 8-12s live cadence is perfect for my brain; it's like having a colleague narrating over my shoulder without being annoying.\",\n  \"would_remove\": \"The ACTIVITY tab feels like noise to me\u2014I don't need a global feed when I'm already context-switching like crazy; maybe make it collapsible or remove it from the default view so it's not cluttering the real estate.\",\n  \"would_add\": \"A quick-mute hotkey or AirPods double-tap integration so I can pause narration mid-call without reaching for the browser\u2014right now I have to fumble with the UI when a customer question lands.\",\n  \"recommendation\": \"Yeah, I'd recommend this to anyone running multiple concurrent agents, especially if you're not glued to your screen. It's built for people like me who need to stay in the loop but can't afford to stare at logs. The Brief mode + Live mode toggle is chef's kiss for my workflow.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Computational biologist",
+        "vibe_experience": "fresh",
+        "domain_expertise": "expert",
+        "primary_use_case": "Building a sequence alignment visualization tool to help her lab explore protein mutations interactively.",
+        "listening_context": "In her office between meetings, often with one earbud in while reviewing papers on her second monitor.",
+        "what_they_care_about": "She needs to know when the AI makes domain-specific mistakes so she can catch them before they become embedded in the logic."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I wasn't expecting the ACTIVITY tab to be this useful \u2014 being able to filter by 'error' across all sessions means I can actually catch when Claude hallucinates a protein domain without rewatching. The one-earbud workflow genuinely works; I caught a BLOSUM matrix misinterpretation mid-run yesterday because the narration flagged it while I was still on my paper.",
+      "would_remove": "Direct mode feels like debugging cruft that clutters the UI \u2014 I'd axe it and use the space for a 'confidence flag' toggle that only narrates when the AI explicitly signals uncertainty about domain-specific outputs.",
+      "would_add": "A domain-specific filter tier for the ACTIVITY feed \u2014 let me tag sessions as 'bioinformatics' so I can surface only errors or tool calls that touch sequence alignment, mutation scoring, or PDB operations, rather than wading through unrelated noise.",
+      "recommendation": "Yes, absolutely recommend to anyone doing iterative, domain-heavy coding work. The real win is that you stop babysitting the AI \u2014 you can actually trust your second monitor again. The only catch is you need to be disciplined about flagging when the narration misses a mistake, so the LLM learns your domain's blind spots.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I wasn't expecting the ACTIVITY tab to be this useful \u2014 being able to filter by 'error' across all sessions means I can actually catch when Claude hallucinates a protein domain without rewatching. The one-earbud workflow genuinely works; I caught a BLOSUM matrix misinterpretation mid-run yesterday because the narration flagged it while I was still on my paper.\",\n  \"would_remove\": \"Direct mode feels like debugging cruft that clutters the UI \u2014 I'd axe it and use the space for a 'confidence flag' toggle that only narrates when the AI explicitly signals uncertainty about domain-specific outputs.\",\n  \"would_add\": \"A domain-specific filter tier for the ACTIVITY feed \u2014 let me tag sessions as 'bioinformatics' so I can surface only errors or tool calls that touch sequence alignment, mutation scoring, or PDB operations, rather than wading through unrelated noise.\",\n  \"recommendation\": \"Yes, absolutely recommend to anyone doing iterative, domain-heavy coding work. The real win is that you stop babysitting the AI \u2014 you can actually trust your second monitor again. The only catch is you need to be disciplined about flagging when the narration misses a mistake, so the LLM learns your domain's blind spots.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Historian and digital humanities researcher",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Creating a searchable archive interface for 19th-century newspaper archives with OCR'd text and metadata.",
+        "listening_context": "While walking around campus between the library and his office, usually once or twice a week.",
+        "what_they_care_about": "He wants reassurance that the tool is actually working as intended\u2014he doesn't trust AI by default and needs plain-English confirmation of progress."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I was genuinely relieved by the Activity tab\u2014being able to scroll back through everything that was spoken across all my sessions means I can actually *verify* the tool did what it claims, which is exactly the kind of audit trail I need before I trust it. The real-time log on the right panel is solid too. What surprised me negatively: the narration samples feel oddly technical and breathless for someone like me who just wants to know 'did the OCR pipeline finish or is it still grinding?'",
+      "would_remove": "The 'Buddy mode' from Pro feels like a solution to a problem I don't have\u2014I don't need to talk *to* my agent while walking; I need reassurance it's working, which the narration already gives me.",
+      "would_add": "A simple 'progress bar' or 'stage summary' mode that tells me exactly where we are in a multi-step archive indexing job (e.g., 'OCR: 340/1200 pages done, metadata extraction queued, search index building') instead of relying on me to piece it together from live narration.",
+      "recommendation": "I'd recommend this to a colleague doing similar archival work, but only after they've run it for a week on a non-critical project first. The real value for me is the Activity log and the ability to step away\u2014that's worth the learning curve. But if you're the type who needs constant reassurance that an AI tool is working (like I am), you'll want to spend time in the Preferences tab tuning the cadence so it's not either too chatty or too sparse.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I was genuinely relieved by the Activity tab\u2014being able to scroll back through everything that was spoken across all my sessions means I can actually *verify* the tool did what it claims, which is exactly the kind of audit trail I need before I trust it. The real-time log on the right panel is solid too. What surprised me negatively: the narration samples feel oddly technical and breathless for someone like me who just wants to know 'did the OCR pipeline finish or is it still grinding?'\",\n  \"would_remove\": \"The 'Buddy mode' from Pro feels like a solution to a problem I don't have\u2014I don't need to talk *to* my agent while walking; I need reassurance it's working, which the narration already gives me.\",\n  \"would_add\": \"A simple 'progress bar' or 'stage summary' mode that tells me exactly where we are in a multi-step archive indexing job (e.g., 'OCR: 340/1200 pages done, metadata extraction queued, search index building') instead of relying on me to piece it together from live narration.\",\n  \"recommendation\": \"I'd recommend this to a colleague doing similar archival work, but only after they've run it for a week on a non-critical project first. The real value for me is the Activity log and the ability to step away\u2014that's worth the learning curve. But if you're the type who needs constant reassurance that an AI tool is working (like I am), you'll want to spend time in the Preferences tab tuning the cadence so it's not either too chatty or too sparse.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Environmental scientist",
+        "vibe_experience": "veteran",
+        "domain_expertise": "mid",
+        "primary_use_case": "Prototyping a data dashboard that ingests satellite imagery and field sensor data to track coastal erosion patterns.",
+        "listening_context": "During her commute on public transit, often while checking emails; she half-listens and jumps in with questions.",
+        "what_they_care_about": "She just wants the high-level status\u2014no verbose technical breakdown\u2014so she can decide if she needs to steer the AI or let it continue."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 4
+      },
+      "surprises": "I wasn't expecting the live-stream narration to be *that* concise\u2014I was bracing for wall-of-text technical dumps, but it actually tells me what matters in 10 seconds. The multi-session fan-in to my phone is genuinely useful; I can run satellite imagery ingestion on one thread and sensor calibration on another, then hear both on one speaker during my commute.",
+      "would_remove": "The CHARACTERS tab feels like UI bloat for my use case\u2014I don't need animated avatars or voice cloning; just give me clear, fast status in one voice and let me move on.",
+      "would_add": "A quick-filter on the ACTIVITY feed for just *errors* and *blockers*\u2014right now I'm scrolling through everything to find the one thing that actually needs my attention, and that defeats the half-listening vibe.",
+      "recommendation": "Yeah, I'd recommend this. I'm commuting 40 minutes each way and I hate context-switching; this lets me stay loosely tethered to my prototypes without staring at a screen. The brief mode is my friend. Only catch: the webui feels a bit cluttered\u2014I'd spend the first week figuring out what I actually need to look at.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"I wasn't expecting the live-stream narration to be *that* concise\u2014I was bracing for wall-of-text technical dumps, but it actually tells me what matters in 10 seconds. The multi-session fan-in to my phone is genuinely useful; I can run satellite imagery ingestion on one thread and sensor calibration on another, then hear both on one speaker during my commute.\",\n  \"would_remove\": \"The CHARACTERS tab feels like UI bloat for my use case\u2014I don't need animated avatars or voice cloning; just give me clear, fast status in one voice and let me move on.\",\n  \"would_add\": \"A quick-filter on the ACTIVITY feed for just *errors* and *blockers*\u2014right now I'm scrolling through everything to find the one thing that actually needs my attention, and that defeats the half-listening vibe.\",\n  \"recommendation\": \"Yeah, I'd recommend this. I'm commuting 40 minutes each way and I hate context-switching; this lets me stay loosely tethered to my prototypes without staring at a screen. The brief mode is my friend. Only catch: the webui feels a bit cluttered\u2014I'd spend the first week figuring out what I actually need to look at.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Philosophy professor and AI ethics researcher",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a tool to annotate and cluster AI-generated text for bias patterns in large corpora.",
+        "listening_context": "At home in the evening, usually while cooking or doing household tasks; he has low tolerance for jargon.",
+        "what_they_care_about": "He's skeptical of AI and wants CodeTalker to be transparent about what the AI *can't* do, not just celebrate what it does."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I was genuinely impressed that it tells you when the AI *can't* do something\u2014that last sample about YouTube links is exactly the kind of transparency I demand. But I was surprised there's no built-in audit trail for the narration itself; if I'm using this to catch bias patterns in AI outputs, I need to know whether CodeTalker's LLM summaries are introducing their own bias into what I'm hearing.",
+      "would_remove": "The 3D avatar and XREAL glasses stuff\u2014it feels like feature creep that distracts from the core job (letting me listen while I work), and honestly it makes me trust the product less, like someone's chasing VR hype instead of solving the real problem.",
+      "would_add": "A 'raw transcript export' button per session, so I can compare what the AI actually did against what CodeTalker narrated, and audit whether the LLM's summaries are faithful or introducing spin\u2014especially important if I'm trying to detect bias in AI systems.",
+      "recommendation": "I'd recommend it, but with a caveat: it's genuinely useful for staying aware of long-running tasks without staring at a screen, and the transparency about AI limitations is refreshing. But if you're doing what I'm doing\u2014analyzing AI bias\u2014you need to treat CodeTalker's narration as *another* layer that could distort what you're seeing, not as gospel truth. Use it to stay in the loop, not to replace your own close reading.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I was genuinely impressed that it tells you when the AI *can't* do something\u2014that last sample about YouTube links is exactly the kind of transparency I demand. But I was surprised there's no built-in audit trail for the narration itself; if I'm using this to catch bias patterns in AI outputs, I need to know whether CodeTalker's LLM summaries are introducing their own bias into what I'm hearing.\",\n  \"would_remove\": \"The 3D avatar and XREAL glasses stuff\u2014it feels like feature creep that distracts from the core job (letting me listen while I work), and honestly it makes me trust the product less, like someone's chasing VR hype instead of solving the real problem.\",\n  \"would_add\": \"A 'raw transcript export' button per session, so I can compare what the AI actually did against what CodeTalker narrated, and audit whether the LLM's summaries are faithful or introducing spin\u2014especially important if I'm trying to detect bias in AI systems.\",\n  \"recommendation\": \"I'd recommend it, but with a caveat: it's genuinely useful for staying aware of long-running tasks without staring at a screen, and the transparency about AI limitations is refreshing. But if you're doing what I'm doing\u2014analyzing AI bias\u2014you need to treat CodeTalker's narration as *another* layer that could distort what you're seeing, not as gospel truth. Use it to stay in the loop, not to replace your own close reading.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Sofia",
+        "role": "Epidemiologist",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Rapidly iterating on a real-time disease surveillance dashboard that pulls data from multiple health agencies.",
+        "listening_context": "Running parallel sessions in her lab with her team present; she wants narration that keeps the room informed without interrupting focus.",
+        "what_they_care_about": "She needs to hear about architectural decisions and potential bottlenecks in real time so she can redirect the AI mid-build if needed."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-mode cadence (8-12s summaries) is *exactly* the right granularity for a lab setting \u2014 it keeps the room informed without creating that maddening wall of noise you get with constant updates. I was also surprised the Activity tab exists; most tools bury the global feed, but for multi-session triage, that's gold.",
+      "would_remove": "The character avatars feel like a distraction for my use case \u2014 I'd strip them out of the default Pro tier and make them optional, because I care about *what's happening* on the dashboard, not whether my narrator has a 3D face.",
+      "would_add": "A configurable alert threshold: let me flag specific keywords (bottleneck, timeout, data lag >5min) so CodeTalker interrupts Brief mode and forces a Live summary when something surveillance-critical surfaces \u2014 right now I have to keep one eye on the webui anyway.",
+      "recommendation": "Absolutely recommend this. I run three parallel sessions with my epidemiologists, and CodeTalker lets me stay in the code without context-switching to check progress. The narration is crisp enough that I can actually redirect the AI mid-build when I hear an architectural choice I don't like \u2014 that's the whole point for real-time systems work.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-mode cadence (8-12s summaries) is *exactly* the right granularity for a lab setting \u2014 it keeps the room informed without creating that maddening wall of noise you get with constant updates. I was also surprised the Activity tab exists; most tools bury the global feed, but for multi-session triage, that's gold.\",\n  \"would_remove\": \"The character avatars feel like a distraction for my use case \u2014 I'd strip them out of the default Pro tier and make them optional, because I care about *what's happening* on the dashboard, not whether my narrator has a 3D face.\",\n  \"would_add\": \"A configurable alert threshold: let me flag specific keywords (bottleneck, timeout, data lag >5min) so CodeTalker interrupts Brief mode and forces a Live summary when something surveillance-critical surfaces \u2014 right now I have to keep one eye on the webui anyway.\",\n  \"recommendation\": \"Absolutely recommend this. I run three parallel sessions with my epidemiologists, and CodeTalker lets me stay in the code without context-switching to check progress. The narration is crisp enough that I can actually redirect the AI mid-build when I hear an architectural choice I don't like \u2014 that's the whole point for real-time systems work.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Platform Engineer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring a Kubernetes operator to handle graceful node drains across three cloud providers.",
+        "listening_context": "In his home office with a second monitor muted, switching between CodeTalker and Slack during early morning hours before the team wakes up.",
+        "what_they_care_about": "Clear alerts when the AI is about to do something destructive or make assumptions about the existing architecture\u2014he needs to catch problems before they compound."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The Activity tab with cross-session filtering is genuinely useful \u2014 I can grep my own decisions retroactively without rewinding audio. What caught me off guard: there's no explicit 'destructive action' alert mode, so I'm relying on the narration itself to flag `kubectl drain` or similar; that's a gap when I'm half-listening at 6am.",
+      "would_remove": "The Characters library feels like feature creep for my workflow \u2014 I don't need a 3D avatar; I need a mute button that doesn't require me to touch the mouse, and that's already there.",
+      "would_add": "A 'high-confidence summary' vs. 'assumption warning' tone toggle \u2014 let me tell CodeTalker to be aggressive about flagging when the AI is making architectural guesses (e.g., 'I'm assuming your drain timeout is 30s') so I catch them before they ship.",
+      "recommendation": "Yes, absolutely. I'm running three refactoring sessions in parallel and CodeTalker keeps me in the loop without forcing me to stare at screens. The ACTIVITY tab alone justifies it \u2014 I can audit what happened across all three operators in one pass. Pro tier is worth it for the phone companion; I need to catch problems on my commute, not just at my desk.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The Activity tab with cross-session filtering is genuinely useful \u2014 I can grep my own decisions retroactively without rewinding audio. What caught me off guard: there's no explicit 'destructive action' alert mode, so I'm relying on the narration itself to flag `kubectl drain` or similar; that's a gap when I'm half-listening at 6am.\",\n  \"would_remove\": \"The Characters library feels like feature creep for my workflow \u2014 I don't need a 3D avatar; I need a mute button that doesn't require me to touch the mouse, and that's already there.\",\n  \"would_add\": \"A 'high-confidence summary' vs. 'assumption warning' tone toggle \u2014 let me tell CodeTalker to be aggressive about flagging when the AI is making architectural guesses (e.g., 'I'm assuming your drain timeout is 30s') so I catch them before they ship.\",\n  \"recommendation\": \"Yes, absolutely. I'm running three refactoring sessions in parallel and CodeTalker keeps me in the loop without forcing me to stare at screens. The ACTIVITY tab alone justifies it \u2014 I can audit what happened across all three operators in one pass. Pro tier is worth it for the phone companion; I need to catch problems on my commute, not just at my desk.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Site Reliability Engineer (SRE)",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building automated remediation scripts that detect and heal database connection pool exhaustion in production.",
+        "listening_context": "At her desk during on-call shifts, listening with one earbud while monitoring dashboards, ready to jump in if something goes sideways.",
+        "what_they_care_about": "Knowing exactly which files are being touched and in what order, because she needs to mentally trace the blast radius if a rollback is required in the next 30 seconds."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The ACTIVITY tab with global timestamps across sessions is genuinely useful \u2014 I can actually trace the sequence of file touches and decisions retroactively, which matters when I'm piecing together a blast radius 30 seconds before a rollback. The one-earbud listening model is exactly how I already work, so it feels native rather than bolted on.",
+      "would_remove": "The character avatars and Buddy mode feel like they're solving for a different persona \u2014 I don't need my agent to have a face or to chat with it; I need it to shut up and let me focus on dashboards when things are hot.",
+      "would_add": "A 'file-touch timeline' view that explicitly lists every file modified, in order, with diffs available on click \u2014 not narrated, just visual. When I'm deciding whether to rollback, I need to see the blast radius instantly, not reconstruct it from a scrolling narration log.",
+      "recommendation": "I'd use this on my on-call shifts, but only the BASIC tier. The ACTIVITY tab + live-mode summaries are solid for catching what I missed while staring at Datadog. Pro features don't solve my problem \u2014 I'm not commuting, and I don't need voice cloning or avatars. It's useful, not essential.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The ACTIVITY tab with global timestamps across sessions is genuinely useful \u2014 I can actually trace the sequence of file touches and decisions retroactively, which matters when I'm piecing together a blast radius 30 seconds before a rollback. The one-earbud listening model is exactly how I already work, so it feels native rather than bolted on.\",\n  \"would_remove\": \"The character avatars and Buddy mode feel like they're solving for a different persona \u2014 I don't need my agent to have a face or to chat with it; I need it to shut up and let me focus on dashboards when things are hot.\",\n  \"would_add\": \"A 'file-touch timeline' view that explicitly lists every file modified, in order, with diffs available on click \u2014 not narrated, just visual. When I'm deciding whether to rollback, I need to see the blast radius instantly, not reconstruct it from a scrolling narration log.\",\n  \"recommendation\": \"I'd use this on my on-call shifts, but only the BASIC tier. The ACTIVITY tab + live-mode summaries are solid for catching what I missed while staring at Datadog. Pro features don't solve my problem \u2014 I'm not commuting, and I don't need voice cloning or avatars. It's useful, not essential.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Jake",
+        "role": "Infrastructure Automation Developer",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Writing Terraform modules for a multi-region deployment that he's never done before.",
+        "listening_context": "Walking around his apartment or grabbing coffee, checking his phone occasionally to see if Claude has hit a blocker.",
+        "what_they_care_about": "Hearing when the AI is confused or asking clarifying questions, because he doesn't know enough yet to spot mistakes himself and needs that verbal feedback loop."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly didn't expect the live 8-12s summaries to actually be useful \u2014 I thought it'd be noise, but hearing 'still hunting the API' or 'blocked on external links' is exactly the verbal feedback loop I need when I don't know what I don't know yet. The Brief mode mid-turn trigger after 2+ minutes of silence is clever too.",
+      "would_remove": "The CHARACTERS tab feels premature for me \u2014 I don't care about 3D avatars or voice cloning yet; that's Pro-tier eye candy that distracts from the core job, which is just telling me what Claude's actually doing.",
+      "would_add": "A 'confusion meter' or explicit flag when Claude asks clarifying questions \u2014 right now I'm catching those by listening, but if CodeTalker could highlight or ping louder when the AI says 'I need to know X before I proceed,' that'd save me from missing blockers while I'm grabbing coffee.",
+      "recommendation": "Yeah, I'd recommend this to anyone learning infrastructure like me. I'm not experienced enough to spot mistakes in the code itself, so hearing Claude think out loud and catch its own confusion is a real safety net. The phone app would be worth it once I'm more confident, but the free tier alone is solid.",
+      "nps": 8,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly didn't expect the live 8-12s summaries to actually be useful \u2014 I thought it'd be noise, but hearing 'still hunting the API' or 'blocked on external links' is exactly the verbal feedback loop I need when I don't know what I don't know yet. The Brief mode mid-turn trigger after 2+ minutes of silence is clever too.\",\n  \"would_remove\": \"The CHARACTERS tab feels premature for me \u2014 I don't care about 3D avatars or voice cloning yet; that's Pro-tier eye candy that distracts from the core job, which is just telling me what Claude's actually doing.\",\n  \"would_add\": \"A 'confusion meter' or explicit flag when Claude asks clarifying questions \u2014 right now I'm catching those by listening, but if CodeTalker could highlight or ping louder when the AI says 'I need to know X before I proceed,' that'd save me from missing blockers while I'm grabbing coffee.\",\n  \"recommendation\": \"Yeah, I'd recommend this to anyone learning infrastructure like me. I'm not experienced enough to spot mistakes in the code itself, so hearing Claude think out loud and catch its own confusion is a real safety net. The phone app would be worth it once I'm more confident, but the free tier alone is solid.\",\n  \"nps\": 8,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Devon",
+        "role": "Cloud Architect / DevOps Lead",
+        "vibe_experience": "power",
+        "domain_expertise": "expert",
+        "primary_use_case": "Orchestrating a migration of legacy batch jobs into a serverless event-driven pipeline across AWS Lambda and SQS.",
+        "listening_context": "During back-to-back meetings, keeping CodeTalker running in the background at 1.5x speed, half-listening while taking notes in another tab.",
+        "what_they_care_about": "High-level progress summaries and only critical deviations from the stated plan\u2014she finds verbose play-by-play narration exhausting and wants the executive summary."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 5,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The 8-12s live cadence is *exactly* what I needed\u2014I was bracing for either wall-of-text or radio silence, but this hits the sweet spot for half-listening during standup. Also didn't expect the multi-session fan-in to phone; that's genuinely useful when I'm context-switching between three Lambda migration tracks.",
+      "would_remove": "The CHARACTER library feels like a nice-to-have that I'd deprioritize\u2014avatars and voice cloning are cool, but when I'm in the zone during a migration, I don't care if Alan or Jenny is narrating; I care what they're saying.",
+      "would_add": "A 'deviation alarm'\u2014let me set expected bounds (e.g., 'Lambda cold-start should be <3s') and CodeTalker interrupts with a hard alert if something breaks the contract, instead of burying it in the live stream.",
+      "recommendation": "Yes\u2014this is built for exactly my workflow. I run 4-5 parallel sessions, I hate context-switching, and I need to stay in Slack/email while the AI grinds. Brief mode + phone routing means I can actually step away and trust I'll hear about blockers, not minutiae.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 5,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The 8-12s live cadence is *exactly* what I needed\u2014I was bracing for either wall-of-text or radio silence, but this hits the sweet spot for half-listening during standup. Also didn't expect the multi-session fan-in to phone; that's genuinely useful when I'm context-switching between three Lambda migration tracks.\",\n  \"would_remove\": \"The CHARACTER library feels like a nice-to-have that I'd deprioritize\u2014avatars and voice cloning are cool, but when I'm in the zone during a migration, I don't care if Alan or Jenny is narrating; I care what they're saying.\",\n  \"would_add\": \"A 'deviation alarm'\u2014let me set expected bounds (e.g., 'Lambda cold-start should be <3s') and CodeTalker interrupts with a hard alert if something breaks the contract, instead of burying it in the live stream.\",\n  \"recommendation\": \"Yes\u2014this is built for exactly my workflow. I run 4-5 parallel sessions, I hate context-switching, and I need to stay in Slack/email while the AI grinds. Brief mode + phone routing means I can actually step away and trust I'll hear about blockers, not minutiae.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Aaron",
+        "role": "DevOps Engineer (Skeptical)",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Setting up a CI/CD pipeline that includes container image scanning and policy enforcement, but he doesn't fully trust the AI to handle security correctly.",
+        "listening_context": "In a shared home office, listening through speakers while his roommate works nearby, frequently pausing to double-check the generated code himself.",
+        "what_they_care_about": "Hearing exactly what assumptions the AI is making, because he's burned before by automation that looked clean but had subtle holes in error handling or permission scoping."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to be this coherent \u2014 they actually surface what the AI is *thinking* between tool calls, which is exactly what I need to catch assumptions before they bite me. The Activity tab with error filtering is gold for security audits. But I was surprised there's no way to flag or bookmark specific narrations for later review \u2014 when I hear something that smells wrong, I have to manually note the timestamp.",
+      "would_remove": "The 'Buddy mode' talking-to-your-agent feature feels like a distraction for my use case; I'd rather have a 'narration transcript export' button so I can grep through what was said and correlate it with actual file diffs in my CI logs.",
+      "would_add": "A 'assumptions log' \u2014 have the narration engine explicitly call out permission scopes, error-handling paths, and external dependencies it's aware of, not just what it's doing. I want to hear 'assuming IAM role X has read access to the ECR registry' *before* the push fails.",
+      "recommendation": "I'd recommend this to someone like me, but only if you're willing to stay hands-on. It's a real force multiplier for catching what the AI is actually doing without staring at the screen, and the Activity feed + error filter is legitimately useful for security review. But it's not a 'set and forget' tool \u2014 you still have to spot-check the code and assumptions yourself, which is exactly what I want.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to be this coherent \u2014 they actually surface what the AI is *thinking* between tool calls, which is exactly what I need to catch assumptions before they bite me. The Activity tab with error filtering is gold for security audits. But I was surprised there's no way to flag or bookmark specific narrations for later review \u2014 when I hear something that smells wrong, I have to manually note the timestamp.\",\n  \"would_remove\": \"The 'Buddy mode' talking-to-your-agent feature feels like a distraction for my use case; I'd rather have a 'narration transcript export' button so I can grep through what was said and correlate it with actual file diffs in my CI logs.\",\n  \"would_add\": \"A 'assumptions log' \u2014 have the narration engine explicitly call out permission scopes, error-handling paths, and external dependencies it's aware of, not just what it's doing. I want to hear 'assuming IAM role X has read access to the ECR registry' *before* the push fails.\",\n  \"recommendation\": \"I'd recommend this to someone like me, but only if you're willing to stay hands-on. It's a real force multiplier for catching what the AI is actually doing without staring at the screen, and the Activity feed + error filter is legitimately useful for security review. But it's not a 'set and forget' tool \u2014 you still have to spot-check the code and assumptions yourself, which is exactly what I want.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Lead Gameplay Programmer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring a networked multiplayer state machine in Unreal C++ that's becoming a maintenance nightmare.",
+        "listening_context": "In his car during the 45-minute commute, phone mounted on the dash with CodeTalker playing through speakers.",
+        "what_they_care_about": "He wants a high-level summary of architectural decisions being made, not play-by-play keystroke commentary\u2014flag only when the AI is about to do something that might lock him into a bad pattern."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream mode actually *works* \u2014 I was skeptical that 8-12s summaries would be useful for architectural decisions, but it's exactly the cadence I need to catch bad patterns before they're baked in. The one thing that caught me off guard: no way to retroactively flag a session as 'save this for review later' \u2014 if I miss something on the commute, I have to dig through the global Activity feed.",
+      "would_remove": "Direct mode feels like debug cruft \u2014 in 45 minutes I don't want raw tool outputs; kill it and let Brief mode own the end-of-turn slot.",
+      "would_add": "A 'decision checkpoint' feature where CodeTalker pauses narration and prompts me to voice-confirm (via STT on Pro) before the AI commits to a refactor that crosses a certain complexity threshold \u2014 state machine changes especially.",
+      "recommendation": "Yeah, I'm recommending this to the team. For someone refactoring under time pressure, having a colleague's voice flag architectural drift without needing to stare at a screen is a real force multiplier. It's not perfect, but it solves a problem I didn't know I had.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream mode actually *works* \u2014 I was skeptical that 8-12s summaries would be useful for architectural decisions, but it's exactly the cadence I need to catch bad patterns before they're baked in. The one thing that caught me off guard: no way to retroactively flag a session as 'save this for review later' \u2014 if I miss something on the commute, I have to dig through the global Activity feed.\",\n  \"would_remove\": \"Direct mode feels like debug cruft \u2014 in 45 minutes I don't want raw tool outputs; kill it and let Brief mode own the end-of-turn slot.\",\n  \"would_add\": \"A 'decision checkpoint' feature where CodeTalker pauses narration and prompts me to voice-confirm (via STT on Pro) before the AI commits to a refactor that crosses a certain complexity threshold \u2014 state machine changes especially.\",\n  \"recommendation\": \"Yeah, I'm recommending this to the team. For someone refactoring under time pressure, having a colleague's voice flag architectural drift without needing to stare at a screen is a real force multiplier. It's not perfect, but it solves a problem I didn't know I had.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Junior Tools Programmer",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a custom asset import pipeline for Unity while learning the project's codebase.",
+        "listening_context": "At her desk with one monitor showing code, CodeTalker playing softly through headphones while she follows along visually.",
+        "what_they_care_about": "She needs explanations of *why* the AI is doing something, not just what it's doing, because she's still building mental models of how the engine works."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream narration to be this *conversational* \u2014 it actually explains reasoning (like \"welded vs. bolted\") instead of just barking tool names at me. That's huge when you're trying to build mental models. The one surprise that stung: the narration doesn't seem to flag *why* a decision was made in the context of the codebase I'm learning, so I still have to context-switch to the code to understand.",
+      "would_remove": "The ACTIVITY tab feels like noise to me right now \u2014 I'm drowning in a new codebase already, and a global feed of every utterance across every session just adds cognitive load when I'm trying to focus on *one* import pipeline.",
+      "would_add": "A 'teach me' mode that narrates *not just what the AI did, but why it chose that approach over alternatives* \u2014 like, when it picks a specific Unity API, tell me why that one instead of the three others it considered. That's what I actually need to learn faster.",
+      "recommendation": "Yeah, I'd recommend it to someone in my position \u2014 specifically for the live-stream mode while I'm deep in unfamiliar code. It lets me keep my eyes on the screen and my hands on the keyboard while the AI narrates its reasoning. But I'd warn them: it's best for *following along*, not for stepping away completely. You still need to read the code to truly understand why.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream narration to be this *conversational* \u2014 it actually explains reasoning (like \\\"welded vs. bolted\\\") instead of just barking tool names at me. That's huge when you're trying to build mental models. The one surprise that stung: the narration doesn't seem to flag *why* a decision was made in the context of the codebase I'm learning, so I still have to context-switch to the code to understand.\",\n  \"would_remove\": \"The ACTIVITY tab feels like noise to me right now \u2014 I'm drowning in a new codebase already, and a global feed of every utterance across every session just adds cognitive load when I'm trying to focus on *one* import pipeline.\",\n  \"would_add\": \"A 'teach me' mode that narrates *not just what the AI did, but why it chose that approach over alternatives* \u2014 like, when it picks a specific Unity API, tell me why that one instead of the three others it considered. That's what I actually need to learn faster.\",\n  \"recommendation\": \"Yeah, I'd recommend it to someone in my position \u2014 specifically for the live-stream mode while I'm deep in unfamiliar code. It lets me keep my eyes on the screen and my hands on the keyboard while the AI narrates its reasoning. But I'd warn them: it's best for *following along*, not for stepping away completely. You still need to read the code to truly understand why.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Diego",
+        "role": "Freelance Game Dev / Solo Creator",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Prototyping a procedural level generator in C# for a passion project that he'd like to ship in 6 months.",
+        "listening_context": "While doing household chores\u2014dishes, laundry, tidying the apartment\u2014in 10-15 minute chunks whenever he has free time.",
+        "what_they_care_about": "He's skeptical of AI and wants CodeTalker to be brutally honest about trade-offs and technical debt, not glossing over shortcuts that he'll regret later."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to be *that* conversational \u2014 they actually sound like someone narrating their own debugging session, not a robot reading logs. That's weirdly motivating when you're elbow-deep in dishes. The flip side: I'm worried those 8-12s summaries are hiding the moments where the AI *fails* or takes a wrong turn \u2014 you'd hear 'still working on X' but not 'just wasted 3 minutes on a dead-end approach.'",
+      "would_remove": "The CHARACTERS tab with cloned voices and avatars feels like feature creep for my use case \u2014 I care about *hearing* what's happening, not watching a 3D face while I'm doing laundry; cut that and keep the voice routing simple.",
+      "would_add": "A 'decision checkpoint' mode that interrupts and asks for input when the AI is about to commit something risky or diverge from the plan \u2014 right now I'm passively listening, but for a 6-month ship deadline, I need to catch pivots before they compound into technical debt.",
+      "recommendation": "Yeah, I'd use this. For a solo dev shipping in 6 months, staying in the loop without staring at a screen is huge. But only if the narration is brutally honest about trade-offs and dead ends \u2014 if it glosses over shortcuts or keeps me in the dark about what's being cut, it becomes a false sense of security. The jury's still out on that.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to be *that* conversational \u2014 they actually sound like someone narrating their own debugging session, not a robot reading logs. That's weirdly motivating when you're elbow-deep in dishes. The flip side: I'm worried those 8-12s summaries are hiding the moments where the AI *fails* or takes a wrong turn \u2014 you'd hear 'still working on X' but not 'just wasted 3 minutes on a dead-end approach.'\",\n  \"would_remove\": \"The CHARACTERS tab with cloned voices and avatars feels like feature creep for my use case \u2014 I care about *hearing* what's happening, not watching a 3D face while I'm doing laundry; cut that and keep the voice routing simple.\",\n  \"would_add\": \"A 'decision checkpoint' mode that interrupts and asks for input when the AI is about to commit something risky or diverge from the plan \u2014 right now I'm passively listening, but for a 6-month ship deadline, I need to catch pivots before they compound into technical debt.\",\n  \"recommendation\": \"Yeah, I'd use this. For a solo dev shipping in 6 months, staying in the loop without staring at a screen is huge. But only if the narration is brutally honest about trade-offs and dead ends \u2014 if it glosses over shortcuts or keeps me in the dark about what's being cut, it becomes a false sense of security. The jury's still out on that.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Kenji",
+        "role": "Engine Programmer at Mid-Size Studio",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Optimizing a rendering system bottleneck identified in profiling and testing edge cases with HLSL shader variations.",
+        "listening_context": "Running two parallel AI sessions in the same room\u2014one on a laptop building scaffolding, one on his workstation doing deep optimization\u2014with CodeTalker on speakers.",
+        "what_they_care_about": "He wants CodeTalker to flag performance implications and alternative approaches in real time so he can interrupt and steer before the AI commits to a slower path."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-mode summaries actually caught a performance implication I missed \u2014 the daemon flagged a potential shader recompile loop that the AI was about to bake in. That's gold. The only surprise on the downside: no way to inject priority flags or interrupt thresholds, so I'm still context-switching instead of being interrupted *for* the right reasons.",
+      "would_remove": "The character avatars feel like feature bloat for my workflow \u2014 I'd rather have that engineering go into performance profiling metadata in the narration (estimated compile time, memory delta, etc.).",
+      "would_add": "A 'performance annotation layer' that lets me tag sessions with target budgets (GPU frame time, memory ceiling) and have CodeTalker call out when the AI's approach drifts above them \u2014 that's the difference between 'nice to hear' and 'actually steers my work.'",
+      "recommendation": "Yes \u2014 but only if you're running multiple parallel sessions and you actually *listen* instead of just having it on background noise. For deep optimization work where you need to catch bad turns early, this pays for itself in avoided rework. If you're just writing CRUD code, save the $10.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-mode summaries actually caught a performance implication I missed \u2014 the daemon flagged a potential shader recompile loop that the AI was about to bake in. That's gold. The only surprise on the downside: no way to inject priority flags or interrupt thresholds, so I'm still context-switching instead of being interrupted *for* the right reasons.\",\n  \"would_remove\": \"The character avatars feel like feature bloat for my workflow \u2014 I'd rather have that engineering go into performance profiling metadata in the narration (estimated compile time, memory delta, etc.).\",\n  \"would_add\": \"A 'performance annotation layer' that lets me tag sessions with target budgets (GPU frame time, memory ceiling) and have CodeTalker call out when the AI's approach drifts above them \u2014 that's the difference between 'nice to hear' and 'actually steers my work.'\",\n  \"recommendation\": \"Yes \u2014 but only if you're running multiple parallel sessions and you actually *listen* instead of just having it on background noise. For deep optimization work where you need to catch bad turns early, this pays for itself in avoided rework. If you're just writing CRUD code, save the $10.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Sophia",
+        "role": "Game Design Lead + Programmer Hybrid",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Prototyping a narrative branching system in C++ that connects dialogue trees to player state and game rules.",
+        "listening_context": "During long coding sessions late at night, CodeTalker running in the background at moderate volume while she context-switches between design docs and implementation.",
+        "what_they_care_about": "She cares that the AI acknowledges design constraints and doesn't solve purely for code elegance\u2014she wants the narration to surface when a technical choice might limit creative iteration later."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The live-stream summaries actually *do* surface when the AI is spinning (that 8-12s cadence is perfect for context-switching between design docs and code). What caught me off guard: there's no explicit way to flag when a narration touches on a design constraint\u2014I'd want CodeTalker to *highlight* when a tool choice might box in iteration later, not just report what happened.",
+      "would_remove": "The 'Direct mode' for raw tool outputs feels like debug scaffolding that should stay behind a dev flag\u2014it's noise for my use case, and I'd rather have the LLM filter it into something actionable.",
+      "would_add": "A 'constraint audit' mode that tags narrations with design risk: e.g., 'This dialogue tree structure will make branching harder if we need to add player-state retroactively.' That's the gap between elegance and iteration.",
+      "recommendation": "Yeah, I'd use this. The async narration layer actually works\u2014I can run a long compile, step away, and catch the summary without babysitting. It's not revolutionary, but for late-night prototyping sessions where I'm juggling design and code, it removes friction. The Pro tier (voice cloning + buddy mode for dictating dialogue) would be worth it if the voice quality holds up.",
+      "nps": 7,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The live-stream summaries actually *do* surface when the AI is spinning (that 8-12s cadence is perfect for context-switching between design docs and code). What caught me off guard: there's no explicit way to flag when a narration touches on a design constraint\u2014I'd want CodeTalker to *highlight* when a tool choice might box in iteration later, not just report what happened.\",\n  \"would_remove\": \"The 'Direct mode' for raw tool outputs feels like debug scaffolding that should stay behind a dev flag\u2014it's noise for my use case, and I'd rather have the LLM filter it into something actionable.\",\n  \"would_add\": \"A 'constraint audit' mode that tags narrations with design risk: e.g., 'This dialogue tree structure will make branching harder if we need to add player-state retroactively.' That's the gap between elegance and iteration.\",\n  \"recommendation\": \"Yeah, I'd use this. The async narration layer actually works\u2014I can run a long compile, step away, and catch the summary without babysitting. It's not revolutionary, but for late-night prototyping sessions where I'm juggling design and code, it removes friction. The Pro tier (voice cloning + buddy mode for dictating dialogue) would be worth it if the voice quality holds up.\",\n  \"nps\": 7,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "ML Platform Engineer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "expert",
+        "primary_use_case": "Refactoring a distributed training pipeline to reduce memory overhead on GPU clusters.",
+        "listening_context": "At his desk with headphones, switching between CodeTalker and Slack while monitoring MLflow dashboards.",
+        "what_they_care_about": "He wants to catch architectural mistakes early\u2014verbose play-by-play bores him, but he needs alerts when Claude makes assumptions about his data schema."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The Activity tab with cross-session filtering is genuinely useful \u2014 I can grep through hours of narration to find *when* Claude made that assumption about my data schema without rewinding video. The one-liner wraps at turn-end in Brief mode are exactly the right granularity for my workflow; I was expecting it to be either too verbose or too terse.",
+      "would_remove": "Direct mode feels like debug scaffolding that'll rot; either bake raw tool output into Live/Brief as an optional toggle or drop it entirely.",
+      "would_add": "A configurable alert rule system \u2014 let me flag patterns like 'speak up if Claude references a schema field I haven't defined yet' or 'warn me if memory allocation exceeds X GB'. Right now I'm still half-watching dashboards; I want CodeTalker to be my early-warning system.",
+      "recommendation": "Yes, absolutely \u2014 for anyone context-switching between multiple long-running agent sessions. It's the difference between babysitting three Claude windows and actually getting work done. The narration quality is professional enough that I don't feel silly wearing headphones at my desk, and the session grouping means I can spin up parallel refactoring experiments without losing track.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The Activity tab with cross-session filtering is genuinely useful \u2014 I can grep through hours of narration to find *when* Claude made that assumption about my data schema without rewinding video. The one-liner wraps at turn-end in Brief mode are exactly the right granularity for my workflow; I was expecting it to be either too verbose or too terse.\",\n  \"would_remove\": \"Direct mode feels like debug scaffolding that'll rot; either bake raw tool output into Live/Brief as an optional toggle or drop it entirely.\",\n  \"would_add\": \"A configurable alert rule system \u2014 let me flag patterns like 'speak up if Claude references a schema field I haven't defined yet' or 'warn me if memory allocation exceeds X GB'. Right now I'm still half-watching dashboards; I want CodeTalker to be my early-warning system.\",\n  \"recommendation\": \"Yes, absolutely \u2014 for anyone context-switching between multiple long-running agent sessions. It's the difference between babysitting three Claude windows and actually getting work done. The narration quality is professional enough that I don't feel silly wearing headphones at my desk, and the session grouping means I can spin up parallel refactoring experiments without losing track.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Data Scientist (early-career)",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building her first end-to-end classification model with feature engineering and hyperparameter tuning.",
+        "listening_context": "In a coffee shop, half-listening while working on documentation; she often misses what CodeTalker says and has to rewind.",
+        "what_they_care_about": "She needs narration that explains *why* Claude is making choices, not just *what* it's doing, so she actually learns something."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to actually *explain reasoning* \u2014 like the one about 'welded vs bolted joints' \u2014 that's exactly what I need to learn, not just 'code was written.' But I'm also realizing I'd miss half of it in a coffee shop anyway, so the rewind + activity log is a lifesaver.",
+      "would_remove": "The 'Direct mode' feels like debug cruft for me; I'd rather have a 'teaching mode' that goes deeper into *why* Claude picked that algorithm or hyperparameter instead.",
+      "would_add": "A 'pause and ask' button \u2014 so when CodeTalker says something I don't understand, I can click it and have Claude explain that specific choice in my chat, without breaking the narration flow.",
+      "recommendation": "Yeah, I'd recommend it to someone like me \u2014 early-career, trying to learn while juggling multiple things. But only if you're willing to actually *listen* and rewind; it's not passive background noise, it's a study tool. The Pro tier feels pricey for me right now since I'm just starting, but the Android app + voice dictation could be gold once I'm running longer model-training jobs.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to actually *explain reasoning* \u2014 like the one about 'welded vs bolted joints' \u2014 that's exactly what I need to learn, not just 'code was written.' But I'm also realizing I'd miss half of it in a coffee shop anyway, so the rewind + activity log is a lifesaver.\",\n  \"would_remove\": \"The 'Direct mode' feels like debug cruft for me; I'd rather have a 'teaching mode' that goes deeper into *why* Claude picked that algorithm or hyperparameter instead.\",\n  \"would_add\": \"A 'pause and ask' button \u2014 so when CodeTalker says something I don't understand, I can click it and have Claude explain that specific choice in my chat, without breaking the narration flow.\",\n  \"recommendation\": \"Yeah, I'd recommend it to someone like me \u2014 early-career, trying to learn while juggling multiple things. But only if you're willing to actually *listen* and rewind; it's not passive background noise, it's a study tool. The Pro tier feels pricey for me right now since I'm just starting, but the Android app + voice dictation could be gold once I'm running longer model-training jobs.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "James",
+        "role": "Analytics Engineer",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Spinning up a dbt pipeline with embedded Python models to forecast quarterly revenue trends.",
+        "listening_context": "In the office kitchen making coffee and lunch prep, with his phone in his pocket\u2014he catches maybe 60% live and relies on summaries.",
+        "what_they_care_about": "He's skeptical of AI and wants CodeTalker to flag anything that looks half-baked or over-engineered before he has to debug it later."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly, the live-stream samples are way more natural than I expected\u2014they sound like someone actually thinking out loud, not a robot reading stack traces. But I'm also noticing they're pretty verbose; in the kitchen I'd probably miss half of what matters because there's too much color commentary.",
+      "would_remove": "Cut the 'still hunting' / 'still working through' filler\u2014just tell me what changed or what's blocked, not a play-by-play of the AI thinking.",
+      "would_add": "A quick 'red flag' alert mode that only speaks when the AI hits an error, throws a deprecation warning, or detects something that looks like it'll bite me in the dbt DAG later\u2014I don't need narration every 8 seconds, I need warnings before I have to debug.",
+      "recommendation": "Yeah, I'd try it for a month on the free tier. It's solid for catching what's happening without staring at the screen, and the Activity feed could save me from missing a silent failure. But I'd need that red-flag mode before I'd actually trust it on a production pipeline\u2014right now it feels like it'd be too chatty to be useful when I'm actually busy.",
+      "nps": 6,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly, the live-stream samples are way more natural than I expected\u2014they sound like someone actually thinking out loud, not a robot reading stack traces. But I'm also noticing they're pretty verbose; in the kitchen I'd probably miss half of what matters because there's too much color commentary.\",\n  \"would_remove\": \"Cut the 'still hunting' / 'still working through' filler\u2014just tell me what changed or what's blocked, not a play-by-play of the AI thinking.\",\n  \"would_add\": \"A quick 'red flag' alert mode that only speaks when the AI hits an error, throws a deprecation warning, or detects something that looks like it'll bite me in the dbt DAG later\u2014I don't need narration every 8 seconds, I need warnings before I have to debug.\",\n  \"recommendation\": \"Yeah, I'd try it for a month on the free tier. It's solid for catching what's happening without staring at the screen, and the Activity feed could save me from missing a silent failure. But I'd need that red-flag mode before I'd actually trust it on a production pipeline\u2014right now it feels like it'd be too chatty to be useful when I'm actually busy.\",\n  \"nps\": 6,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Yuki",
+        "role": "Research Scientist",
+        "vibe_experience": "power",
+        "domain_expertise": "expert",
+        "primary_use_case": "Prototyping a novel attention mechanism variant and benchmarking it against baseline transformers.",
+        "listening_context": "Running parallel Claude sessions in the same room on two monitors; CodeTalker streams on one side while she sketches math on paper.",
+        "what_they_care_about": "She wants real-time alerts only when Claude diverges from her stated assumptions or tries something she explicitly ruled out; anything else is noise."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 5,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The real-time divergence detection is exactly what I needed \u2014 I didn't expect CodeTalker to *listen* for constraint violations, not just narrate. The multi-session fan-in to phone is genuinely useful for running parallel experiments without context-switching.",
+      "would_remove": "The 'still hunting' and 'asking which' narrations feel like filler when I'm deep in math \u2014 I'd strip the conversational hedging and replace it with just the fact: 'Grepping AeroSandbox Beam API' or 'Evaluating joint methods.' Let me control chattiness per session.",
+      "would_add": "A constraint panel in the webui where I can paste my assumptions ('use only attention-2.0 variant, no flash-attn, no layer norm changes') and CodeTalker *only* interrupts me if Claude violates one \u2014 silence is golden when I'm sketching.",
+      "recommendation": "Yes, absolutely. For someone running multiple AI sessions while doing deep work elsewhere, this removes the tax of checking monitors every 30 seconds. The brief mode + phone routing means I can actually step away. My only friction is tuning it to interrupt *less*, not more.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 5,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The real-time divergence detection is exactly what I needed \u2014 I didn't expect CodeTalker to *listen* for constraint violations, not just narrate. The multi-session fan-in to phone is genuinely useful for running parallel experiments without context-switching.\",\n  \"would_remove\": \"The 'still hunting' and 'asking which' narrations feel like filler when I'm deep in math \u2014 I'd strip the conversational hedging and replace it with just the fact: 'Grepping AeroSandbox Beam API' or 'Evaluating joint methods.' Let me control chattiness per session.\",\n  \"would_add\": \"A constraint panel in the webui where I can paste my assumptions ('use only attention-2.0 variant, no flash-attn, no layer norm changes') and CodeTalker *only* interrupts me if Claude violates one \u2014 silence is golden when I'm sketching.\",\n  \"recommendation\": \"Yes, absolutely. For someone running multiple AI sessions while doing deep work elsewhere, this removes the tax of checking monitors every 30 seconds. The brief mode + phone routing means I can actually step away. My only friction is tuning it to interrupt *less*, not more.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Data Engineer (moonlighting as ML person)",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Building a real-time feature store with streaming aggregations for a recommendation system.",
+        "listening_context": "During his commute on public transit, usually tired, with one earbud in; he's doing this at night so he's impatient with lengthy explanations.",
+        "what_they_care_about": "He needs *ultra-concise* checkpoints: \"Done with schema,\" \"Running tests,\" \"Error on line 42\"\u2014not a play-by-play of every function."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The multi-session fan-in to phone is actually genius for my use case \u2014 I can spin up three parallel feature-store jobs and just listen to one audio stream instead of tab-switching like an idiot. Also didn't expect local voice cloning to be this low-friction; that's a nice touch for not sounding robotic after hour six.",
+      "would_remove": "The 'Direct mode' \u2014 raw tool outputs are noise when I'm half-asleep on the bus; Brief + Live cover 95% of what I need, and Direct just adds cognitive load.",
+      "would_add": "A 'checkpoint summary' command I can trigger via voice or hotkey that gives me a 15-second snapshot of *all* active sessions \u2014 schema done, tests running, errors pending \u2014 instead of me having to flip back to the ACTIVITY tab.",
+      "recommendation": "Yeah, I'd use this. The Brief mode is exactly what I need on my commute \u2014 I get the signal without the noise, and the phone routing means I'm not tied to my laptop. Only reason I'm not hyped is the $10/mo for voice cloning feels like it should be bundled if I'm already paying for the daemon, but I get it.",
+      "nps": 7,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The multi-session fan-in to phone is actually genius for my use case \u2014 I can spin up three parallel feature-store jobs and just listen to one audio stream instead of tab-switching like an idiot. Also didn't expect local voice cloning to be this low-friction; that's a nice touch for not sounding robotic after hour six.\",\n  \"would_remove\": \"The 'Direct mode' \u2014 raw tool outputs are noise when I'm half-asleep on the bus; Brief + Live cover 95% of what I need, and Direct just adds cognitive load.\",\n  \"would_add\": \"A 'checkpoint summary' command I can trigger via voice or hotkey that gives me a 15-second snapshot of *all* active sessions \u2014 schema done, tests running, errors pending \u2014 instead of me having to flip back to the ACTIVITY tab.\",\n  \"recommendation\": \"Yeah, I'd use this. The Brief mode is exactly what I need on my commute \u2014 I get the signal without the noise, and the phone routing means I'm not tied to my laptop. Only reason I'm not hyped is the $10/mo for voice cloning feels like it should be bundled if I'm already paying for the daemon, but I get it.\",\n  \"nps\": 7,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Maya",
+        "role": "Product Designer + Junior Dev",
+        "vibe_experience": "fresh",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building an interactive onboarding flow for a SaaS tool using React and Tailwind.",
+        "listening_context": "At her desk with one earbud in, frequently pausing to look at the screen and ask follow-up questions.",
+        "what_they_care_about": "She needs reassurance that the AI isn't making weird architectural choices, and wants to hear when components are being reused vs. duplicated."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The live-stream samples sound *way* less robotic than I expected \u2014 they actually feel like someone narrating over my shoulder, not a TTS bot reading a log. But I'm surprised there's no built-in way to flag or bookmark a specific narration line from the ACTIVITY feed for later; feels like a missed moment.",
+      "would_remove": "The CHARACTERS tab feels premature for Basic tier \u2014 I don't need a persona library if I can't actually use cloned voices yet, so it just adds visual clutter when I'm just trying to find my session.",
+      "would_add": "A quick 'replay last 30 seconds of narration' button on each session row, because I genuinely zone out sometimes and want to catch what I missed without digging through the full activity log.",
+      "recommendation": "Yeah, I'd recommend this to someone building interactive flows like me \u2014 especially if you're juggling multiple Claude windows and getting lost. The cadence feels human and the workspace grouping actually saves me mental load. Just wish the onboarding showed me *why* I'd want to switch modes (Brief vs. Live) before I'm already stressed.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The live-stream samples sound *way* less robotic than I expected \u2014 they actually feel like someone narrating over my shoulder, not a TTS bot reading a log. But I'm surprised there's no built-in way to flag or bookmark a specific narration line from the ACTIVITY feed for later; feels like a missed moment.\",\n  \"would_remove\": \"The CHARACTERS tab feels premature for Basic tier \u2014 I don't need a persona library if I can't actually use cloned voices yet, so it just adds visual clutter when I'm just trying to find my session.\",\n  \"would_add\": \"A quick 'replay last 30 seconds of narration' button on each session row, because I genuinely zone out sometimes and want to catch what I missed without digging through the full activity log.\",\n  \"recommendation\": \"Yeah, I'd recommend this to someone building interactive flows like me \u2014 especially if you're juggling multiple Claude windows and getting lost. The cadence feels human and the workspace grouping actually saves me mental load. Just wish the onboarding showed me *why* I'd want to switch modes (Brief vs. Live) before I'm already stressed.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Derek",
+        "role": "Freelance Web Designer",
+        "vibe_experience": "mid",
+        "domain_expertise": "mid",
+        "primary_use_case": "Spinning up client landing pages rapidly to meet tight turnaround deadlines.",
+        "listening_context": "On commutes between client meetings, checking in via phone while walking or in a car.",
+        "what_they_care_about": "He's impatient with technical deep-dives; he just wants to know if it's done, if it's responsive, and if he needs to intervene before the next client call."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The live-stream samples are way more natural than I expected \u2014 they sound like someone actually thinking out loud, not a robot reading a log. But I was surprised the free tier doesn't let me listen on my phone speaker while I'm literally walking between client sites, which is like... my entire use case.",
+      "would_remove": "The CHARACTERS tab feels like feature creep for someone like me \u2014 I don't care about 3D avatars or voice cloning; I just need to know if the page is done and responsive before my next call.",
+      "would_add": "A super quick one-tap 'status snapshot' that tells me in 10 seconds: is it still working, what's the last thing that happened, and do I need to jump in? Right now I have to actually open the webui and read the log.",
+      "recommendation": "Yeah, I'd use this \u2014 the Brief mode + phone speaker routing (Pro) would actually let me stay in the loop on commutes without babysitting. But I'm not paying $10/month unless the Android app is rock-solid and the battery drain is nothing, because I'm already juggling Slack, email, and my calendar on those walks.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The live-stream samples are way more natural than I expected \u2014 they sound like someone actually thinking out loud, not a robot reading a log. But I was surprised the free tier doesn't let me listen on my phone speaker while I'm literally walking between client sites, which is like... my entire use case.\",\n  \"would_remove\": \"The CHARACTERS tab feels like feature creep for someone like me \u2014 I don't care about 3D avatars or voice cloning; I just need to know if the page is done and responsive before my next call.\",\n  \"would_add\": \"A super quick one-tap 'status snapshot' that tells me in 10 seconds: is it still working, what's the last thing that happened, and do I need to jump in? Right now I have to actually open the webui and read the log.\",\n  \"recommendation\": \"Yeah, I'd use this \u2014 the Brief mode + phone speaker routing (Pro) would actually let me stay in the loop on commutes without babysitting. But I'm not paying $10/month unless the Android app is rock-solid and the battery drain is nothing, because I'm already juggling Slack, email, and my calendar on those walks.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Design Systems Lead",
+        "vibe_experience": "veteran",
+        "domain_expertise": "senior",
+        "primary_use_case": "Prototyping a new component library architecture to standardize how her team builds internal tools.",
+        "listening_context": "In parallel sessions with her design team in the same Figma room, half-listening while reviewing their work.",
+        "what_they_care_about": "She wants to catch potential inconsistencies early and hear if the AI is making decisions that violate the team's established patterns or accessibility standards."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 3,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to be this coherent \u2014 they actually surface *decisions* the agent is making, not just log noise. That's genuinely useful when I'm context-switching between design reviews. The one thing that caught me off guard: there's no way to tag or flag a narration line as 'pattern violation' and have it bubble up to my team's Slack \u2014 we'd have to manually dig through the activity feed.",
+      "would_remove": "The 'Direct mode' feels like technical debt for a design tool use case; I'd axe it and use that complexity budget elsewhere.",
+      "would_add": "A 'governance dashboard' that lets me set up rules \u2014 like 'warn me if the agent modifies anything in /tokens or /auth' or 'flag if accessibility tree changes' \u2014 so I can catch architectural drift without babysitting the narration.",
+      "recommendation": "I'd recommend this to my team, but *only* if we're already comfortable with async AI workflows. For us, the real win is hearing when a subagent makes a structural decision we should review \u2014 that's worth the setup. The UI needs tightening though; finding a specific session's narration history is a three-tap journey.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 3,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to be this coherent \u2014 they actually surface *decisions* the agent is making, not just log noise. That's genuinely useful when I'm context-switching between design reviews. The one thing that caught me off guard: there's no way to tag or flag a narration line as 'pattern violation' and have it bubble up to my team's Slack \u2014 we'd have to manually dig through the activity feed.\",\n  \"would_remove\": \"The 'Direct mode' feels like technical debt for a design tool use case; I'd axe it and use that complexity budget elsewhere.\",\n  \"would_add\": \"A 'governance dashboard' that lets me set up rules \u2014 like 'warn me if the agent modifies anything in /tokens or /auth' or 'flag if accessibility tree changes' \u2014 so I can catch architectural drift without babysitting the narration.\",\n  \"recommendation\": \"I'd recommend this to my team, but *only* if we're already comfortable with async AI workflows. For us, the real win is hearing when a subagent makes a structural decision we should review \u2014 that's worth the setup. The UI needs tightening though; finding a specific session's narration history is a three-tap journey.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Kai",
+        "role": "Skeptical Contractor",
+        "vibe_experience": "mid",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a custom dashboard prototype for a startup pitch, but doesn't fully trust AI-generated code.",
+        "listening_context": "At home, actively listening while cooking dinner, ready to stop and inspect the code if something sounds off.",
+        "what_they_care_about": "He needs specific line-by-line callouts of potential bugs, security issues, or antipatterns\u2014vague summaries make him nervous and he'll override the AI anyway."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "The live-stream samples actually *do* give me enough context to catch when the AI is stuck or going sideways\u2014I was expecting vague robot speak, but 'hunting the AeroSandbox Beam API' tells me exactly what's happening. That said, none of those samples show me a *bug callout* or a 'hey, this line is vulnerable'\u2014it's all play-by-play narration, not code review.",
+      "would_remove": "The 'Buddy mode' phone-to-Claude dictation feels like feature creep when what I actually need is the daemon to *flag* suspicious patterns in the code it's generating\u2014not chat with it.",
+      "would_add": "A 'code-audit' narration mode that specifically calls out SQL injection risks, unhandled errors, or antipatterns as they're written\u2014line numbers, severity, and the exact problem. Right now I'm still stopping to read the screen anyway.",
+      "recommendation": "It's solid for *awareness*\u2014I can genuinely cook dinner and stay in the loop on progress. But for my use case (not trusting AI code), it's a 60% solution. I need it to narrate *risks*, not just *activities*. If you add aggressive code-smell detection to the live feed, I'm in.",
+      "nps": 6,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"The live-stream samples actually *do* give me enough context to catch when the AI is stuck or going sideways\u2014I was expecting vague robot speak, but 'hunting the AeroSandbox Beam API' tells me exactly what's happening. That said, none of those samples show me a *bug callout* or a 'hey, this line is vulnerable'\u2014it's all play-by-play narration, not code review.\",\n  \"would_remove\": \"The 'Buddy mode' phone-to-Claude dictation feels like feature creep when what I actually need is the daemon to *flag* suspicious patterns in the code it's generating\u2014not chat with it.\",\n  \"would_add\": \"A 'code-audit' narration mode that specifically calls out SQL injection risks, unhandled errors, or antipatterns as they're written\u2014line numbers, severity, and the exact problem. Right now I'm still stopping to read the screen anyway.\",\n  \"recommendation\": \"It's solid for *awareness*\u2014I can genuinely cook dinner and stay in the loop on progress. But for my use case (not trusting AI code), it's a 60% solution. I need it to narrate *risks*, not just *activities*. If you add aggressive code-smell detection to the live feed, I'm in.\",\n  \"nps\": 6,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Zara",
+        "role": "Growth PM + Maker",
+        "vibe_experience": "power",
+        "domain_expertise": "expert",
+        "primary_use_case": "Rapidly iterating on A/B test landing pages and feature experiments for her early-stage product.",
+        "listening_context": "Mostly background listening during back-to-back meetings; she glances at the output sporadically and expects minimal hand-holding.",
+        "what_they_care_about": "She wants only the highest-level status updates and immediate alerts if the AI is about to make a choice that could break analytics tracking or SEO."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 5,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-stream narration is genuinely useful during back-to-back calls \u2014 I actually caught a blocking issue (the YouTube link one) without looking at the screen. The multi-session fan-in to phone is a power move I didn't expect to want this badly.",
+      "would_remove": "The CHARACTER library feels like feature bloat for someone like me \u2014 I'd rather just pick a voice once and forget about it; avatars are nice-to-have, not must-have.",
+      "would_add": "A one-click 'replay last 30 seconds' button in the webui \u2014 when I'm half-listening and miss something critical (especially analytics or SEO warnings), I want to catch it fast without digging the activity feed.",
+      "recommendation": "Yes, absolutely. This is built for exactly my workflow \u2014 rapid iteration, context switching, and the need to stay aware without staring at a screen. The alerts on breaking changes are table stakes for me, and it delivers.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 5,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-stream narration is genuinely useful during back-to-back calls \u2014 I actually caught a blocking issue (the YouTube link one) without looking at the screen. The multi-session fan-in to phone is a power move I didn't expect to want this badly.\",\n  \"would_remove\": \"The CHARACTER library feels like feature bloat for someone like me \u2014 I'd rather just pick a voice once and forget about it; avatars are nice-to-have, not must-have.\",\n  \"would_add\": \"A one-click 'replay last 30 seconds' button in the webui \u2014 when I'm half-listening and miss something critical (especially analytics or SEO warnings), I want to catch it fast without digging the activity feed.\",\n  \"recommendation\": \"Yes, absolutely. This is built for exactly my workflow \u2014 rapid iteration, context switching, and the need to stay aware without staring at a screen. The alerts on breaking changes are table stakes for me, and it delivers.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Marcus",
+        "role": "Freelance Full-Stack Developer",
+        "vibe_experience": "veteran",
+        "domain_expertise": "senior",
+        "primary_use_case": "Building a real-time collaboration tool with WebSocket infrastructure for a startup client.",
+        "listening_context": "In his home office with multiple monitors, running 7 concurrent Claude sessions while occasionally stepping away to grab coffee or check Slack.",
+        "what_they_care_about": "Wants CodeTalker to flag only architectural decisions and potential bugs\u2014he finds detailed play-by-play narration tedious and interrupts his flow."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 5,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The Brief mode is genuinely clever\u2014I expected to hate the idea of waiting until end-of-turn, but catching mid-turn silence after 2 minutes actually nails the moment when I'd look up anyway. Also didn't expect the multi-session fan-in to phone to be this useful; I tested it routing three Claude sessions to one speaker and it's weirdly addictive.",
+      "would_remove": "Drop the animated character avatars\u2014they're noise for people like me; I'd rather spend that compute on better narration filtering (let me define 'only tell me about schema changes and HTTP errors').",
+      "would_add": "A rules engine so I can say 'mute all tool output except network calls' or 'only speak if confidence < 0.7'\u2014right now I'm choosing between hearing everything or nothing, and I want surgical precision.",
+      "recommendation": "Yeah, I'd recommend this to senior devs running parallel sessions. It genuinely lets me step away without context loss, and the Brief mode respects my time. The catch: you have to actually *want* ambient awareness\u2014if you're the type who needs silence to think, this'll annoy you. For my use case (7 concurrent sessions, lots of coffee breaks), it's a no-brainer.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 5,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The Brief mode is genuinely clever\u2014I expected to hate the idea of waiting until end-of-turn, but catching mid-turn silence after 2 minutes actually nails the moment when I'd look up anyway. Also didn't expect the multi-session fan-in to phone to be this useful; I tested it routing three Claude sessions to one speaker and it's weirdly addictive.\",\n  \"would_remove\": \"Drop the animated character avatars\u2014they're noise for people like me; I'd rather spend that compute on better narration filtering (let me define 'only tell me about schema changes and HTTP errors').\",\n  \"would_add\": \"A rules engine so I can say 'mute all tool output except network calls' or 'only speak if confidence < 0.7'\u2014right now I'm choosing between hearing everything or nothing, and I want surgical precision.\",\n  \"recommendation\": \"Yeah, I'd recommend this to senior devs running parallel sessions. It genuinely lets me step away without context loss, and the Brief mode respects my time. The catch: you have to actually *want* ambient awareness\u2014if you're the type who needs silence to think, this'll annoy you. For my use case (7 concurrent sessions, lots of coffee breaks), it's a no-brainer.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Priya",
+        "role": "Machine Learning Engineer",
+        "vibe_experience": "mid",
+        "domain_expertise": "expert",
+        "primary_use_case": "Experimenting with fine-tuning a vision model for product recommendations using custom data pipelines.",
+        "listening_context": "At her desk with earbuds, juggling 6 agent sessions while writing documentation and attending occasional async standups.",
+        "what_they_care_about": "Needs CodeTalker to explain the *why* behind Claude's decisions, especially when it deviates from her mental model\u2014she's skeptical of black-box AI suggestions."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 4,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 3,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "I didn't expect the live-stream summaries to be *this* specific about what Claude is actually thinking\u2014the 'still hunting the AeroSandbox Beam API' example actually made me go back and check the logs because I wanted to know *why* it chose that approach. That said, the relatability score is low because the narration still feels like it's reading from Claude's internal monologue, not explaining the reasoning I'm skeptical about.",
+      "would_remove": "The 3D avatar characters feel like a distraction when I'm trying to stay focused on 6 parallel sessions\u2014I'd rather have a minimal visual indicator (maybe just a dot or name tag) and let the voice do the work.",
+      "would_add": "A 'reasoning replay' feature that lets me ask CodeTalker to re-narrate the last decision with Claude's full chain-of-thought context\u2014right now I'm getting the *what* but not the *why* when the AI does something that doesn't match my mental model, which defeats the whole point for me.",
+      "recommendation": "Yes, but with caveats. It's genuinely useful for async standups and keeping track of parallel sessions without alt-tabbing constantly. The freshness and cadence are solid. But it's not a black-box explainability tool yet\u2014if you're like me and you need to *understand* why Claude deviated from your expectations, you'll still end up digging into the logs manually half the time.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 4,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 3,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"I didn't expect the live-stream summaries to be *this* specific about what Claude is actually thinking\u2014the 'still hunting the AeroSandbox Beam API' example actually made me go back and check the logs because I wanted to know *why* it chose that approach. That said, the relatability score is low because the narration still feels like it's reading from Claude's internal monologue, not explaining the reasoning I'm skeptical about.\",\n  \"would_remove\": \"The 3D avatar characters feel like a distraction when I'm trying to stay focused on 6 parallel sessions\u2014I'd rather have a minimal visual indicator (maybe just a dot or name tag) and let the voice do the work.\",\n  \"would_add\": \"A 'reasoning replay' feature that lets me ask CodeTalker to re-narrate the last decision with Claude's full chain-of-thought context\u2014right now I'm getting the *what* but not the *why* when the AI does something that doesn't match my mental model, which defeats the whole point for me.\",\n  \"recommendation\": \"Yes, but with caveats. It's genuinely useful for async standups and keeping track of parallel sessions without alt-tabbing constantly. The freshness and cadence are solid. But it's not a black-box explainability tool yet\u2014if you're like me and you need to *understand* why Claude deviated from your expectations, you'll still end up digging into the logs manually half the time.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Jake",
+        "role": "Solo Founder / Indie Hacker",
+        "vibe_experience": "fresh",
+        "domain_expertise": "mid",
+        "primary_use_case": "Shipping an MVP SaaS product with authentication, payments, and a basic admin dashboard in the next 6 weeks.",
+        "listening_context": "Mostly in his apartment during early mornings before his day job, running 5 agents while on a treadmill or doing household chores.",
+        "what_they_care_about": "Wants reassurance that the code is actually working\u2014he's anxious about letting AI drive and needs CodeTalker to confirm progress and catch obvious errors."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "Honestly? The live-stream mode actually *works* \u2014 I was skeptical that 8-12s summaries would feel natural instead of spammy, but hearing 'Still hunting the AeroSandbox Beam API' while I'm on the treadmill genuinely lets me know the agent isn't stuck. The multi-session fan-in to my phone is a game-changer for running 5 agents in parallel.",
+      "would_remove": "The 'Direct mode' feels like debug cruft that I'll never touch in production \u2014 axe it and keep Brief + Live.",
+      "would_add": "A 'confidence meter' in the narration \u2014 something like 'fairly sure' vs 'uncertain about this' so I know when to jump in and verify vs. trust the agent to keep rolling.",
+      "recommendation": "Yeah, I'd use this. For my 6-week MVP sprint, knowing the agents are actually progressing without me staring at a screen is worth the mental load lift alone. The Pro tier's buddy mode (voice dictation back to Claude) would probably ship me 2 weeks faster, so I'm tempted.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"Honestly? The live-stream mode actually *works* \u2014 I was skeptical that 8-12s summaries would feel natural instead of spammy, but hearing 'Still hunting the AeroSandbox Beam API' while I'm on the treadmill genuinely lets me know the agent isn't stuck. The multi-session fan-in to my phone is a game-changer for running 5 agents in parallel.\",\n  \"would_remove\": \"The 'Direct mode' feels like debug cruft that I'll never touch in production \u2014 axe it and keep Brief + Live.\",\n  \"would_add\": \"A 'confidence meter' in the narration \u2014 something like 'fairly sure' vs 'uncertain about this' so I know when to jump in and verify vs. trust the agent to keep rolling.\",\n  \"recommendation\": \"Yeah, I'd use this. For my 6-week MVP sprint, knowing the agents are actually progressing without me staring at a screen is worth the mental load lift alone. The Pro tier's buddy mode (voice dictation back to Claude) would probably ship me 2 weeks faster, so I'm tempted.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "Elena",
+        "role": "Platform Engineer at Growth-Stage Startup",
+        "vibe_experience": "power",
+        "domain_expertise": "senior",
+        "primary_use_case": "Refactoring a legacy monolith into microservices while spinning up Kubernetes configs and infrastructure-as-code.",
+        "listening_context": "Open office with noise-canceling headphones, running 8+ simultaneous agent sessions across different subsystems, context-switching between meetings.",
+        "what_they_care_about": "Needs CodeTalker to be dense and precise\u2014summaries of what changed, dependencies introduced, and whether it aligns with her deployment strategy; brevity is crucial."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 5,
+        "cadence": 4,
+        "freshness": 5,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 4
+      },
+      "surprises": "The live-mode 8-12s cadence is actually *perfect* for context-switching between meetings\u2014I'm not drowning in noise but I'm not flying blind either. What surprised me (negatively) is that the ACTIVITY tab doesn't seem to have a way to drill down by subsystem or deployment stage\u2014with 8+ parallel sessions, I need to find 'what broke in the Kubernetes config agent' faster than scrolling.",
+      "would_remove": "The 'Direct mode' feels like bloat for my use case; I'd rather have a configurable alert threshold so CodeTalker only interrupts me on errors or dependency conflicts, not raw tool spam.",
+      "would_add": "A 'deployment readiness' summary that auto-speaks when any session touches infrastructure-as-code\u2014basically: 'Config drift detected' or 'All K8s manifests validated, safe to apply' without me having to hunt across tabs.",
+      "recommendation": "Yes, absolutely. I'm running 8 agents in parallel and this lets me stay aware without staring at screens. The brief mode + phone routing means I can actually step away during boring validation loops. My only friction is that I need smarter filtering in the activity log\u2014right now it's still a bit of a firehose when I'm juggling microservices across three teams.",
+      "nps": 8,
+      "subscribe_pro": true,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 5,\n    \"cadence\": 4,\n    \"freshness\": 5,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 4\n  },\n  \"surprises\": \"The live-mode 8-12s cadence is actually *perfect* for context-switching between meetings\u2014I'm not drowning in noise but I'm not flying blind either. What surprised me (negatively) is that the ACTIVITY tab doesn't seem to have a way to drill down by subsystem or deployment stage\u2014with 8+ parallel sessions, I need to find 'what broke in the Kubernetes config agent' faster than scrolling.\",\n  \"would_remove\": \"The 'Direct mode' feels like bloat for my use case; I'd rather have a configurable alert threshold so CodeTalker only interrupts me on errors or dependency conflicts, not raw tool spam.\",\n  \"would_add\": \"A 'deployment readiness' summary that auto-speaks when any session touches infrastructure-as-code\u2014basically: 'Config drift detected' or 'All K8s manifests validated, safe to apply' without me having to hunt across tabs.\",\n  \"recommendation\": \"Yes, absolutely. I'm running 8 agents in parallel and this lets me stay aware without staring at screens. The brief mode + phone routing means I can actually step away during boring validation loops. My only friction is that I need smarter filtering in the activity log\u2014right now it's still a bit of a firehose when I'm juggling microservices across three teams.\",\n  \"nps\": 8,\n  \"subscribe_pro\": true\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    },
+    {
+      "persona": {
+        "name": "David",
+        "role": "Contractor / Project-Based Developer",
+        "vibe_experience": "mid",
+        "domain_expertise": "novice",
+        "primary_use_case": "Building a WordPress plugin with custom post types and an API endpoint for a small agency client.",
+        "listening_context": "Coffee shops and coworking spaces, usually with 5 agents running, distracted by ambient noise and frequent client messages.",
+        "what_they_care_about": "Wants clear, jargon-light narration so he can understand what's happening without pausing to Google\u2014he's insecure about gaps in his knowledge and appreciates encouragement."
+      },
+      "scores": {
+        "clarity": 4,
+        "decision_helpfulness": 3,
+        "cadence": 4,
+        "freshness": 4,
+        "relatability": 4,
+        "ui_usability": 4,
+        "feature_completeness": 3
+      },
+      "surprises": "Honestly? The live-stream summaries are way less robotic than I expected \u2014 they sound like someone actually thinking out loud, which is exactly what I need when I'm context-switching between Slack and code. The multi-session grouping by workspace is clever; I didn't know I wanted that until I saw it.",
+      "would_remove": "The CHARACTER library feels like a nice-to-have right now \u2014 I'd rather you ship better filtering on the ACTIVITY tab so I can actually find what went wrong 20 minutes ago without scrolling forever.",
+      "would_add": "A quick 'repeat last 30 seconds' button in the webui, because coffee shop noise kills me and I miss half the narration. Even just a keyboard shortcut would save me from rewinding through the log manually.",
+      "recommendation": "Yeah, I'd recommend this to someone like me \u2014 a contractor juggling multiple small projects who's tired of staring at screens. The free tier is genuinely useful for my WordPress work, and the Android app might actually be worth $10 if I can route audio to my phone speaker during coworking chaos. Just don't expect it to replace reading error logs; it's a *complement* to your workflow, not a replacement.",
+      "nps": 7,
+      "subscribe_pro": false,
+      "raw_response": "```json\n{\n  \"scores\": {\n    \"clarity\": 4,\n    \"decision_helpfulness\": 3,\n    \"cadence\": 4,\n    \"freshness\": 4,\n    \"relatability\": 4,\n    \"ui_usability\": 4,\n    \"feature_completeness\": 3\n  },\n  \"surprises\": \"Honestly? The live-stream summaries are way less robotic than I expected \u2014 they sound like someone actually thinking out loud, which is exactly what I need when I'm context-switching between Slack and code. The multi-session grouping by workspace is clever; I didn't know I wanted that until I saw it.\",\n  \"would_remove\": \"The CHARACTER library feels like a nice-to-have right now \u2014 I'd rather you ship better filtering on the ACTIVITY tab so I can actually find what went wrong 20 minutes ago without scrolling forever.\",\n  \"would_add\": \"A quick 'repeat last 30 seconds' button in the webui, because coffee shop noise kills me and I miss half the narration. Even just a keyboard shortcut would save me from rewinding through the log manually.\",\n  \"recommendation\": \"Yeah, I'd recommend this to someone like me \u2014 a contractor juggling multiple small projects who's tired of staring at screens. The free tier is genuinely useful for my WordPress work, and the Android app might actually be worth $10 if I can route audio to my phone speaker during coworking chaos. Just don't expect it to replace reading error logs; it's a *complement* to your workflow, not a replacement.\",\n  \"nps\": 7,\n  \"subscribe_pro\": false\n}\n```",
+      "efficiency_gap": "",
+      "understanding_gap": ""
+    }
+  ]
+}
