@@ -7,7 +7,7 @@
 //   - Ambient pulse when last hook event was within 10s (recency proxy)
 //   - Steady green outline when this is the companion's currently-active session
 import { motion } from "framer-motion";
-import type { Session, AudioOutput } from "../types";
+import type { Session, AudioOutput, NarrationEvent } from "../types";
 import {
   resolveAttachedCharacter,
   characterDisplayName,
@@ -15,6 +15,7 @@ import {
 } from "../types";
 import { useSessionConfig } from "../hooks/useSessionConfig";
 import { useOptimisticSessionPatch } from "../hooks/useOptimisticSessionPatch";
+import { useNarrationStream } from "../hooks/useNarrationStream";
 
 type Props = {
   session: Session;
@@ -32,6 +33,11 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
   const muteMutation = patchMutation;
   const modeMutation = patchMutation;
   const pinMutation = patchMutation;
+
+  // "What just happened?" recap card — subscribe to narration stream
+  // for this session only. Filter to entries within the last 5 minutes.
+  const narrationEvents = useNarrationStream(session.session_id, 10);
+  const latestNarration = getLatestNarrationWithin5min(narrationEvents);
 
   const muted = config?.enabled === false;
   const headline = getSessionHeadline(session);
@@ -123,6 +129,16 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
           </span>
         )}
       </div>
+
+      {/* "What just happened?" recap card — shows latest narration from
+          the last 5 minutes. Renders live via SSE updates. */}
+      {latestNarration && (
+        <div className="text-xs text-ct-muted bg-ct-elevated/50 rounded p-2 border border-ct-border/40">
+          <span className="font-mono text-ct-cyan/70 mr-2">{latestNarration.mode}</span>
+          <span className="italic">"{truncateText(latestNarration.text, 120)}"</span>
+          <span className="ml-2 opacity-60">{formatRelativeTime(latestNarration.timestamp)}</span>
+        </div>
+      )}
 
       {/* Controls row: ALWAYS visible (no more hover-reveal). Mode
           picker is on the left because it's the most-used control;
@@ -326,4 +342,50 @@ function ModeQuickPick({
       })}
     </div>
   );
+}
+
+/** Get the most recent narration event within the last 5 minutes,
+ *  or undefined if none exists. */
+function getLatestNarrationWithin5min(
+  events: NarrationEvent[]
+): NarrationEvent | undefined {
+  if (events.length === 0) return undefined;
+  const fiveMinutesMs = 5 * 60 * 1000;
+  const now = Date.now();
+  // Events are chronologically ordered by useNarrationStream, so the last
+  // one is the most recent. Walk backwards to find the first entry within
+  // the 5-minute window.
+  for (let i = events.length - 1; i >= 0; i--) {
+    const evt = events[i];
+    const ageMs = now - evt.timestamp * 1000;
+    if (ageMs >= 0 && ageMs <= fiveMinutesMs) {
+      return evt;
+    }
+  }
+  return undefined;
+}
+
+/** Truncate text to maxLen characters, appending "…" if truncated. */
+function truncateText(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + "…";
+}
+
+/** Format a timestamp (epoch seconds) as a relative time string.
+ *  Examples: "just now", "5s ago", "2m ago", "1h ago" */
+function formatRelativeTime(timestampSeconds: number): string {
+  const ageMs = Date.now() - timestampSeconds * 1000;
+  const ageSecs = Math.floor(ageMs / 1000);
+
+  if (ageSecs < 1) return "just now";
+  if (ageSecs < 60) return `${ageSecs}s ago`;
+
+  const ageMins = Math.floor(ageSecs / 60);
+  if (ageMins < 60) return `${ageMins}m ago`;
+
+  const ageHours = Math.floor(ageMins / 60);
+  if (ageHours < 24) return `${ageHours}h ago`;
+
+  const ageDays = Math.floor(ageHours / 24);
+  return `${ageDays}d ago`;
 }
