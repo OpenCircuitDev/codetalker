@@ -27,6 +27,10 @@ _TRIGGERS_OVERLAY_PATH = Path.home() / ".claude" / "scripts" / "codetalker" / "c
 
 CLAUDE_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
+# SSE keepalive interval: ping every N seconds to detect broken pipes and prevent
+# socket leaks from accumulating in CLOSE_WAIT / FIN_WAIT_2 states.
+_SSE_KEEPALIVE_INTERVAL_SECONDS = 20.0
+
 _PROJECT_RE = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 
 # Module-level rate-limit state, keyed on id(state) so tests with multiple
@@ -3171,7 +3175,19 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             sub = state.event_bus.subscribe(topics=topics)
             try:
                 yield ": connected\n\n"
-                async for ev in sub:
+                while True:
+                    try:
+                        ev = await asyncio.wait_for(
+                            sub.__anext__(),
+                            timeout=_SSE_KEEPALIVE_INTERVAL_SECONDS,
+                        )
+                    except asyncio.TimeoutError:
+                        # Keepalive ping — also detects broken pipes immediately
+                        # when the client has silently disconnected.
+                        yield ": ping\n\n"
+                        continue
+                    except StopAsyncIteration:
+                        return
                     payload = ev.model_dump_json()
                     yield f"event: {ev.event_type}\ndata: {payload}\n\n"
             except (asyncio.CancelledError, GeneratorExit):
@@ -3196,7 +3212,19 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             sub = state.narration_stream.subscribe()
             try:
                 yield ": connected\n\n"
-                async for ev in sub:
+                while True:
+                    try:
+                        ev = await asyncio.wait_for(
+                            sub.__anext__(),
+                            timeout=_SSE_KEEPALIVE_INTERVAL_SECONDS,
+                        )
+                    except asyncio.TimeoutError:
+                        # Keepalive ping — also detects broken pipes immediately
+                        # when the client has silently disconnected.
+                        yield ": ping\n\n"
+                        continue
+                    except StopAsyncIteration:
+                        return
                     payload = json.dumps({
                         "session_id": ev.session_id,
                         "timestamp": ev.timestamp,
@@ -3208,6 +3236,8 @@ Each emotive_states value: single short phrase describing pose + expression + ar
                     yield f"data: {payload}\n\n"
             except (asyncio.CancelledError, GeneratorExit):
                 return
+            finally:
+                await sub.aclose()
 
         return StreamingResponse(
             _gen(),
