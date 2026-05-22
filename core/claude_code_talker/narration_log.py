@@ -49,6 +49,7 @@ class NarrationEntry:
     mode: str = ""
     priority: str = ""
     cached: bool = False
+    confidence: str = "normal"  # "normal" or "low" (hedged)
     extra: dict = field(default_factory=dict)
 
 

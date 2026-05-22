@@ -135,6 +135,14 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
       {latestNarration && (
         <div className="text-xs text-ct-muted bg-ct-elevated/50 rounded p-2 border border-ct-border/40">
           <span className="font-mono text-ct-cyan/70 mr-2">{latestNarration.mode}</span>
+          {latestNarration.confidence === "low" && (
+            <span
+              className="inline-block font-mono text-ct-amber mr-2 border border-ct-amber/50 rounded px-1"
+              title="Hedge: low confidence"
+            >
+              ?
+            </span>
+          )}
           <span className="italic">"{truncateText(latestNarration.text, 120)}"</span>
           <span className="ml-2 opacity-60">{formatRelativeTime(latestNarration.timestamp)}</span>
         </div>

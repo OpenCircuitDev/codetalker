@@ -803,6 +803,11 @@ def register_tools(server, state) -> None:
         )
         if not text:
             return "skipped: no text"
+
+        # 2026-05-21 — extract confidence from [UNSURE] hedge prefix
+        from claude_code_talker.narration_log import parse_hedge_prefix
+        text, confidence = parse_hedge_prefix(text)
+
         engine_name = (cfg.get("voice") or {}).get("engine", "piper")
         engine = state.engines.get(engine_name)
         voice = (cfg.get("voice") or {}).get("model")
@@ -816,6 +821,7 @@ def register_tools(server, state) -> None:
             text=text, voice=voice, rate=rate, engine_name=engine_name,
             audio_format=getattr(engine, "audio_format", "wav"),
             session_id=session_id,
+            confidence=confidence,
         ))
         return f"queued: {len(text)} chars"
 

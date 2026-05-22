@@ -100,3 +100,65 @@ async def test_live_cadence_loop_fires_periodic():
     await mode.shutdown()
 
     audio_q.submit.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_live_narrate_strips_hedge_prefix_non_streaming():
+    """Non-streaming path: [UNSURE] prefix is stripped and confidence='low' is set."""
+    from unittest.mock import AsyncMock
+    buf = EventBuffer()
+    cadence = PeriodicCadence(period_seconds=10.0)
+    audio_q = MagicMock()
+    provider = AsyncMock()
+    provider.complete = AsyncMock(return_value="[UNSURE] Maybe the build is still running.")
+    provider.supports_streaming = False
+
+    cfg = {
+        "live": {"llm_latency_budget_seconds": 5.0},
+        "voice": {"model": "jenny", "rate": 1.0},
+    }
+    mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
+
+    audio_q.submit.assert_called_once()
+    job = audio_q.submit.call_args[0][0]
+    assert "[UNSURE]" not in job.text
+    assert "Maybe the build is still running" in job.text
+    assert job.confidence == "low"
+
+
+@pytest.mark.asyncio
+async def test_live_narrate_streaming_strips_hedge_prefix():
+    """Streaming path: [UNSURE] prefix is stripped from first chunk and confidence='low' is set."""
+    from unittest.mock import AsyncMock, MagicMock as Mock
+    buf = EventBuffer()
+    cadence = PeriodicCadence(period_seconds=10.0)
+    audio_q = Mock()
+    provider = Mock()
+    provider.supports_streaming = True
+
+    # Simulate streaming chunks where [UNSURE] is at the start of the first chunk
+    async def mock_stream(prompt, **kwargs):
+        yield "[UNSURE] Maybe the"
+        yield " build is"
+        yield " running."
+
+    provider.stream = MagicMock(return_value=mock_stream(None))
+
+    cfg = {
+        "live": {"llm_latency_budget_seconds": 5.0},
+        "voice": {"model": "jenny", "rate": 1.0},
+    }
+    mode = LiveMode(provider=provider, cadence=cadence, event_buffer=buf, audio_queue=audio_q, cfg=cfg)
+    events = [Event(timestamp=0.0, type="POST_TOOL", metadata={"tool_name": "Read"}, significance=0.6, session_id="test-session")]
+    await mode._narrate(events, priority="normal", session_id="test-session")
+
+    # Should have submitted chunks via the streaming path
+    assert audio_q.submit.called
+    # First submitted job should have confidence="low"
+    first_job = audio_q.submit.call_args_list[0][0][0]
+    assert first_job.confidence == "low"
+    # Text should not contain [UNSURE]
+    assert "[UNSURE]" not in first_job.text
+    assert "Maybe the" in first_job.text

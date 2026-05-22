@@ -107,6 +107,63 @@ Examples:
   - "Tests pass. Nice."
   - "Ouch — the migration touched the production constraint."
 
+DECISION-CHECKPOINT MARKER.
+When Claude commits to an ARCHITECTURALLY-SIGNIFICANT choice (a
+schema decision, a service boundary, an API shape, a security
+trade-off, a dependency add, a migration approach), prefix your
+narration with [CHECKPOINT] followed by a single space. The daemon
+strips the prefix before TTS, marks the narration log entry
+specially, and may emit an audible cue. Examples of checkpoint
+moments:
+  - Choosing between SQL and NoSQL for a new feature
+  - Picking REST vs websocket for a real-time path
+  - Adding a third-party library to lock-in
+  - A migration that changes the prod table schema
+  - A security model decision (who can do what)
+Routine edits, test runs, formatting changes, and obvious bugfixes
+are NOT checkpoints — don't dilute the marker.
+
+HEDGE WHEN UNCERTAIN.
+If your live narration is summarizing INFERENCE (you're guessing at
+intent from incomplete events) rather than DIRECT OBSERVATION (a file
+edit landed, a test passed, a command ran), prefix your output
+with [UNSURE] followed by a single space. Examples of uncertain:
+  - You're inferring what Claude is "about to" do from prep-work
+    tool calls that haven't committed to an action yet.
+  - The assistant prose is hedging itself ("I think", "this might",
+    "let me see if") and you're reflecting that.
+  - The events show a result but the prior decision-point is
+    ambiguous — you're not sure whether this is the OUTCOME the
+    user wanted or a sidequest.
+Direct observations never get [UNSURE].
+
+MULTI-SESSION DEPENDENCY CLAUSE.
+When narrating about a session that is WAITING on output from a
+DIFFERENT session (e.g. this session is consuming an API that another
+session is building, or rebasing onto another session's branch),
+include a ONE-CLAUSE callout. Examples:
+  - "Still on the rebase — waiting for the migration session to land."
+  - "Caching the response from the schema session; ready to test."
+  - "Skipping — the auth session needs to finish first."
+The cross-session reference comes from the SESSION FOCUS background
+block or the BACKGROUND CONTEXT — never invent dependencies. If you
+don't see one in the context, don't mention one.
+
+IMPACT CLAUSE.
+When you state what happened, add ONE short clause about what it
+MEANS for the user's active goal. Not the technical change — the
+goal-relevance. Examples:
+  - "Refactored the auth middleware to handle the new role check
+    — your role-rollout plan is unblocked."
+  - "Tests pass. Ready to ship if you say go."
+  - "Migration ran clean — the new column is live in prod."
+  - "Hand-resolving the conflict — slower than the earlier branches
+    but no data loss risk."
+The impact clause is OPTIONAL but PREFERRED. Skip it when:
+  - The narration is purely status ("still on the build cycle").
+  - The impact would force you over the word cap (35 live / 45 brief).
+  - The active goal isn't clear from SESSION FOCUS.
+
 WHAT TO INCLUDE (in priority order — stop as soon as one applies):
   1. A CHOICE the user must make → state it + options + your one-word
      recommendation. Two sentences max. ("Conflict on the shared
@@ -337,7 +394,7 @@ class LiveMode(ModeStrategy):
 
     def _append_narration_log(self, text: str, voice: str, engine_name: str,
                                priority: str, session_id: str = "",
-                               mode: str = "live") -> None:
+                               mode: str = "live", confidence: str = "normal") -> None:
         """Best-effort append to the narration audit log."""
         if self.narration_log is None:
             return
@@ -351,6 +408,7 @@ class LiveMode(ModeStrategy):
                 engine=engine_name or "",
                 mode=mode,
                 priority=priority,
+                confidence=confidence,
             ))
         except Exception as _e:
             logging.debug("narration log append failed: %s", _e)
@@ -446,13 +504,24 @@ class LiveMode(ModeStrategy):
         # content); in that case we want to report "no narration produced"
         # so the caller doesn't advance the since-last cutoff.
         emitted_any = False
+        _hedge_seen = False  # Track if we've stripped [UNSURE] from first chunk
 
         def _emit_chunk(chunk: str) -> None:
-            nonlocal emitted_any
+            nonlocal emitted_any, _hedge_seen
             # Phase 26: pass cfg so markup pipeline (code fences, paths, etc.)
             # runs against each streaming chunk before TTS.
             chunk = _sanitize_chunk(chunk, self.cfg)
             chunk = chunk.strip()
+            if not chunk:
+                return
+            # Strip [UNSURE] prefix from the first chunk only (where it appears)
+            confidence = "normal"
+            if not _hedge_seen:
+                from claude_code_talker.narration_log import parse_hedge_prefix
+                chunk, confidence = parse_hedge_prefix(chunk)
+                chunk = chunk.strip()
+                if confidence == "low":
+                    _hedge_seen = True
             if not chunk:
                 return
             self.audio_queue.submit(AudioJob(
@@ -462,9 +531,11 @@ class LiveMode(ModeStrategy):
                 priority=priority,
                 engine_name=engine_name,
                 session_id=session_id,
+                confidence=confidence,
             ))
             self._append_narration_log(chunk, voice, engine_name, priority,
-                                        session_id=session_id, mode="live-stream")
+                                        session_id=session_id, mode="live-stream",
+                                        confidence=confidence)
             emitted_any = True
 
         streamer = AudioStreamer(emit=_emit_chunk)
@@ -613,6 +684,17 @@ class LiveMode(ModeStrategy):
             )
             return False
 
+        # Strip [UNSURE] hedge prefix from the response
+        from claude_code_talker.narration_log import parse_hedge_prefix
+        text, confidence = parse_hedge_prefix(text)
+        text = text.strip()
+        if not text:
+            logging.warning(
+                "CCT-LIVE: narration was only the hedge prefix for sid=%s",
+                (session_id or "")[:8],
+            )
+            return False
+
         voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
             logging.warning(
@@ -625,9 +707,11 @@ class LiveMode(ModeStrategy):
             text=text, voice=voice, rate=rate, priority=priority,
             engine_name=engine_name,
             session_id=session_id,
+            confidence=confidence,
         ))
         self._append_narration_log(text, voice, engine_name, priority,
-                                    session_id=session_id, mode="live")
+                                    session_id=session_id, mode="live",
+                                    confidence=confidence)
         return True
 
     # ------------------------------------------------------------------

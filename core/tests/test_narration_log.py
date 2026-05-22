@@ -124,3 +124,40 @@ def test_parse_hedge_prefix_with_leading_whitespace():
     cleaned, conf = parse_hedge_prefix("  \n  [UNSURE]   Something maybe.")
     assert cleaned == "Something maybe."
     assert conf == "low"
+
+
+def test_narration_entry_confidence_field():
+    """NarrationEntry accepts and defaults confidence field."""
+    entry = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="hello",
+    )
+    assert entry.confidence == "normal"
+
+    entry_low = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="maybe hello",
+        confidence="low",
+    )
+    assert entry_low.confidence == "low"
+
+
+def test_narration_entry_confidence_roundtrip(log):
+    """Confidence field is preserved in append/tail roundtrip."""
+    log.append(NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="certain",
+        confidence="normal",
+    ))
+    log.append(NarrationEntry(
+        timestamp=2.0,
+        session_id="abc",
+        text="uncertain",
+        confidence="low",
+    ))
+    out = log.tail()
+    assert out[0]["confidence"] == "normal"
+    assert out[1]["confidence"] == "low"

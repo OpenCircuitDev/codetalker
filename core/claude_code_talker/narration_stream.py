@@ -22,6 +22,7 @@ class NarrationEvent:
     voice: str
     mode: str
     status: NarrationStatus
+    confidence: str = "normal"  # "normal" or "low" (hedged)
 
 
 class NarrationStream:

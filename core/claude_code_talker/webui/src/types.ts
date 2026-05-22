@@ -157,6 +157,7 @@ export type NarrationEvent = {
   voice: string;
   mode: string;
   status: "queued" | "speaking" | "done" | "skipped" | "overflow";
+  confidence?: "normal" | "low";  // "low" when [UNSURE] hedge was present
 };
 
 export type DaemonHealth = {

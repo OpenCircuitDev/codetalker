@@ -1,14 +1,19 @@
 """Tests for the brief-mode quiet-stretch trigger.
 
-These cover the pure decision function (`_should_fire_for_session`) —
-the surrounding asyncio loop is shaped around it, so getting the
-gate right covers most of the behavior.
+These cover the pure decision functions:
+  - `_should_fire_for_session` — quiet-stretch brief trigger
+  - `_should_fire_heartbeat_for_session` — heartbeat "Still here." signal
+
+The surrounding asyncio loop is shaped around these gates, so getting
+the decision logic right covers most of the behavior.
 """
 from __future__ import annotations
 
 from claude_code_talker.modes.brief_quiet_stretch import (
     _should_fire_for_session,
+    _should_fire_heartbeat_for_session,
     QuietStretchFireDecision,
+    HeartbeatFireDecision,
 )
 
 
@@ -139,5 +144,165 @@ def test_subsequent_brief_fires_after_threshold():
 def test_decision_is_a_dataclass():
     """Sanity check the decision shape — used in caller pattern-matching."""
     d = QuietStretchFireDecision(fire=True, reason="fire")
+    assert d.fire is True
+    assert d.reason == "fire"
+
+
+# =====================================================================
+# Heartbeat decision tests
+# =====================================================================
+# The heartbeat fires when: daemon is alive (hooks recent) BUT the
+# user has been in silence (no brief) long enough to wonder if
+# anything is happening. Single-word signal: "Still here."
+
+HB_SILENCE = 30.0  # User hears silence for 30s
+HB_WINDOW = 60.0   # Daemon must have hooked within 60s
+
+
+def test_heartbeat_disabled_when_flag_false():
+    """heartbeat_enabled=False disables the feature."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=900.0,       # 100s of silence
+        last_hook_at=950.0,            # recent hooks
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=False,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is False
+    assert d.reason == "heartbeat_disabled"
+
+
+def test_heartbeat_requires_brief_mode():
+    """Heartbeat only fires in brief mode."""
+    d_live = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=900.0,
+        last_hook_at=950.0,
+        session_cfg={"active_mode": "live"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d_live.fire is False
+    assert d_live.reason == "active_mode_not_brief"
+
+
+def test_heartbeat_needs_hooks_to_fire():
+    """Can't signal 'daemon alive' if no hooks have fired."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=900.0,       # silence
+        last_hook_at=0.0,              # no hooks yet
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is False
+    assert d.reason == "no_hooks_yet"
+
+
+def test_heartbeat_stale_hooks_means_silence_is_correct():
+    """If last_hook_at is stale (>window), daemon really stopped — don't heartbeat."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=900.0,       # 100s of silence
+        last_hook_at=920.0,            # 80s stale (> 60s window)
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is False
+    assert d.reason == "hooks_too_stale"
+
+
+def test_heartbeat_needs_silence_duration():
+    """If narration was recent, don't heartbeat — user just heard something."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=980.0,       # 20s ago (< 30s threshold)
+        last_hook_at=990.0,            # recent hooks
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is False
+    assert d.reason == "silence_below_threshold"
+
+
+def test_heartbeat_fires_when_all_gates_pass():
+    """Heartbeat fires when: brief mode, hooks recent, user in silence."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=960.0,       # 40s of silence (> 30s)
+        last_hook_at=980.0,            # 20s stale (< 60s window) — daemon alive
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is True
+    assert d.reason == "fire"
+
+
+def test_heartbeat_decision_is_a_dataclass():
+    """Sanity check the decision shape."""
+    d = HeartbeatFireDecision(fire=True, reason="fire")
+    assert d.fire is True
+    assert d.reason == "fire"
+
+
+def test_heartbeat_edge_case_silence_exactly_at_threshold():
+    """Silence at exactly the threshold boundary should fire."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=970.0,       # exactly 30s ago
+        last_hook_at=990.0,            # recent
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    assert d.fire is True
+    assert d.reason == "fire"
+
+
+def test_heartbeat_edge_case_hooks_exactly_at_window():
+    """Hooks at exactly the window boundary (hook_age == window) should fire.
+
+    The check is hook_age > window (strictly greater), so at the boundary
+    (60.0 > 60.0 = False) the hook is NOT too stale yet.
+    """
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=960.0,       # 40s silence
+        last_hook_at=940.0,            # exactly 60s stale (at edge of window)
+        session_cfg={"active_mode": "brief"},
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    # At the boundary, hook_age == window, so condition is hook_age > window
+    # which is False. So the hook is NOT too stale, and heartbeat should fire.
+    assert d.fire is True
+    assert d.reason == "fire"
+
+
+def test_heartbeat_default_mode_is_brief():
+    """No active_mode in cfg → assume brief."""
+    d = _should_fire_heartbeat_for_session(
+        now=1000.0,
+        last_narration_at=960.0,       # silence
+        last_hook_at=980.0,            # recent
+        session_cfg={},                # no active_mode
+        heartbeat_enabled=True,
+        silence_threshold_seconds=HB_SILENCE,
+        active_window_seconds=HB_WINDOW,
+    )
+    # Default active_mode is brief, so other gates determine the result.
     assert d.fire is True
     assert d.reason == "fire"
