@@ -24,6 +24,7 @@ class NarrationEvent:
     status: NarrationStatus
     confidence: str = "normal"  # "normal" or "low" (hedged)
     checkpoint: bool = False  # architecturally-significant decision marker
+    alert: bool = False  # urgent attention required ([ALERT] prefix → "Heads up." cue)
 
 
 class NarrationStream:

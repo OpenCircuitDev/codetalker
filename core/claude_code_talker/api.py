@@ -3489,9 +3489,11 @@ Each emotive_states value: single short phrase describing pose + expression + ar
             try:
                 st = path.stat()
                 # Extract label from filename like MARKET_ANALYSIS_2026-05-21-iter2.md
-                stem = path.stem  # "MARKET_ANALYSIS_2026-05-21-iter2"
+                #   MARKET_ANALYSIS_2026-05-21       → 3 parts, no label
+                #   MARKET_ANALYSIS_2026-05-21-iter4 → 4 parts, label = "iter4"
+                stem = path.stem
                 parts = stem.split("-")
-                label = parts[-1] if len(parts) > 4 and parts[-1] not in ("21",) else None
+                label = parts[-1] if len(parts) >= 4 else None
                 out.append({
                     "filename": path.name,
                     "label": label,

@@ -231,3 +231,89 @@ def test_narration_entry_checkpoint_roundtrip(log):
     out = log.tail()
     assert out[0]["checkpoint"] is False
     assert out[1]["checkpoint"] is True
+
+
+# ---------------------------------------------------------------------------
+# [ALERT] prefix — error/blocker/needs-input urgency marker
+# ---------------------------------------------------------------------------
+
+def test_parse_alert_prefix_no_prefix():
+    """Regular text has no [ALERT] — returns unchanged with is_alert=False."""
+    from claude_code_talker.narration_log import parse_alert_prefix
+    cleaned, is_alert = parse_alert_prefix("Tests passed cleanly.")
+    assert cleaned == "Tests passed cleanly."
+    assert is_alert is False
+
+
+def test_parse_alert_prefix_present():
+    """[ALERT] prefix is stripped and is_alert=True."""
+    from claude_code_talker.narration_log import parse_alert_prefix
+    cleaned, is_alert = parse_alert_prefix("[ALERT] Build broke — null pointer in auth handler.")
+    assert cleaned == "Build broke — null pointer in auth handler."
+    assert is_alert is True
+
+
+def test_parse_alert_prefix_with_leading_whitespace():
+    """Leading whitespace before [ALERT] is tolerated."""
+    from claude_code_talker.narration_log import parse_alert_prefix
+    cleaned, is_alert = parse_alert_prefix("  \n  [ALERT]   Database connection lost.")
+    assert cleaned == "Database connection lost."
+    assert is_alert is True
+
+
+def test_parse_alert_checkpoint_unsure_all_three():
+    """All three prefixes can coexist; parse order matters.
+
+    Real-world combination: a stuck migration decision the LLM is hedging on.
+    Expected order in the prompt spec: [ALERT] first, then [CHECKPOINT], then [UNSURE].
+    """
+    from claude_code_talker.narration_log import (
+        parse_alert_prefix,
+        parse_checkpoint_prefix,
+        parse_hedge_prefix,
+    )
+    text = "[ALERT] [CHECKPOINT] [UNSURE] Might need to roll back the schema."
+    text, is_alert = parse_alert_prefix(text)
+    text, is_ckpt = parse_checkpoint_prefix(text)
+    text, confidence = parse_hedge_prefix(text)
+    assert is_alert is True
+    assert is_ckpt is True
+    assert confidence == "low"
+    assert text == "Might need to roll back the schema."
+
+
+def test_narration_entry_alert_field():
+    """NarrationEntry accepts and defaults the alert field."""
+    entry = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="regular event",
+    )
+    assert entry.alert is False
+
+    entry_alert = NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="error",
+        alert=True,
+    )
+    assert entry_alert.alert is True
+
+
+def test_narration_entry_alert_roundtrip(log):
+    """Alert field is preserved in append/tail roundtrip."""
+    log.append(NarrationEntry(
+        timestamp=1.0,
+        session_id="abc",
+        text="routine narration",
+        alert=False,
+    ))
+    log.append(NarrationEntry(
+        timestamp=2.0,
+        session_id="abc",
+        text="build broke",
+        alert=True,
+    ))
+    out = log.tail()
+    assert out[0]["alert"] is False
+    assert out[1]["alert"] is True

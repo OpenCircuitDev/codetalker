@@ -25,6 +25,7 @@ DEFAULT_MAX_BACKUPS = 5
 
 HEDGE_PREFIX = "[UNSURE]"
 CHECKPOINT_PREFIX = "[CHECKPOINT]"
+ALERT_PREFIX = "[ALERT]"
 
 
 def parse_checkpoint_prefix(text: str) -> tuple[str, bool]:
@@ -53,6 +54,23 @@ def parse_hedge_prefix(text: str) -> tuple[str, str]:
     return text, "normal"
 
 
+def parse_alert_prefix(text: str) -> tuple[str, bool]:
+    """Strip an [ALERT] prefix and report if it was present.
+
+    Returns (cleaned_text, is_alert). is_alert is True when the prefix
+    was present (it's been stripped from cleaned_text); False otherwise.
+    Whitespace around the prefix is normalized.
+
+    Used for errors / blockers / "user input required right now" moments.
+    The caller is expected to prepend an audible cue (e.g. "Heads up. ")
+    so the listener immediately knows this is critical, not background.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith(ALERT_PREFIX):
+        return stripped[len(ALERT_PREFIX):].lstrip(), True
+    return text, False
+
+
 @dataclass
 class NarrationEntry:
     timestamp: float
@@ -65,6 +83,7 @@ class NarrationEntry:
     cached: bool = False
     confidence: str = "normal"  # "normal" or "low" (hedged)
     checkpoint: bool = False  # architecturally-significant decision marker
+    alert: bool = False  # error/blocker/needs-input — audible cue prepended
     extra: dict = field(default_factory=dict)
 
 

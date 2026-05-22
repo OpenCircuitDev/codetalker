@@ -74,6 +74,37 @@ moments:
 Routine edits, test runs, formatting changes, and obvious bugfixes
 are NOT checkpoints — don't dilute the marker.
 
+DECISION RATIONALE — INCLUDE THE WHY.
+When narrating a decision (checkpoint or otherwise), fold a
+short WHY-clause into the SAME sentence — not a new one. Use
+"instead of X" or "to avoid Y" or "because Z". One phrase, ≤6
+words. Listeners need to know not just WHAT was chosen but why
+it beat the alternative — that's the difference between status
+and understanding. Examples:
+  - "[CHECKPOINT] Picked Postgres over SQLite — concurrent writes."
+  - "Routing through middleware instead of inline — keeps handlers thin."
+  - "Caching the response in-memory to avoid the third round-trip."
+If you can't articulate a real reason in ≤6 words, skip the
+clause — don't pad with filler. The cap STILL applies; the WHY
+comes out of the existing budget, not on top of it.
+
+ALERT MARKER (errors, blockers, needs-input).
+When the turn ended in an ERROR, a BLOCKER, or a moment that
+NEEDS THE USER'S DECISION RIGHT NOW (not a routine question —
+something that's currently blocking forward progress), prefix
+your narration with [ALERT] followed by a single space. The
+daemon strips the prefix, prepends an audible "Heads up." cue
+before TTS, and marks the log entry as urgent. Use [ALERT] for:
+  - A test or build that broke and is blocking the next step
+  - An exception or runtime error Claude can't recover from alone
+  - A migration that needs a confirmation before it touches prod
+  - A divergence where Claude has stopped and is waiting on you
+Do NOT use [ALERT] for: ordinary questions Claude is asking,
+hedged guesses, or completed work that happens to mention an
+old error. Reserve it for "drop what you're doing" moments.
+[ALERT] and [CHECKPOINT] can coexist — order doesn't matter, but
+put [ALERT] first if both apply.
+
 MULTI-SESSION DEPENDENCY CLAUSE.
 When narrating about a session that is WAITING on output from a
 DIFFERENT session (e.g. this session is consuming an API that another
@@ -200,16 +231,30 @@ class BriefMode(ModeStrategy):
             return self._fallback(payload)
         try:
             raw = (await self.provider.complete(user_prompt, max_tokens, system=system_prompt)).strip()
-            # 2026-05-21 — strip [CHECKPOINT] and [UNSURE] prefixes before returning
-            # so TTS doesn't speak them out loud. Both flags are captured and prepended
-            # as spoken cues (just "Checkpoint. " for now; [UNSURE] is silent).
-            from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
-            cleaned, is_checkpoint = parse_checkpoint_prefix(raw)
+            # 2026-05-21 — strip [ALERT], [CHECKPOINT], and [UNSURE] prefixes
+            # before returning so TTS doesn't speak them out loud. The flags
+            # become audible cues prepended to the cleaned text:
+            #   [ALERT]      → "Heads up. " (highest-priority urgency cue)
+            #   [CHECKPOINT] → "Checkpoint. " (architectural decision cue)
+            #   [UNSURE]     → silent (hedge is currently tracked but not vocalized)
+            # When multiple prefixes apply, all are parsed and only [ALERT]
+            # and [CHECKPOINT] cues are prepended (order: alert, then checkpoint).
+            from claude_code_talker.narration_log import (
+                parse_alert_prefix,
+                parse_checkpoint_prefix,
+                parse_hedge_prefix,
+            )
+            cleaned, is_alert = parse_alert_prefix(raw)
+            cleaned, is_checkpoint = parse_checkpoint_prefix(cleaned)
             cleaned, _confidence = parse_hedge_prefix(cleaned)
             cleaned = cleaned.strip()
-            # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+            cues = []
+            if is_alert:
+                cues.append("Heads up.")
             if is_checkpoint:
-                cleaned = "Checkpoint. " + cleaned
+                cues.append("Checkpoint.")
+            if cues:
+                cleaned = " ".join(cues) + " " + cleaned
             return cleaned
         except Exception:
             return self._fallback(payload)

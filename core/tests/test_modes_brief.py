@@ -142,3 +142,77 @@ async def test_brief_handles_both_prefixes_together():
     assert "[UNSURE]" not in result
     assert result.startswith("Checkpoint. ")
     assert "Might use Postgres for the new table." in result
+
+
+# ---------------------------------------------------------------------------
+# [ALERT] prefix — error / blocker / needs-input urgency cue
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_brief_strips_alert_prefix_and_prepends_cue():
+    """[ALERT] prefix is stripped and 'Heads up. ' is prepended."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(return_value="[ALERT] Build broke on the auth refactor.")
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["CI run."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    assert result.startswith("Heads up. ")
+    assert "[ALERT]" not in result
+    assert "Build broke on the auth refactor." in result
+
+
+@pytest.mark.asyncio
+async def test_brief_alert_and_checkpoint_both_prefix_cues():
+    """[ALERT] + [CHECKPOINT] together → both cues, alert first."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(
+        return_value="[ALERT] [CHECKPOINT] Migration stuck — needs a manual schema decision."
+    )
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["Mid-migration."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    # Both cues prepended; alert comes first (urgency before architectural marker)
+    assert "[ALERT]" not in result
+    assert "[CHECKPOINT]" not in result
+    assert result.startswith("Heads up. Checkpoint. ")
+    assert "Migration stuck — needs a manual schema decision." in result
+
+
+@pytest.mark.asyncio
+async def test_brief_alert_unsure_and_checkpoint_all_three():
+    """All three prefixes; [ALERT] + [CHECKPOINT] cues prepended, [UNSURE] silent."""
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(
+        return_value="[ALERT] [CHECKPOINT] [UNSURE] Might need to roll back the failing migration."
+    )
+
+    mode = BriefMode(provider=fake_provider)
+    cfg = _cfg()
+
+    result = await mode.build_async(
+        prose_entries=["Considering rollback."],
+        tool_uses=[],
+        todos=[],
+        cfg=cfg,
+    )
+
+    for marker in ("[ALERT]", "[CHECKPOINT]", "[UNSURE]"):
+        assert marker not in result
+    assert result.startswith("Heads up. Checkpoint. ")
+    assert "Might need to roll back the failing migration." in result

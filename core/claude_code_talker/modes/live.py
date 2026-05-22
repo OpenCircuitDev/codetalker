@@ -123,6 +123,38 @@ moments:
 Routine edits, test runs, formatting changes, and obvious bugfixes
 are NOT checkpoints — don't dilute the marker.
 
+DECISION RATIONALE — INCLUDE THE WHY.
+When narrating a decision (checkpoint or otherwise), fold a
+short WHY-clause into the SAME sentence — not a new one. Use
+"instead of X" or "to avoid Y" or "because Z". One phrase, ≤6
+words. Listeners need to know not just WHAT was chosen but why
+it beat the alternative — that's the difference between status
+and understanding. Examples:
+  - "[CHECKPOINT] Picked Postgres over SQLite — concurrent writes."
+  - "Routing through middleware instead of inline — keeps handlers thin."
+  - "Caching the response in-memory to avoid the third round-trip."
+If you can't articulate a real reason in ≤6 words, skip the
+clause — don't pad with filler. The 35-word cap STILL applies;
+the WHY comes out of the existing budget, not on top of it.
+
+ALERT MARKER (errors, blockers, needs-input).
+When the current events show an ERROR, a BLOCKER, or a moment
+that NEEDS THE USER'S DECISION RIGHT NOW (not a routine question —
+something currently blocking forward progress), prefix your
+narration with [ALERT] followed by a single space. The daemon
+strips the prefix, prepends an audible "Heads up." cue before
+TTS, and marks the log entry as urgent. Use [ALERT] for:
+  - A test or build that broke and is blocking the next step
+  - An exception or runtime error Claude can't recover from alone
+  - A migration that needs confirmation before it touches prod
+  - A divergence where Claude has stopped and is waiting on you
+Do NOT use [ALERT] for: ordinary questions Claude is asking,
+hedged guesses, or completed work that happens to mention an
+old error. Reserve it for "drop what you're doing" moments.
+[ALERT] and [CHECKPOINT] can coexist — put [ALERT] first if both
+apply. Skip the warmth word on [ALERT] narrations (urgency
+replaces warmth).
+
 HEDGE WHEN UNCERTAIN.
 If your live narration is summarizing INFERENCE (you're guessing at
 intent from incomplete events) rather than DIRECT OBSERVATION (a file
@@ -395,7 +427,7 @@ class LiveMode(ModeStrategy):
     def _append_narration_log(self, text: str, voice: str, engine_name: str,
                                priority: str, session_id: str = "",
                                mode: str = "live", confidence: str = "normal",
-                               checkpoint: bool = False) -> None:
+                               checkpoint: bool = False, alert: bool = False) -> None:
         """Best-effort append to the narration audit log."""
         if self.narration_log is None:
             return
@@ -411,6 +443,7 @@ class LiveMode(ModeStrategy):
                 priority=priority,
                 confidence=confidence,
                 checkpoint=checkpoint,
+                alert=alert,
             ))
         except Exception as _e:
             logging.debug("narration log append failed: %s", _e)
@@ -508,34 +541,50 @@ class LiveMode(ModeStrategy):
         emitted_any = False
         _hedge_seen = False  # Track if we've stripped [UNSURE] from first chunk
         _checkpoint_seen = False  # Track if we've stripped [CHECKPOINT] from first chunk
+        _alert_seen = False  # Track if we've stripped [ALERT] from first chunk
 
         def _emit_chunk(chunk: str) -> None:
-            nonlocal emitted_any, _hedge_seen, _checkpoint_seen
+            nonlocal emitted_any, _hedge_seen, _checkpoint_seen, _alert_seen
             # Phase 26: pass cfg so markup pipeline (code fences, paths, etc.)
             # runs against each streaming chunk before TTS.
             chunk = _sanitize_chunk(chunk, self.cfg)
             chunk = chunk.strip()
             if not chunk:
                 return
-            # Strip [CHECKPOINT] and [UNSURE] prefixes from the first chunk only
-            # (where they appear). Order: [CHECKPOINT] first (higher significance),
-            # then [UNSURE]. Both can be present in theory.
+            # Strip [ALERT], [CHECKPOINT], and [UNSURE] prefixes from the
+            # first chunk only (where they appear). Parse order: [ALERT]
+            # first (highest urgency), [CHECKPOINT], then [UNSURE]. Any
+            # subset can be present.
             confidence = "normal"
             checkpoint = False
-            if not _checkpoint_seen and not _hedge_seen:
-                from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+            alert = False
+            if not _checkpoint_seen and not _hedge_seen and not _alert_seen:
+                from claude_code_talker.narration_log import (
+                    parse_alert_prefix,
+                    parse_checkpoint_prefix,
+                    parse_hedge_prefix,
+                )
+                chunk, alert = parse_alert_prefix(chunk)
                 chunk, checkpoint = parse_checkpoint_prefix(chunk)
                 chunk, confidence = parse_hedge_prefix(chunk)
                 chunk = chunk.strip()
+                if alert:
+                    _alert_seen = True
                 if checkpoint:
                     _checkpoint_seen = True
                 if confidence == "low":
                     _hedge_seen = True
             if not chunk:
                 return
-            # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+            # Prepend audible cues. Order: "Heads up." before "Checkpoint."
+            # so the urgency lands first when both apply.
+            cues = []
+            if alert:
+                cues.append("Heads up.")
             if checkpoint:
-                chunk = "Checkpoint. " + chunk
+                cues.append("Checkpoint.")
+            if cues:
+                chunk = " ".join(cues) + " " + chunk
             self.audio_queue.submit(AudioJob(
                 text=chunk,
                 voice=voice,
@@ -545,10 +594,12 @@ class LiveMode(ModeStrategy):
                 session_id=session_id,
                 confidence=confidence,
                 checkpoint=checkpoint,
+                alert=alert,
             ))
             self._append_narration_log(chunk, voice, engine_name, priority,
                                         session_id=session_id, mode="live-stream",
-                                        confidence=confidence, checkpoint=checkpoint)
+                                        confidence=confidence, checkpoint=checkpoint,
+                                        alert=alert)
             emitted_any = True
 
         streamer = AudioStreamer(emit=_emit_chunk)
@@ -697,8 +748,14 @@ class LiveMode(ModeStrategy):
             )
             return False
 
-        # Strip [CHECKPOINT] and [UNSURE] prefixes from the response
-        from claude_code_talker.narration_log import parse_checkpoint_prefix, parse_hedge_prefix
+        # Strip [ALERT], [CHECKPOINT], and [UNSURE] prefixes from the response.
+        # Parse order: [ALERT] first (highest urgency), [CHECKPOINT], then [UNSURE].
+        from claude_code_talker.narration_log import (
+            parse_alert_prefix,
+            parse_checkpoint_prefix,
+            parse_hedge_prefix,
+        )
+        text, alert = parse_alert_prefix(text)
         text, checkpoint = parse_checkpoint_prefix(text)
         text, confidence = parse_hedge_prefix(text)
         text = text.strip()
@@ -709,9 +766,15 @@ class LiveMode(ModeStrategy):
             )
             return False
 
-        # Prepend "Checkpoint. " as audible cue when [CHECKPOINT] was present
+        # Prepend audible cues. Order: "Heads up." before "Checkpoint." so
+        # the urgency lands first when both apply.
+        cues = []
+        if alert:
+            cues.append("Heads up.")
         if checkpoint:
-            text = "Checkpoint. " + text
+            cues.append("Checkpoint.")
+        if cues:
+            text = " ".join(cues) + " " + text
 
         voice, rate, engine_name = self._resolve_voice_cfg(session_id)
         if not voice:
@@ -727,10 +790,12 @@ class LiveMode(ModeStrategy):
             session_id=session_id,
             confidence=confidence,
             checkpoint=checkpoint,
+            alert=alert,
         ))
         self._append_narration_log(text, voice, engine_name, priority,
                                     session_id=session_id, mode="live",
-                                    confidence=confidence, checkpoint=checkpoint)
+                                    confidence=confidence, checkpoint=checkpoint,
+                                    alert=alert)
         return True
 
     # ------------------------------------------------------------------

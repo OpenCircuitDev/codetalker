@@ -4,5 +4,6 @@ from claude_code_talker.modes.direct import DirectMode
 from claude_code_talker.modes.brief import BriefMode
 from claude_code_talker.modes.live import LiveMode
 from claude_code_talker.modes.teacher import TeacherMode
+from claude_code_talker.modes.critical_only import CriticalOnlyMode
 
-__all__ = ["ModeStrategy", "DirectMode", "BriefMode", "LiveMode", "TeacherMode"]
+__all__ = ["ModeStrategy", "DirectMode", "BriefMode", "LiveMode", "TeacherMode", "CriticalOnlyMode"]

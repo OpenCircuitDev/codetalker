@@ -27,6 +27,15 @@ async def handle_stop(payload, cfg, mode_a, mode_b, active_mode):
         return await mode_b.build_async(prose, tool_uses, todos, cfg)
     if active_mode == "direct" and mode_a is not None:
         return mode_a.build(prose, tool_uses, todos, cfg)
+    if active_mode == "critical_only":
+        # Import locally to avoid circular dependency
+        from claude_code_talker.modes import CriticalOnlyMode
+        # Use the LLM provider from mode_b if available (they share providers)
+        provider = getattr(mode_b, 'provider', None) if mode_b is not None else None
+        mode_c = CriticalOnlyMode(provider)
+        result = await mode_c.build_async(prose, tool_uses, todos, cfg)
+        # None sentinel means "skip narration"
+        return result if result is not None else ""
     if active_mode == "live":
         # Live + brief combo: even though cadence loop owns the in-flight
         # narration, fire a Brief on Stop so the user hears a wrap-up of

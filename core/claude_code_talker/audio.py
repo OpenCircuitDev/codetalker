@@ -185,6 +185,11 @@ class AudioJob:
     confidence: str = "normal"
     # Architecturally-significant decision marker (prefixed [CHECKPOINT])
     checkpoint: bool = False
+    # Urgent-attention marker (prefixed [ALERT]) — error, blocker, or
+    # "needs your input right now" moment. The audible cue "Heads up." is
+    # prepended to the text upstream before TTS; this flag is for UI and
+    # the audit log.
+    alert: bool = False
 
 
 _PRIORITY_RANK = {"alert": 0, "normal": 1, "routine": 2}
@@ -452,6 +457,7 @@ class AudioQueue:
                 status=status,
                 confidence=getattr(job, "confidence", "normal") or "normal",
                 checkpoint=getattr(job, "checkpoint", False) or False,
+                alert=getattr(job, "alert", False) or False,
             )
             asyncio.run_coroutine_threadsafe(self._narration_stream.publish(ev), loop)
         except Exception:

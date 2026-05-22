@@ -42,7 +42,7 @@ from typing import Literal
 # Speaking mode — per-session narration verbosity.
 # ---------------------------------------------------------------------------
 
-SpeakingMode = Literal["live", "brief", "direct", "teacher"]
+SpeakingMode = Literal["live", "brief", "direct", "teacher", "critical_only"]
 """
 - live:    continuous prose narration with cadence-driven mid-response speech
 - brief:   short one-sentence summaries at significant events only
@@ -53,10 +53,13 @@ SpeakingMode = Literal["live", "brief", "direct", "teacher"]
            Backend strategy: ride the existing LiveMode pipeline with the
            teacher_mode cfg block applied at prompt-build time. Pro
            ModePicker has offered this since CCT-32 v0.1.0 polish.
+- critical_only: narrates ONLY when something matters — errors, blockers,
+           completed major tasks, or sessions needing user input. Everything
+           else stays silent. One-click option for "alert mode" users.
 
 These are the only modes the schema validates. Hook handlers, mode
 pickers, and routing logic all read this Literal and must handle
-every value. Adding a fifth mode requires:
+every value. Adding a new mode requires:
   1. Add to this Literal.
   2. Implement the mode strategy in core/claude_code_talker/modes/.
   3. Regenerate webui + Pro Android client types.
