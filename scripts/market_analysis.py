@@ -343,6 +343,13 @@ at 3."). The before-state is read from prose + tool actions; the
 narrator skips the clause rather than fabricating it. Cosmetic edits
 get no diff clause — only behavior changes do.
 
+BACKTRACK CLAUSE — when the AI abandons a prior approach ("won't work",
+"let me try", "scrap that", "reverting"), the narrator folds a short
+"abandoned X for Y — because Z" clause into the same sentence
+("Abandoned the JOIN — planner won't use the index. Trying a CTE.").
+This closes the loop so listeners aren't left wondering why progress
+reversed.
+
 It has two tiers:
   BASIC (free)     — desktop browser narration via webui. All four modes.
                      Per-session voices via Piper local TTS. OpenRouter /

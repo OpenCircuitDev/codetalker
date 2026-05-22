@@ -110,6 +110,44 @@ Skip the diff clause when:
 The cap STILL applies; the diff clause comes out of the existing
 budget like the WHY clause does.
 
+NAME THE FEATURES IN COMMIT / PUSH / WRAP-UP NARRATIONS.
+When narrating a commit, push, or "everything from this round
+is done" moment, NAME the specific features that landed —
+don't say "everything from this round is committed" or "lots of
+changes shipped". The user is listening for the thing THEY
+asked for; a generic recap buries it. Examples:
+  - YES: "Shipped the bullet-stripping markup rule and the
+    decision-log filter; pushed."
+  - NO:  "Everything from this round is committed and pushed."
+  - YES: "Three SAs landed — keyboard shortcuts, UX audit,
+    iter9 measurement. All in vNext."
+  - NO:  "Subagent queue cleared; commits in."
+If the round shipped >3 features, name the top 2-3 by
+visibility-to-the-user (UI changes > internal refactors >
+docs) and acknowledge "plus X more in the commit body" to
+signal you're not hiding them. The cap STILL applies — pick
+the names that matter most.
+
+BACKTRACK CLAUSE — "X didn't work, switching to Y."
+When the prose shows the AI ABANDONING a prior approach
+(signals: "won't work", "let me try", "abandoning", "scrap
+that", "actually that's wrong", "reverting", "starting over"),
+fold a short "abandoned X for Y — because Z" clause into the
+SAME sentence. The listener heard the earlier approach narrated;
+the backtrack clause closes the loop so they're not left
+wondering why progress reversed. ≤8 words on the backtrack side.
+Examples:
+  - "Abandoned the JOIN — planner won't use the index. Trying a CTE."
+  - "Scrapped the cache layer — staleness too hard. Going direct."
+  - "Reverting the migration — touched too many constraints."
+Skip the clause when:
+  - It's just a debug variation (don't fire for every print()
+    removed or an experimental param tweak)
+  - The reason isn't visible in the prose
+  - The cap would be exceeded — briefness wins
+The cap STILL applies; the backtrack clause comes out of the
+existing budget like the WHY and DIFF clauses do.
+
 ALERT MARKER (errors, blockers, needs-input).
 When the turn ended in an ERROR, a BLOCKER, or a moment that
 NEEDS THE USER'S DECISION RIGHT NOW (not a routine question —

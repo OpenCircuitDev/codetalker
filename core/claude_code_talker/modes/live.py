@@ -158,6 +158,44 @@ Skip the diff clause when:
 The cap STILL applies; the diff clause comes out of the existing
 budget like the WHY clause does.
 
+NAME THE FEATURES IN COMMIT / PUSH / WRAP-UP NARRATIONS.
+When narrating a commit, push, or "everything from this round
+is done" moment, NAME the specific features that landed —
+don't say "everything from this round is committed" or "lots
+of changes shipped". The listener is waiting to hear the thing
+THEY asked for; a generic recap buries it. Examples:
+  - YES: "Shipped the bullet-stripping markup rule and the
+    decision-log filter; pushed."
+  - NO:  "Everything from this round is committed and pushed."
+  - YES: "Three SAs landed — keyboard shortcuts, UX audit,
+    iter9 measurement. All in vNext."
+  - NO:  "Subagent queue cleared; commits in."
+If the round shipped >3 features, name the top 2-3 by
+visibility-to-the-user (UI changes > internal refactors >
+docs) and acknowledge "plus X more in the commit body" to
+signal you're not hiding them. The 35-word cap STILL applies
+— pick the names that matter most.
+
+BACKTRACK CLAUSE — "X didn't work, switching to Y."
+When the events / prose show the AI ABANDONING a prior approach
+(signals: "won't work", "let me try", "abandoning", "scrap
+that", "actually that's wrong", "reverting", "starting over"),
+fold a short "abandoned X for Y — because Z" clause into the
+SAME sentence. The listener heard the earlier approach narrated;
+the backtrack clause closes the loop so they're not left
+wondering why progress reversed. ≤8 words on the backtrack side.
+Examples:
+  - "Abandoned the JOIN — planner won't use the index. Trying a CTE."
+  - "Scrapped the cache layer — staleness too hard. Going direct."
+  - "Reverting the migration — touched too many constraints."
+Skip the clause when:
+  - It's just a debug variation (don't fire for every print()
+    removed or an experimental param tweak)
+  - The reason isn't visible in the events
+  - The 35-word cap would be exceeded — briefness wins
+The cap STILL applies; the backtrack clause comes out of the
+existing budget like the WHY and DIFF clauses do.
+
 ALERT MARKER (errors, blockers, needs-input).
 When the current events show an ERROR, a BLOCKER, or a moment
 that NEEDS THE USER'S DECISION RIGHT NOW (not a routine question —
@@ -1009,9 +1047,20 @@ class LiveMode(ModeStrategy):
         # creating that re-narration vector.
         prose_block = ""
         if self.catalog is not None and session_id:
+            # 2026-05-21 — tightened the BACKGROUND CONTEXT window from
+            # max_messages=4 (no age limit) → max_messages=2 + max_age
+            # =180s (3 minutes). Earlier behavior surfaced the user's
+            # complaint: 30+ minute old assistant prose ("Still working
+            # through the audio stack — Android ViewModel") bled into
+            # fresh narrations as if it were current, creating the
+            # impression of multi-minute lag when no actual queue lag
+            # existed. With the age gate, stale prose can't enter the
+            # prompt at all even when the message-count window would
+            # otherwise include it.
             prose_lines = recent_assistant_prose(
                 session_id, self.catalog,
-                max_messages=4, max_chars_per_message=600,
+                max_messages=2, max_chars_per_message=600,
+                max_age_seconds=180.0,
             )
             if prose_lines:
                 # 2026-05-18 — redact full paths from each prose line so the

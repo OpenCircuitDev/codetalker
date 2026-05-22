@@ -193,6 +193,7 @@ def recent_assistant_prose(
     *,
     max_messages: int = 3,
     max_chars_per_message: int = 1500,
+    max_age_seconds: float | None = None,
 ) -> list[str]:
     """Read the last N assistant prose messages from the session's transcript.
 
@@ -204,6 +205,15 @@ def recent_assistant_prose(
     - no assistant messages in the recent window
 
     Each message is truncated to max_chars_per_message to bound prompt growth.
+
+    2026-05-21 — added ``max_age_seconds`` to drop stale prose. The caller
+    in modes/live.py was firing real-time narrations that re-quoted
+    assistant prose from 30+ minutes prior as if it were current
+    ("Still working through the audio stack — inspecting the Android
+    ViewModel" when the agent had moved on to latency debugging an hour
+    later). Set max_age_seconds to bound how far back the BACKGROUND
+    CONTEXT can reach; when None, the old behavior (only max_messages
+    bounds the window) applies.
     """
     if not session_id or catalog is None:
         return []
@@ -235,6 +245,12 @@ def recent_assistant_prose(
         logging.debug("recent_assistant_prose: cannot read transcript: %s", exc)
         return []
 
+    # Compute the staleness cutoff once, in epoch seconds. None = no filter.
+    cutoff_epoch: float | None = None
+    if max_age_seconds is not None and max_age_seconds > 0:
+        import time as _time
+        cutoff_epoch = _time.time() - float(max_age_seconds)
+
     collected: list[str] = []
     for raw in raw_lines:
         raw = raw.strip()
@@ -246,6 +262,23 @@ def recent_assistant_prose(
             continue
         if not isinstance(d, dict) or d.get("type") != "assistant":
             continue
+        # 2026-05-21 — staleness gate. Drop entries older than the cutoff
+        # so stale assistant prose can't bleed into fresh narrations.
+        # The transcript stores ISO 8601 strings like "2026-05-22T05:46:13.194Z".
+        # Best-effort: if parsing fails, keep the entry (don't silently
+        # over-filter).
+        if cutoff_epoch is not None:
+            ts_raw = d.get("timestamp")
+            if isinstance(ts_raw, str):
+                try:
+                    # datetime.fromisoformat handles "+00:00" but not "Z" pre-3.11.
+                    from datetime import datetime
+                    iso = ts_raw.replace("Z", "+00:00") if ts_raw.endswith("Z") else ts_raw
+                    entry_epoch = datetime.fromisoformat(iso).timestamp()
+                    if entry_epoch < cutoff_epoch:
+                        continue
+                except (ValueError, AttributeError):
+                    pass
         content = d.get("message", {}).get("content", [])
         if not isinstance(content, list):
             continue

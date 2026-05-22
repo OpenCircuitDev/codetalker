@@ -24,7 +24,7 @@ import {
   WorkspaceGroupSection,
   groupSessions,
 } from "./WorkspaceGroupSection";
-import { SessionRow } from "./SessionRow";
+import { SessionRow, deriveSessionHealth, type SessionHealthState } from "./SessionRow";
 import { SessionDetailPanel } from "./SessionDetailPanel";
 import { WorkspaceGroupSettingsModal } from "./WorkspaceGroupSettingsModal";
 import type { Session } from "../types";
@@ -63,16 +63,42 @@ export function SessionGrid({ openSessionId: openProp, onOpenSessionChange }: Pr
   // before grouping so the order propagates per-group (groupSessions
   // preserves source-array order within each bucket).
   //
-  // v0.1.0 unification — sort priority:
+  // Parallel-session triage (iter 4-7, 62 mentions): sort blocked/stuck
+  // sessions first within each workspace_group so users can quickly
+  // triage which session actually needs attention.
+  //
+  // Sort priority:
   //   1. pinned (user pinned to top of their group)
-  //   2. is_live (active sessions ahead of dormant)
-  //   3. last_modified desc (most recent first)
+  //   2. health state (blocked → working → running → dormant)
+  //   3. last_modified desc (most recent first within the same health state)
+  //
+  // Health detection: deriveSessionHealth is called without narration data,
+  // so alert-flag-driven blocked detection doesn't work here. The time-based
+  // thresholds still apply: silent >5 min with recent hooks → blocked.
+  const healthPriority = (state: SessionHealthState): number => {
+    const map: Record<SessionHealthState, number> = {
+      blocked: 0,
+      working: 1,
+      running: 2,
+      dormant: 3,
+    };
+    return map[state];
+  };
+
   const sortedSessions = useMemo<Session[]>(() => {
     return [...(data ?? [])].sort((a, b) => {
       const ap = !!a.pinned;
       const bp = !!b.pinned;
       if (ap !== bp) return ap ? -1 : 1;
-      if (a.is_live !== b.is_live) return a.is_live ? -1 : 1;
+
+      // For unpinned sessions, sort by health state (blocked first)
+      const healthA = deriveSessionHealth(a, undefined);
+      const healthB = deriveSessionHealth(b, undefined);
+      const priorityA = healthPriority(healthA);
+      const priorityB = healthPriority(healthB);
+      if (priorityA !== priorityB) return priorityA - priorityB;
+
+      // Within the same health state, sort by last_modified (most recent first)
       return b.last_modified - a.last_modified;
     });
   }, [data]);

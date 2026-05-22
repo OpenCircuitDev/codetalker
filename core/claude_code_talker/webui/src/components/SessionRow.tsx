@@ -147,18 +147,19 @@ export function SessionRow({ session, isCompanionActive, isOpen, onOpen }: Props
           <span className="font-mono text-ct-cyan/70 mr-2">{latestNarration.mode}</span>
           {latestNarration.alert && (
             <span
-              className="inline-block font-mono text-red-200 mr-2 border border-red-500/50 rounded px-1 bg-red-500/20"
+              className="inline-block font-mono text-red-100 mr-2 border border-red-500/50 rounded px-1 bg-red-500/30"
               title="Alert: something broke, blocked, or needs input"
             >
-              ALERT
+              <span aria-hidden="true">⚠</span> alert
             </span>
           )}
           {latestNarration.checkpoint && (
             <span
-              className="inline-block font-mono text-green-200 mr-2 border border-green-500/50 rounded px-1 bg-green-500/20"
-              title="Checkpoint: progress marker"
+              className="inline-block font-mono text-green-100 mr-2 border border-green-500/50 rounded px-1 bg-green-500/30"
+              title="Checkpoint: architectural decision marker"
+              aria-label="Checkpoint: architectural decision marker"
             >
-              ✓
+              <span aria-hidden="true">✓</span> checkpoint
             </span>
           )}
           {latestNarration.confidence === "low" && (
@@ -434,7 +435,7 @@ export type SessionHealthState = "running" | "working" | "blocked" | "dormant";
  *  Blocked (amber): most recent narration has alert=true OR silent >5 min with recent hooks
  *  Dormant (zinc): !is_live OR no hook activity in 15+ min
  */
-function deriveSessionHealth(
+export function deriveSessionHealth(
   session: Session,
   latestNarration: NarrationEvent | undefined
 ): SessionHealthState {

@@ -1,5 +1,5 @@
 // Phase 27 — filterable ticker feed of SSE events.
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { tickerEntry } from "../theme/motion";
 
@@ -34,6 +34,9 @@ export function LiveTicker({
 }) {
   const [filter, setFilter] = useState("all");
   const [checkpointFilter, setCheckpointFilter] = useState("all-events");
+  const filterRowRef = useRef<HTMLDivElement>(null);
+  const checkpointRowRef = useRef<HTMLDivElement>(null);
+
   const filtered = useMemo(() => {
     let list = filter === "all" ? events : events.filter((e) => e.kind === filter);
     if (checkpointFilter === "decisions-only") {
@@ -42,14 +45,50 @@ export function LiveTicker({
     return list.slice(-maxEvents);
   }, [events, filter, checkpointFilter, maxEvents]);
 
+  // Handle arrow-key navigation within filter pill rows
+  const handleFilterKeyDown = (
+    e: React.KeyboardEvent,
+    rowRef: React.RefObject<HTMLDivElement | null>,
+    currentValue: string,
+    options: typeof FILTER_OPTIONS | typeof CHECKPOINT_FILTER_OPTIONS,
+    setter: (val: string) => void
+  ) => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const currentIndex = options.findIndex((o) =>
+        "kind" in o ? o.kind === currentValue : o.mode === currentValue
+      );
+      const next =
+        e.key === "ArrowRight"
+          ? (currentIndex + 1) % options.length
+          : (currentIndex - 1 + options.length) % options.length;
+      const nextValue = "kind" in options[next] ? options[next].kind : options[next].mode;
+      setter(nextValue);
+      // Focus the newly selected button
+      setTimeout(() => {
+        const buttons = rowRef.current?.querySelectorAll("button");
+        if (buttons) buttons[next]?.focus();
+      }, 0);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-2 p-2 border-b border-zinc-800">
-        <div className="flex items-center gap-1">
+        <div
+          ref={filterRowRef}
+          className="flex items-center gap-1"
+          role="group"
+          aria-label="Event filter"
+        >
           {FILTER_OPTIONS.map((o) => (
             <button
               key={o.kind}
               onClick={() => setFilter(o.kind)}
+              onKeyDown={(e) =>
+                handleFilterKeyDown(e, filterRowRef, filter, FILTER_OPTIONS, setFilter)
+              }
+              aria-pressed={filter === o.kind}
               className={
                 "px-2 py-0.5 rounded text-xs " +
                 (filter === o.kind
@@ -61,11 +100,26 @@ export function LiveTicker({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
+        <div
+          ref={checkpointRowRef}
+          className="flex items-center gap-1"
+          role="group"
+          aria-label="Checkpoint filter"
+        >
           {CHECKPOINT_FILTER_OPTIONS.map((o) => (
             <button
               key={o.mode}
               onClick={() => setCheckpointFilter(o.mode)}
+              onKeyDown={(e) =>
+                handleFilterKeyDown(
+                  e,
+                  checkpointRowRef,
+                  checkpointFilter,
+                  CHECKPOINT_FILTER_OPTIONS,
+                  setCheckpointFilter
+                )
+              }
+              aria-pressed={checkpointFilter === o.mode}
               className={
                 "px-2 py-0.5 rounded text-xs " +
                 (checkpointFilter === o.mode
@@ -98,10 +152,11 @@ export function LiveTicker({
             >
               {e.alert && (
                 <span
-                  className="inline-block px-1.5 rounded text-xs uppercase font-semibold bg-red-500/20 text-red-200 border border-red-500/50"
+                  className="inline-block px-1.5 rounded text-xs uppercase font-semibold bg-red-500/30 text-red-100 border border-red-500/50"
                   title="Alert: something broke, blocked, or needs input"
+                  aria-label="Alert"
                 >
-                  alert
+                  <span aria-hidden="true">⚠</span> alert
                 </span>
               )}
               <span

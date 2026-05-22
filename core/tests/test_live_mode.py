@@ -379,6 +379,154 @@ def test_brief_system_has_diff_clause_block():
     assert "STILL applies" in BRIEF_SYSTEM
 
 
+def test_live_narration_system_has_backtrack_clause_block():
+    """The BACKTRACK CLAUSE prompt block instructs the narrator to fold
+    an "abandoned X for Y — because Z" clause into a sentence when the
+    AI is reversing a prior approach.
+
+    Iter6/7 theme: when Claude backtracks, the user hears the [ALERT]
+    cue but not the explanation. The backtrack clause closes the loop
+    so they aren't left wondering why progress reversed.
+    """
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "BACKTRACK CLAUSE" in LIVE_NARRATION_SYSTEM
+    # At least one of the backtrack-signal phrases must appear in the
+    # examples or guidance — these are what the LLM looks for in prose.
+    backtrack_signals = ["won't work", "abandoning", "scrap", "reverting"]
+    assert any(s in LIVE_NARRATION_SYSTEM for s in backtrack_signals), (
+        f"Expected one of {backtrack_signals} in LIVE_NARRATION_SYSTEM"
+    )
+    # The debug-variation exclusion must be present — otherwise the LLM
+    # will fire backtrack clauses for every print() statement removed.
+    assert "debug" in LIVE_NARRATION_SYSTEM.lower() or "variation" in LIVE_NARRATION_SYSTEM.lower()
+
+
+def test_brief_system_has_backtrack_clause_block():
+    """Same BACKTRACK CLAUSE landed in brief mode."""
+    from claude_code_talker.modes.brief import BRIEF_SYSTEM
+    assert "BACKTRACK CLAUSE" in BRIEF_SYSTEM
+    backtrack_signals = ["won't work", "abandoning", "scrap", "reverting"]
+    assert any(s in BRIEF_SYSTEM for s in backtrack_signals)
+    assert "debug" in BRIEF_SYSTEM.lower() or "variation" in BRIEF_SYSTEM.lower()
+
+
+def test_live_narration_system_has_name_the_features_block():
+    """The NAME THE FEATURES prompt block tells the narrator to enumerate
+    specific shipped features when narrating commits/pushes/wrap-ups
+    rather than summarizing as "everything from this round" (which
+    buries the specific thing the listener was waiting for).
+
+    User feedback: after a multi-task round was committed, the narrator
+    said "everything is committed and pushed" — burying the specific
+    feature the user had asked about. They didn't hear the feature
+    name until ~10 minutes later when a follow-up narration referenced
+    it specifically.
+    """
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "NAME THE FEATURES" in LIVE_NARRATION_SYSTEM
+    # The "don't say 'everything from this round'" guidance must be
+    # present — that's the exact anti-pattern this block targets.
+    assert "everything" in LIVE_NARRATION_SYSTEM.lower()
+    # The visibility-priority guidance keeps the LLM from listing
+    # docs-first when UI changes also shipped.
+    assert "visibility" in LIVE_NARRATION_SYSTEM.lower() or "UI" in LIVE_NARRATION_SYSTEM
+
+
+def test_brief_system_has_name_the_features_block():
+    """Same NAME THE FEATURES landed in brief mode."""
+    from claude_code_talker.modes.brief import BRIEF_SYSTEM
+    assert "NAME THE FEATURES" in BRIEF_SYSTEM
+    assert "everything" in BRIEF_SYSTEM.lower()
+
+
+# ---------------------------------------------------------------------------
+# recent_assistant_prose — staleness filter (max_age_seconds)
+# ---------------------------------------------------------------------------
+
+def test_recent_assistant_prose_drops_stale_messages(tmp_path):
+    """max_age_seconds=N drops messages whose ISO timestamp is older than N."""
+    import json as _json
+    from claude_code_talker.transcript import recent_assistant_prose
+    from datetime import datetime, timezone, timedelta
+
+    transcript = tmp_path / "sess.jsonl"
+    now = datetime.now(timezone.utc)
+    # Three assistant messages: one 30 minutes old, one 2 minutes old, one fresh.
+    entries = [
+        {
+            "type": "assistant",
+            "timestamp": (now - timedelta(minutes=30)).isoformat().replace("+00:00", "Z"),
+            "message": {"content": [{"type": "text", "text": "STALE — half-hour old"}]},
+        },
+        {
+            "type": "assistant",
+            "timestamp": (now - timedelta(minutes=2)).isoformat().replace("+00:00", "Z"),
+            "message": {"content": [{"type": "text", "text": "FRESH — two minutes old"}]},
+        },
+        {
+            "type": "assistant",
+            "timestamp": now.isoformat().replace("+00:00", "Z"),
+            "message": {"content": [{"type": "text", "text": "JUST NOW"}]},
+        },
+    ]
+    transcript.write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n",
+        encoding="utf-8",
+    )
+
+    class FakeEntry:
+        transcript_path = str(transcript)
+
+    class FakeCatalog:
+        def entry_for(self, sid):
+            return FakeEntry()
+
+    # With a 3-minute staleness cutoff, the 30-minute-old entry must be
+    # dropped; the 2-minute and "just now" entries must survive.
+    prose = recent_assistant_prose(
+        "sid", FakeCatalog(),
+        max_messages=10, max_age_seconds=180.0,
+    )
+    assert any("FRESH" in p for p in prose)
+    assert any("JUST NOW" in p for p in prose)
+    assert not any("STALE" in p for p in prose), (
+        f"Expected STALE entry dropped, got: {prose}"
+    )
+
+
+def test_recent_assistant_prose_no_age_filter_keeps_old_messages(tmp_path):
+    """When max_age_seconds is None (default), old messages are kept
+    (backward compatibility)."""
+    import json as _json
+    from claude_code_talker.transcript import recent_assistant_prose
+    from datetime import datetime, timezone, timedelta
+
+    transcript = tmp_path / "sess.jsonl"
+    now = datetime.now(timezone.utc)
+    entries = [
+        {
+            "type": "assistant",
+            "timestamp": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+            "message": {"content": [{"type": "text", "text": "OLD"}]},
+        },
+    ]
+    transcript.write_text(
+        "\n".join(_json.dumps(e) for e in entries) + "\n",
+        encoding="utf-8",
+    )
+
+    class FakeEntry:
+        transcript_path = str(transcript)
+
+    class FakeCatalog:
+        def entry_for(self, sid):
+            return FakeEntry()
+
+    # No age filter → 2-hour-old entry should still appear.
+    prose = recent_assistant_prose("sid", FakeCatalog(), max_messages=10)
+    assert any("OLD" in p for p in prose)
+
+
 def test_build_prompt_uses_recent_messages_capped(tmp_path):
     """_build_prompt should call recent_assistant_prose with a small max_messages.
 
@@ -412,11 +560,19 @@ def test_build_prompt_uses_recent_messages_capped(tmp_path):
 
     events = [_make_event(ts=1.0, session_id="sess-A")]
     prompt = mode._build_prompt(events, session_id="sess-A")
-    # With max_messages=4 we should see messages 8–11 (last 4 of 12).
+    # 2026-05-21 — the call site was further tightened from max_messages=4
+    # to max_messages=2 (+ max_age_seconds=180s) after the user heard
+    # 30-minute-old assistant prose bleeding into fresh narrations as if
+    # it were current. Now we expect only messages 10 and 11 (last 2 of
+    # 12). The entries in this test fixture have NO timestamp field, so
+    # the age filter is a no-op for them — only the message-count cap
+    # applies, but it's already strict enough to fix the stale-prose
+    # vector this test was originally guarding against.
     assert '- "Message 11"' in prompt
-    assert '- "Message 8"' in prompt
+    assert '- "Message 10"' in prompt
     # Older messages should be excluded.
-    assert '- "Message 7"' not in prompt
+    assert '- "Message 9"' not in prompt
+    assert '- "Message 8"' not in prompt
     assert '- "Message 0"' not in prompt
     # And the BACKGROUND tag must be present so the LLM knows not to re-narrate.
     assert "BACKGROUND CONTEXT" in prompt
