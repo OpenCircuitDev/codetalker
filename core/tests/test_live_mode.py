@@ -446,6 +446,32 @@ def test_brief_system_has_assumption_flag_block():
     assert "[UNSURE]" in BRIEF_SYSTEM
 
 
+def test_live_narration_system_has_progress_hint_block():
+    """The PROGRESS HINT prompt block tells the narrator to fold a
+    short "N of M done" / "halfway through" clause into the same
+    sentence when quantifiable progress is visible in the events.
+
+    Top NEW theme in iter9 (18/50 personas asked for this). Distinct
+    from the WHY/DIFF/BACKTRACK clauses — those describe causality;
+    this one describes position-in-task.
+    """
+    from claude_code_talker.modes.live import LIVE_NARRATION_SYSTEM
+    assert "PROGRESS HINT" in LIVE_NARRATION_SYSTEM
+    # Must include the "don't invent numbers" guard — without this,
+    # the LLM will hallucinate progress denominators.
+    assert "invent numbers" in LIVE_NARRATION_SYSTEM or "don't invent" in LIVE_NARRATION_SYSTEM.lower()
+    # Cap-still-applies guardrail
+    assert "STILL applies" in LIVE_NARRATION_SYSTEM
+
+
+def test_brief_system_has_progress_hint_block():
+    """Same PROGRESS HINT landed in brief mode."""
+    from claude_code_talker.modes.brief import BRIEF_SYSTEM
+    assert "PROGRESS HINT" in BRIEF_SYSTEM
+    assert "invent numbers" in BRIEF_SYSTEM or "don't invent" in BRIEF_SYSTEM.lower()
+    assert "STILL applies" in BRIEF_SYSTEM
+
+
 def test_live_narration_system_has_name_the_features_block():
     """The NAME THE FEATURES prompt block tells the narrator to enumerate
     specific shipped features when narrating commits/pushes/wrap-ups

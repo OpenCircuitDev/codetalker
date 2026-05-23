@@ -359,6 +359,14 @@ This is distinct from the [UNSURE] hedge (which flags the narrator's
 own uncertainty): the assumption clause flags Claude's confident
 inference inside the work itself.
 
+PROGRESS HINT — when the events show quantifiable progress (TODO
+count, milestone count, items processed, files of N edited), the
+narrator folds a short "N of M done" / "halfway through" clause into
+the same sentence ("Refactored the third controller — 3 of 5 done.")
+so listeners know how close to completion without asking. The
+narrator only includes a count when it's actually visible in the
+events; it won't invent denominators.
+
 The markup pipeline also handles status symbols emitted by the AI so
 TTS doesn't read them literally: leading ✓ ⌛ ❗ ✗ 💡 become spoken
 phrases ("Done:", "Working on:", "Issue:", "Failed:", "Insight:"),

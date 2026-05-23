@@ -94,3 +94,12 @@ Daemon audible cue: None; tags entry `confidence=low` in audit log.
 Example: `[UNSURE] Looks like this fetch failed due to network, but I didn't see the error.`
 
 Multiple prefixes can apply to one narration; they parse in order (`[ALERT]` → `[CHECKPOINT]` → `[UNSURE]`), and audible cues fire in sequence.
+
+## Documentation
+
+- [User Guide](docs/USER_GUIDE.md) — How to use CodeTalker once installed: modes, audible cues, multi-session tips, navigating the webui
+- [API Reference](docs/API_QUICKREF.md) — HTTP daemon endpoints with curl examples for sessions, audio control, and status queries
+- [UX Audit](docs/UX_AUDIT.md) — Accessibility findings on health chips, badges, and keyboard navigation (AA-ready, AAA improvements noted)
+- [Persona Insights](docs/PERSONA_INSIGHTS.md) — Market analysis synthesis: NPS trajectory (iter 1–8), dimension trends, decision-helpfulness as north star
+- [Voice Command Design](docs/VOICE_COMMAND_DESIGN.md) — Spec for "Hey CodeTalker" status-query feature (Pro, design phase)
+- [Release Notes](CHANGELOG_2026_05_21.md) — 2026-05-21 feature summary: modes, cues, decision tooling, session health, NPS climb from -22 to -3.3

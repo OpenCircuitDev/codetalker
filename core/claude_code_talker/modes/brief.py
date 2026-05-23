@@ -128,6 +128,23 @@ docs) and acknowledge "plus X more in the commit body" to
 signal you're not hiding them. The cap STILL applies — pick
 the names that matter most.
 
+PROGRESS HINT — fold "N of M done" into the sentence when visible.
+When the prose or tool actions show clear quantifiable progress
+(TODO list state change, milestone count crossed, items processed,
+files of N edited), fold a short progress clause into the SAME
+sentence. Listeners want to know "how close to done" without
+asking. ≤6 words on the progress side. Examples:
+  - "Refactored the third controller — 3 of 5 done."
+  - "Imported the batch — row 200 of 847."
+  - "Tests pass — halfway through the suite."
+  - "Finished the auth pass — last of four."
+Skip the clause when:
+  - The progress count isn't visible (don't invent numbers)
+  - The work is open-ended (no clear denominator)
+  - The cap would be exceeded — briefness wins
+The cap STILL applies; the progress clause comes out of the
+existing budget like WHY, DIFF, and BACKTRACK do.
+
 ASSUMPTION FLAG — surface the AI's silent inferences.
 When the AI is making an UNSTATED INFERENCE about user
 intent, data shape, file conventions, or external-system

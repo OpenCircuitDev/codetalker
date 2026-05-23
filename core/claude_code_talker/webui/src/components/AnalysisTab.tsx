@@ -8,11 +8,222 @@ interface AnalysisReport {
   modified: number;
 }
 
+interface NarrationEntry {
+  timestamp: number;
+  session_id: string;
+  text: string;
+  checkpoint?: boolean;
+  mode?: string;
+  alert?: boolean;
+  confidence?: string;
+}
+
 interface MarkdownNode {
   type: "h1" | "h2" | "h3" | "p" | "table" | "code" | "list" | "blockquote";
   content: string | MarkdownNode[];
   align?: "left" | "center" | "right";
   rows?: string[][];
+}
+
+/**
+ * Extract keywords from checkpoint text for conflict detection.
+ * Strips common stop words and lowercases for comparison.
+ */
+function extractKeywords(text: string): Set<string> {
+  const stopWords = new Set([
+    "the", "a", "an", "and", "or", "but", "is", "was", "are", "be", "been",
+    "have", "has", "do", "does", "did", "will", "would", "could", "should",
+    "may", "might", "must", "can", "of", "in", "on", "at", "to", "for",
+    "from", "by", "with", "about", "as", "into", "through", "during", "this",
+    "that", "these", "those", "i", "you", "he", "she", "it", "we", "they"
+  ]);
+
+  const words = text.toLowerCase()
+    .replace(/[^\w\s-]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+
+  return new Set(words);
+}
+
+/**
+ * Detect potential conflicts between checkpoint entries.
+ * Returns a list of (indexA, indexB) pairs that share >= 2 keywords.
+ */
+function detectConflicts(entries: NarrationEntry[]): Array<[number, number]> {
+  const conflicts: Array<[number, number]> = [];
+  const keywordsByIdx = entries.map(e => extractKeywords(e.text));
+
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      // Only flag conflicts between different sessions
+      if (entries[i].session_id === entries[j].session_id) continue;
+
+      const intersection = [...keywordsByIdx[i]].filter(
+        k => keywordsByIdx[j].has(k)
+      );
+      if (intersection.length >= 2) {
+        conflicts.push([i, j]);
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+/**
+ * Format timestamp as relative time ("2 min ago") or absolute if older than 1 day.
+ */
+function formatTimestamp(timestamp: number): string {
+  const now = Date.now() / 1000;
+  const diffSecs = now - timestamp;
+
+  if (diffSecs < 60) return "just now";
+  if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)} min ago`;
+  if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h ago`;
+
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/**
+ * Cross-Session Decisions panel component.
+ */
+function CrossSessionDecisionsPanel() {
+  const [checkpoints, setCheckpoints] = useState<NarrationEntry[]>([]);
+  const [conflicts, setConflicts] = useState<Array<[number, number]>>([]);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    const fetchCheckpoints = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/narration-log?limit=200");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Filter to checkpoints only
+        const checkpointEntries = (data || []).filter(
+          (e: NarrationEntry) => e.checkpoint === true
+        );
+
+        // Sort chronologically (oldest first for timeline view)
+        checkpointEntries.sort((a: NarrationEntry, b: NarrationEntry) =>
+          a.timestamp - b.timestamp
+        );
+
+        setCheckpoints(checkpointEntries);
+        setConflicts(detectConflicts(checkpointEntries));
+      } catch (e) {
+        console.error("Failed to load checkpoints:", e);
+        setCheckpoints([]);
+        setConflicts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCheckpoints();
+  }, []);
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="w-full px-4 py-2 text-left text-xs font-semibold text-cyan-400 hover:bg-zinc-800 border-b border-zinc-700"
+      >
+        ◀ Cross-Session Decisions ({checkpoints.length} entries)
+      </button>
+    );
+  }
+
+  const conflictSet = new Set(conflicts.flatMap(([i, j]) => [i, j]));
+  const hasConflicts = conflicts.length > 0;
+
+  return (
+    <div className="border-b border-zinc-700 bg-zinc-900 bg-opacity-50">
+      <button
+        onClick={() => setExpanded(false)}
+        className="w-full px-4 py-3 text-left border-b border-zinc-700 hover:bg-zinc-800 transition-colors flex items-center justify-between"
+      >
+        <div>
+          <h3 className="text-sm font-bold text-[var(--color-text-1)]">
+            ◀ Cross-Session Decisions
+          </h3>
+          <p className="text-xs text-[var(--color-text-3)] mt-1">
+            {checkpoints.length} architectural decision{checkpoints.length !== 1 ? "s" : ""} logged
+            {hasConflicts && (
+              <span className="text-orange-400 font-semibold ml-2">
+                • {conflicts.length} potential conflict{conflicts.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </p>
+        </div>
+      </button>
+
+      <div className="px-4 py-4 max-h-96 overflow-y-auto">
+        {loading && (
+          <div className="text-xs text-[var(--color-text-3)]">Loading...</div>
+        )}
+
+        {!loading && checkpoints.length === 0 && (
+          <div className="text-xs text-[var(--color-text-3)] leading-relaxed">
+            <p>
+              No architectural decisions logged yet. The narrator emits these as{" "}
+              <code className="bg-zinc-800 px-1 py-0.5 rounded text-xs font-mono text-cyan-300">
+                [CHECKPOINT]
+              </code>{" "}
+              markers when Claude commits to a schema, API shape, dependency, or migration approach.
+            </p>
+          </div>
+        )}
+
+        {!loading && checkpoints.length > 0 && (
+          <div className="space-y-3">
+            {checkpoints.map((entry, idx) => {
+              const hasConflict = conflictSet.has(idx);
+              const conflictPartners = conflicts
+                .filter(([i, j]) => i === idx || j === idx)
+                .map(([i, j]) => (i === idx ? j : i));
+
+              return (
+                <div
+                  key={`${entry.timestamp}-${entry.session_id}`}
+                  className={`p-3 rounded text-xs border ${
+                    hasConflict
+                      ? "border-orange-700 bg-orange-900 bg-opacity-20"
+                      : "border-zinc-700 bg-zinc-800 bg-opacity-30"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-1 bg-cyan-900 bg-opacity-50 rounded text-cyan-300 font-mono text-xs">
+                          {entry.session_id.slice(0, 8)}
+                        </span>
+                        <span className="text-[var(--color-text-3)]">
+                          {formatTimestamp(entry.timestamp)}
+                        </span>
+                        {hasConflict && (
+                          <span title={`Related to: ${checkpoints[conflictPartners[0]].session_id.slice(0, 8)}`} className="text-orange-400 font-bold">
+                            ⚠
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[var(--color-text-1)] leading-relaxed">
+                        {entry.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -432,6 +643,7 @@ export function AnalysisTab() {
               )}
             </header>
           )}
+          <CrossSessionDecisionsPanel />
           <div className="flex-1 overflow-y-auto">
             {error && selectedReport && (
               <div className="p-6 text-sm text-red-400">{error}</div>
